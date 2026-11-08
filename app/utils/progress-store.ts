@@ -122,3 +122,12 @@ export function createProgressStore(
     },
   }
 }
+
+/** `window.localStorage`, or null when reading it throws (privacy modes, sandboxed frames). */
+export function browserStorage(): StorageLike | null {
+  try {
+    return window.localStorage
+  } catch {
+    return null
+  }
+}

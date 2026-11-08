@@ -87,7 +87,8 @@ const buttonListeners = computed(() => (button.value.enabled ? { click: () => em
         </ul>
       </div>
 
-      <PathFreshList :items="fresh" :layout="layout" />
+      <!-- Hidden until the node has real content (spec: local-progress-data, Req 5.2). -->
+      <PathFreshList v-if="fresh.length > 0" :items="fresh" :layout="layout" />
     </template>
 
     <button

@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import type { Progress } from '../../shared/types/progress'
 import type { SkillNode, SkillTree } from '../../shared/types/skill-tree'
-import { levelFor, STATIC_STREAK, XP_PER_NODE, xpSummary } from '../../shared/utils/xp'
+import { levelFor, XP_PER_NODE, xpSummary } from '../../shared/utils/xp'
 
 const node = (id: string): SkillNode => ({
   id,
@@ -61,9 +61,5 @@ describe('xpSummary', () => {
       barPercent: 100,
       label: `${xp} XP`,
     })
-  })
-
-  it('keeps the streak placeholder at 6', () => {
-    expect(STATIC_STREAK).toBe(6)
   })
 })

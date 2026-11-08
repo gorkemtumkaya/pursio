@@ -15,7 +15,12 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 - The start page now asks what you want to get better at: type a hobby or tap an example, and Pursio builds your skill tree and opens it as your path. (spec: ai-skill-tree-generation)
 - Your generated path is kept in your browser, so it is still at `/path` when you come back, and a "Generated with <model>" label shows which AI model built it. (spec: ai-skill-tree-generation)
 - A Settings page lets you pick the AI provider and model and use your own API key, which stays in your browser, with a "Test connection" button to check it works. (spec: ai-skill-tree-generation)
+- Your streak now counts the real days in a row on which you completed a skill, and stays alive until the end of the next day. (spec: local-progress-data)
+- The "This week" card shows which days this week you completed a skill. (spec: local-progress-data)
+- Every hobby you build is kept with its own progress: switch between them from the sidebar on desktop or the hobby button on mobile, and use "+ Add a hobby" to build another. (spec: local-progress-data)
 
 ### Changed
 
 - Completed skills in the trail and halloween themes use a slightly darker color, so the white text on them is easier to read. (spec: skill-path-ui)
+- A path you built before this update moves into your hobby list with its progress. Opening `/path` with no hobbies yet takes you to the start page. (spec: local-progress-data)
+- The Fresh, Quests and Profile menu items and the "Fresh this week" cards are hidden until those features exist. The demo at `/path?demo=1` still shows them as samples. (spec: local-progress-data)

@@ -4,17 +4,26 @@ import type { SkillTree } from '#shared/types/skill-tree'
 import { formatValidationError, loadSkillTree } from '#shared/utils/skill-tree-load'
 import sample from '~~/data/sample-bouldering.json'
 import PathView from '~/components/path/PathView.vue'
-import { GENERATED_PROGRESS_KEY, loadGeneratedTree } from '~/utils/generated-tree'
-import { progressStorageKey, type StorageLike } from '~/utils/progress-store'
+import { DEMO_ACTIVE_ID, demoHobbyEntries } from '~/utils/demo-placeholders'
+import {
+  hobbyEntries,
+  hobbyProgressKey,
+  loadHobbyLibrary,
+  pickHobby,
+  setActiveHobby,
+  type HobbyEntry,
+} from '~/utils/hobby-store'
+import { browserStorage, progressStorageKey } from '~/utils/progress-store'
 
 /**
- * Chooses which tree `PathView` shows (design "Lifecycle and hydration on /path").
- * `?demo=1` renders the Sample_Tree during SSR (Req 10.4). Otherwise the saved
- * Generated_Tree lives in localStorage, so SSR and the first client render show
- * the loading state and the choice happens after mount (Req 10.3, 10.5, 10.6).
+ * Chooses which tree `PathView` shows. `?demo=1` renders the Sample_Tree during
+ * SSR. Otherwise the Hobby_Library lives in localStorage, so SSR and the first
+ * client render show the loading state and the choice happens after mount:
+ * `?hobby=<id>`, else the Active_Hobby, else the last added hobby; an empty
+ * library opens the Start_Screen (spec: local-progress-data, Req 3.6, 3.7).
  */
 
-// Remount when only the query changes, so switching to or from ?demo=1 re-chooses.
+// Remount when only the query changes, so switching hobby or to and from ?demo=1 re-chooses.
 definePageMeta({ key: route => route.fullPath })
 
 useHead({ title: 'Your path · Pursio' })
@@ -22,44 +31,55 @@ useHead({ title: 'Your path · Pursio' })
 interface TreeChoice {
   tree: SkillTree
   progressKey: string
-  /** Model id for a Generated_Tree, null for the Sample_Tree. */
+  /** Model id for a generated hobby, null for the Sample_Tree. */
   model: string | null
+  demo: boolean
+  hobbies: HobbyEntry[]
+  activeId: string
 }
 
 const route = useRoute()
 const isDemo = route.query.demo === '1'
 
-const sampleLoaded = loadSkillTree(sample)
+const sampleLoaded = isDemo ? loadSkillTree(sample) : null
 
-/** First Validation_Error as text, or null when the Sample_Tree is valid (Req 3.8). */
-const loadError = sampleLoaded.ok ? null : formatValidationError(sampleLoaded.errors[0]!)
+/** First Validation_Error of the Sample_Tree as text, or null. */
+const loadError = sampleLoaded && !sampleLoaded.ok ? formatValidationError(sampleLoaded.errors[0]!) : null
 
-/** Sample_Tree keeps its hobby Progress key, separate from the Generated_Tree (Req 10.2). */
-const sampleChoice: TreeChoice | null = sampleLoaded.ok
-  ? { tree: sampleLoaded.value, progressKey: progressStorageKey(sampleLoaded.value.hobby), model: null }
+/** The Sample_Tree keeps its hobby Progress key, separate from every library entry. */
+const demoChoice: TreeChoice | null = sampleLoaded?.ok
+  ? {
+      tree: sampleLoaded.value,
+      progressKey: progressStorageKey(sampleLoaded.value.hobby),
+      model: null,
+      demo: true,
+      hobbies: demoHobbyEntries(sampleLoaded.value.hobby),
+      activeId: DEMO_ACTIVE_ID,
+    }
   : null
 
-const choice = shallowRef<TreeChoice | null>(isDemo ? sampleChoice : null)
+const choice = shallowRef<TreeChoice | null>(demoChoice)
 
 /** True once the choice is made: at setup for `?demo=1`, after mount otherwise. */
 const chosen = shallowRef(isDemo)
 
-/** Reading `window.localStorage` can throw (privacy modes, sandboxed frames). */
-function browserStorage(): StorageLike | null {
-  try {
-    return window.localStorage
-  } catch {
-    return null
-  }
-}
-
-onMounted(() => {
+onMounted(async () => {
   if (isDemo) return
-  // An invalid saved value is removed by the loader (Req 10.6).
-  const generated = loadGeneratedTree(browserStorage)
-  choice.value = generated
-    ? { tree: generated.tree, progressKey: GENERATED_PROGRESS_KEY, model: generated.model }
-    : sampleChoice
+  const library = loadHobbyLibrary(browserStorage)
+  const picked = pickHobby(library, route.query.hobby)
+  if (!picked) {
+    await navigateTo('/', { replace: true })
+    return
+  }
+  setActiveHobby(browserStorage, picked.id)
+  choice.value = {
+    tree: picked.tree,
+    progressKey: hobbyProgressKey(picked.id),
+    model: picked.model,
+    demo: false,
+    hobbies: hobbyEntries(browserStorage, library),
+    activeId: picked.id,
+  }
   chosen.value = true
 })
 </script>
@@ -71,6 +91,9 @@ onMounted(() => {
     :tree="choice.tree"
     :progress-key="choice.progressKey"
     :model="choice.model"
+    :demo="choice.demo"
+    :hobbies="choice.hobbies"
+    :active-id="choice.activeId"
   />
   <main v-else class="mx-auto w-full max-w-160">
     <PathStatus v-if="chosen && loadError !== null" state="error" :message="loadError" />

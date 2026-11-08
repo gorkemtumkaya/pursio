@@ -6,6 +6,7 @@ import { loadSkillTree } from '../../shared/utils/skill-tree-load'
 import {
   activeSectionIndex,
   checkedCount,
+  completionPercent,
   deriveNodeStates,
   diffUnlocked,
   emptyProgress,
@@ -139,5 +140,19 @@ describe('progress engine on the Sample_Tree', () => {
       false,
     ])
     expect(toggleQuest(sample, p1, 'not-a-skill', 0)).toBe(p1)
+  })
+})
+
+describe('completionPercent', () => {
+  it('rounds the share of completed nodes and ignores unknown ids', () => {
+    const tree: SkillTree = {
+      hobby: 'h',
+      sections: [{ title: 'S', level: 'beginner', nodes: [node('a', []), node('b', ['a']), node('c', ['b'])] }],
+      mascot: { set: 'explorer' },
+    }
+    expect(completionPercent(tree, emptyProgress())).toBe(0)
+    expect(completionPercent(tree, { completed: ['a', 'ghost'], quests: {} })).toBe(33)
+    expect(completionPercent(tree, { completed: ['a', 'b'], quests: {} })).toBe(67)
+    expect(completionPercent(tree, { completed: ['a', 'b', 'c'], quests: {} })).toBe(100)
   })
 })

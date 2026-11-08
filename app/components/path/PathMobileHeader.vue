@@ -1,11 +1,19 @@
 <script setup lang="ts">
+import { useTemplateRef } from 'vue'
 import type { XpSummary } from '#shared/utils/xp'
 
 /**
- * Mobile header, two rows (Req 11.7): hobby switcher, streak and XP on top;
- * level, XP bar and XP text below. The hobby switcher is a no-op (Req 12.8).
+ * Mobile header, two rows (Req 11.7): Hobby_Switcher, streak and XP on top;
+ * level, XP bar and XP text below. The Hobby_Switcher asks the Path_View to
+ * open the hobby Bottom_Sheet (spec: local-progress-data, Req 4.3).
  */
-defineProps<{ hobby: string; xp: XpSummary; streak: number }>()
+defineProps<{ hobby: string; xp: XpSummary; streak: number; switcherOpen: boolean }>()
+const emit = defineEmits<{ switch: [] }>()
+
+const switcher = useTemplateRef<HTMLButtonElement>('switcher')
+
+/** Focus return after the hobby Bottom_Sheet closes. */
+defineExpose({ focusSwitcher: () => switcher.value?.focus() })
 </script>
 
 <template>
@@ -13,8 +21,12 @@ defineProps<{ hobby: string; xp: XpSummary; streak: number }>()
     <h1 class="sr-only">{{ hobby }}</h1>
     <div class="flex items-center justify-between gap-3">
       <button
+        ref="switcher"
         type="button"
+        aria-haspopup="dialog"
+        :aria-expanded="switcherOpen"
         class="flex h-11 min-w-11 items-center gap-2 rounded-2xl border-2 border-line bg-surface pr-3 pl-1.5 text-[15px] font-extrabold text-ink focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink"
+        @click="emit('switch')"
       >
         <span
           class="flex size-7.5 shrink-0 items-center justify-center rounded-node bg-primary text-primary-ink"

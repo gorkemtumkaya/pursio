@@ -2,7 +2,7 @@
 import { ref } from 'vue'
 import type { ErrorCode } from '#shared/types/llm'
 import { loadSkillTree } from '#shared/utils/skill-tree-load'
-import { saveGeneratedTree } from '~/utils/generated-tree'
+import { addHobby, hobbyPath } from '~/utils/hobby-store'
 import { loadSettings } from '~/utils/llm-settings'
 import type { StorageLike } from '~/utils/progress-store'
 import { buildTreeRequest, errorCodeFrom, friendlyMessage } from '~/utils/tree-client'
@@ -56,8 +56,9 @@ async function generate(): Promise<void> {
     const loaded = loadSkillTree(record.tree)
     const model = record.model
     if (loaded.ok && typeof model === 'string' && model.length > 0) {
-      saveGeneratedTree(browserStorage, { tree: loaded.value, model })
-      await navigateTo('/path')
+      // Kept in the Hobby_Library next to earlier hobbies (spec: local-progress-data, Req 3.1).
+      const id = addHobby(browserStorage, { tree: loaded.value, model })
+      await navigateTo(hobbyPath(id))
       return
     }
     code = errorCodeFrom(response)

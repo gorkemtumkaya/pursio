@@ -16,7 +16,6 @@ export interface XpSummary {
 export const XP_PER_NODE = 50
 /** Level n starts at LEVEL_THRESHOLDS[n - 1]. */
 export const LEVEL_THRESHOLDS = [0, 100, 200, 400, 700] as const
-export const STATIC_STREAK = 6
 
 /** 50 × the number of distinct completed ids that exist in the tree. */
 export function xpFor(tree: SkillTree, progress: Progress): number {

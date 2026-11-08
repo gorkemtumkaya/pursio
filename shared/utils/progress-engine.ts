@@ -121,3 +121,11 @@ export function activeSectionIndex(tree: SkillTree, progress: Progress): number 
   }
   return Math.max(0, tree.sections.length - 1)
 }
+
+/** Whole percent of the tree's nodes that are completed; ids not in the tree are ignored. */
+export function completionPercent(tree: SkillTree, progress: Progress): number {
+  const ids = new Set(tree.sections.flatMap((s) => s.nodes.map((n) => n.id)))
+  if (ids.size === 0) return 0
+  const done = new Set(progress.completed.filter((id) => ids.has(id)))
+  return Math.round((done.size / ids.size) * 100)
+}

@@ -1,11 +1,13 @@
 <script setup lang="ts">
 import { computed, nextTick, onBeforeUnmount, ref, shallowRef, useTemplateRef } from 'vue'
 import type { QuestTriple, SkillNode, SkillTree } from '#shared/types/skill-tree'
-import { STATIC_STREAK } from '#shared/utils/xp'
+import { completionPercent } from '#shared/utils/progress-engine'
+import { useActivity } from '~/composables/useActivity'
 import { usePathLayout } from '~/composables/usePathLayout'
 import { useSkillPath } from '~/composables/useSkillPath'
 import { useViewportClass } from '~/composables/useViewportClass'
 import { freshFor } from '~/utils/fresh-samples'
+import type { HobbyEntry } from '~/utils/hobby-store'
 import { detailTitleId } from '~/utils/node-visual'
 
 /**
@@ -21,11 +23,18 @@ const props = defineProps<{
   progressKey: string
   /** Model id of a Generated_Tree; null for the Sample_Tree (Req 10.7). */
   model: string | null
+  /** Demo_Mode: demo streak, week, hobbies and Fresh samples, no Completion_Log writes. */
+  demo: boolean
+  /** Hobby list for the sidebar and Hobby_Switcher, with stored percents. */
+  hobbies: readonly HobbyEntry[]
+  /** Entry shown here; its percent follows live Progress. */
+  activeId: string
 }>()
 
 const tree: SkillTree = props.tree
 
 const { progress, states, currentId, activeSection, xp, toggleQuest, complete } = useSkillPath(tree, props.progressKey)
+const activity = useActivity(props.demo)
 const viewport = useViewportClass()
 const { status, layout } = usePathLayout(tree, viewport)
 
@@ -41,7 +50,6 @@ tree.sections.forEach((section, s) => {
     nodeIndex.set(node.id, { node, position: { section: s + 1, skill: n + 1 } })
   })
 })
-const totalNodes = nodeIndex.size
 const lastNodeId = tree.sections.at(-1)?.nodes.at(-1)?.id ?? null
 
 // Selection state. All of it lives here, so a viewport switch keeps it (Req 12.10).
@@ -74,14 +82,29 @@ const detail = computed(() => {
     lockedBy: node.prerequisites
       .filter(p => stateMap.get(p) !== 'completed')
       .map(p => nodeIndex.get(p)?.node.title ?? p),
-    fresh: freshFor(node.id),
+    // No real content pipeline yet: only the demo shows Fresh samples (spec: local-progress-data, Req 5.3).
+    fresh: props.demo ? freshFor(node.id) : [],
   }
 })
 
-/** Share of all nodes completed, for the sidebar hobby card. */
-const percentComplete = computed(() =>
-  totalNodes === 0 ? 0 : Math.round((progress.value.completed.length / totalNodes) * 100),
-)
+/** Hobby list with the shown hobby's percent following live Progress (spec: local-progress-data, Req 4.2). */
+const hobbyList = computed<HobbyEntry[]>(() => {
+  const live = completionPercent(tree, progress.value)
+  return props.hobbies.map(entry => (entry.id === props.activeId ? { ...entry, percent: live } : entry))
+})
+
+/** Mobile hobby Bottom_Sheet (spec: local-progress-data, Req 4.3). */
+const hobbySheetOpen = ref(false)
+
+interface MobileHeaderHandle {
+  focusSwitcher(): void
+}
+const mobileHeader = useTemplateRef<MobileHeaderHandle>('mobileHeader')
+
+function closeHobbySheet(): void {
+  hobbySheetOpen.value = false
+  void nextTick(() => mobileHeader.value?.focusSwitcher())
+}
 
 interface CanvasHandle {
   focusNode(id: string): void
@@ -143,6 +166,7 @@ function prefersReducedMotion(): boolean {
 function onComplete(id: string): void {
   const outcome = complete(id)
   if (outcome === null) return
+  activity.record()
 
   clearAnimationTimer()
   if (prefersReducedMotion() || outcome.unlocked.length === 0) {
@@ -187,13 +211,21 @@ function onContinue(): void {
 <template>
   <div class="lg:grid lg:grid-cols-[248px_minmax(0,1fr)_clamp(360px,30vw,460px)]">
     <div class="hidden lg:block">
-      <PathSidebar :hobby="tree.hobby" :percent="percentComplete" />
+      <PathSidebar :hobbies="hobbyList" :active-id="activeId" />
     </div>
 
     <main class="mx-auto w-full min-w-0 max-w-160">
-      <PathMobileHeader class="lg:hidden" :hobby="tree.hobby" :xp="xp" :streak="STATIC_STREAK" />
+      <PathMobileHeader
+        ref="mobileHeader"
+        class="lg:hidden"
+        :hobby="tree.hobby"
+        :xp="xp"
+        :streak="activity.streak.value"
+        :switcher-open="hobbySheetOpen"
+        @switch="hobbySheetOpen = true"
+      />
       <div class="hidden px-6 pt-7 pb-4 lg:block">
-        <PathDesktopHeader :hobby="tree.hobby" :xp="xp" :streak="STATIC_STREAK" />
+        <PathDesktopHeader :hobby="tree.hobby" :xp="xp" :streak="activity.streak.value" />
       </div>
 
       <div class="pt-4 lg:pt-2">
@@ -235,7 +267,7 @@ function onContinue(): void {
           @toggle="onToggle(detail.node.id, $event)"
           @complete="onComplete(detail.node.id)"
         />
-        <PathWeekCard />
+        <PathWeekCard :days="activity.week.value" :summary="activity.weekSummary.value" />
       </PathSidePanel>
     </div>
   </div>
@@ -261,6 +293,21 @@ function onContinue(): void {
       layout="sheet"
       @toggle="onToggle(detail.node.id, $event)"
       @complete="onComplete(detail.node.id)"
+    />
+  </PathBottomSheet>
+
+  <PathBottomSheet
+    v-if="viewport === 'mobile'"
+    :open="hobbySheetOpen"
+    labelled-by="sheet-hobbies"
+    @close="closeHobbySheet"
+  >
+    <PathHobbyList
+      :hobbies="hobbyList"
+      :active-id="activeId"
+      heading-id="sheet-hobbies"
+      layout="sheet"
+      @navigate="closeHobbySheet"
     />
   </PathBottomSheet>
 
