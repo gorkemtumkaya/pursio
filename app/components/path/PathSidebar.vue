@@ -3,7 +3,7 @@ import type { HobbyEntry } from '~/utils/hobby-store'
 
 /**
  * Desktop left sidebar: logo, main navigation and the hobby list (Req 12.3;
- * spec: local-progress-data, Req 4.1).
+ * spec: local-progress-data, Req 4.1), with a Settings link pinned to the bottom.
  */
 defineProps<{ hobbies: readonly HobbyEntry[]; archived: readonly HobbyEntry[]; activeId: string | null }>()
 const emit = defineEmits<{ archive: [entry: HobbyEntry]; delete: [entry: HobbyEntry]; restore: [entry: HobbyEntry] }>()
@@ -35,5 +35,13 @@ const emit = defineEmits<{ archive: [entry: HobbyEntry]; delete: [entry: HobbyEn
       @delete="emit('delete', $event)"
       @restore="emit('restore', $event)"
     />
+
+    <NuxtLink
+      to="/settings"
+      class="mt-auto flex h-12 w-full shrink-0 items-center gap-3 rounded-2xl px-3.5 text-[15px] font-extrabold text-muted hover:bg-surface-2 hover:text-ink focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink"
+    >
+      <PathIcon name="settings" class="size-5.5 shrink-0" />
+      <span>Settings</span>
+    </NuxtLink>
   </nav>
 </template>

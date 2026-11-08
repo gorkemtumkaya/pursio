@@ -1,57 +1,12 @@
 /*
  * Theme tokens. Each theme sets every --pursio-* variable.
- * The active theme is chosen by data-theme on <html>; no attribute = trail.
+ * The active theme is chosen by data-theme on <html>; no attribute = boulder
+ * (the default). Boulder comes first so an explicit data-theme, which has the
+ * same specificity as :root, always wins.
  * Tailwind utilities read these through the @theme mapping in main.css.
  */
 
 :root,
-[data-theme="trail"] {
-  color-scheme: light;
-
-  --pursio-bg: #f2f4ef;
-  --pursio-surface: #ffffff;
-  --pursio-surface-2: #e7ece4;
-  --pursio-ink: #16211b;
-  --pursio-muted: #56635b;
-  --pursio-line: #d3dbd0;
-
-  --pursio-primary: #ff6a3d;
-  --pursio-primary-deep: #c2441c;
-  --pursio-primary-ink: #1a120d;
-  --pursio-primary-soft: #ffe4d9;
-  --pursio-accent-text: #b23d16;
-
-  --pursio-danger: #c62828;
-  --pursio-danger-deep: #8e1c1c;
-  --pursio-danger-ink: #ffffff;
-  --pursio-danger-text: #b3261e;
-
-  --pursio-done: #1c8468;
-  --pursio-done-deep: #12634d;
-  --pursio-done-ink: #ffffff;
-
-  --pursio-locked: #dce2d9;
-  --pursio-locked-deep: #bac3b6;
-  --pursio-locked-ink: #6f7a72;
-
-  --pursio-gold: #f2b33d;
-  --pursio-gold-deep: #b47d0e;
-  --pursio-trail: #c3ccbf;
-
-  --pursio-banner: #16211b;
-  --pursio-banner-deep: #05100a;
-  --pursio-banner-ink: #f2f4ef;
-  --pursio-banner-muted: #a9b5ad;
-
-  --pursio-overlay: rgba(22, 33, 27, 0.55);
-
-  --pursio-radius-node: 50%;
-
-  --pursio-font-head: "Fredoka", ui-rounded, system-ui, sans-serif;
-  --pursio-font-display: "Fredoka", ui-rounded, system-ui, sans-serif;
-  --pursio-font-body: "Nunito Sans", system-ui, sans-serif;
-}
-
 [data-theme="boulder"] {
   color-scheme: light;
 
@@ -97,6 +52,53 @@
   --pursio-font-head: "Archivo Black", "Archivo", system-ui, sans-serif;
   --pursio-font-display: "Archivo Black", "Archivo", system-ui, sans-serif;
   --pursio-font-body: "Archivo", system-ui, sans-serif;
+}
+
+[data-theme="trail"] {
+  color-scheme: light;
+
+  --pursio-bg: #f2f4ef;
+  --pursio-surface: #ffffff;
+  --pursio-surface-2: #e7ece4;
+  --pursio-ink: #16211b;
+  --pursio-muted: #56635b;
+  --pursio-line: #d3dbd0;
+
+  --pursio-primary: #ff6a3d;
+  --pursio-primary-deep: #c2441c;
+  --pursio-primary-ink: #1a120d;
+  --pursio-primary-soft: #ffe4d9;
+  --pursio-accent-text: #b23d16;
+
+  --pursio-danger: #c62828;
+  --pursio-danger-deep: #8e1c1c;
+  --pursio-danger-ink: #ffffff;
+  --pursio-danger-text: #b3261e;
+
+  --pursio-done: #1c8468;
+  --pursio-done-deep: #12634d;
+  --pursio-done-ink: #ffffff;
+
+  --pursio-locked: #dce2d9;
+  --pursio-locked-deep: #bac3b6;
+  --pursio-locked-ink: #6f7a72;
+
+  --pursio-gold: #f2b33d;
+  --pursio-gold-deep: #b47d0e;
+  --pursio-trail: #c3ccbf;
+
+  --pursio-banner: #16211b;
+  --pursio-banner-deep: #05100a;
+  --pursio-banner-ink: #f2f4ef;
+  --pursio-banner-muted: #a9b5ad;
+
+  --pursio-overlay: rgba(22, 33, 27, 0.55);
+
+  --pursio-radius-node: 50%;
+
+  --pursio-font-head: "Fredoka", ui-rounded, system-ui, sans-serif;
+  --pursio-font-display: "Fredoka", ui-rounded, system-ui, sans-serif;
+  --pursio-font-body: "Nunito Sans", system-ui, sans-serif;
 }
 
 [data-theme="halloween"] {

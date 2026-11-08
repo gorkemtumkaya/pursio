@@ -18,7 +18,7 @@ const props = withDefaults(
     /** Accessible name; defaults to a description of the mood */
     label?: string
   }>(),
-  { theme: 'trail', mood: 'idle', outfit: 'none', size: 160, animated: true, label: undefined },
+  { theme: 'boulder', mood: 'idle', outfit: 'none', size: 160, animated: true, label: undefined },
 )
 
 const emit = defineEmits<{ 'cheer-end': [] }>()
@@ -30,7 +30,7 @@ const ids = {
   halo: `wick-halo-${uid}`,
 }
 
-const c = computed(() => WICK_PALETTES[props.theme] ?? WICK_PALETTES.trail)
+const c = computed(() => WICK_PALETTES[props.theme] ?? WICK_PALETTES.boulder)
 const height = computed(() => Math.round(props.size * 1.2))
 const costume = computed(() => (props.outfit === 'none' ? props.theme : null))
 

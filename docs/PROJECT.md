@@ -17,7 +17,7 @@ Beginner and intermediate hobbyists who want to get better or feel stuck, and se
 A small lantern spirit that lights the next step on your path. One base character with three slots (head, hand, side). The AI picks an accessory set from a fixed library based on the hobby (bouldering, photography, cooking, guitar, gardening, reading, explorer as fallback). Moods: idle, cheering, thinking (loading), sleepy (streak lost).
 
 ## Themes
-All visuals come from design tokens (colors, fonts, node shape, path style), so themes are swappable: "trail" (default), "boulder" and "halloween". The theme sets the colors; the hobby sets Wick's outfit.
+All visuals come from design tokens (colors, fonts, node shape, path style), so themes are swappable: "boulder" (default), "trail" and "halloween". The theme sets the colors; the hobby sets Wick's outfit.
 
 ## MVP scope (hackathon, Nov 8 – Dec 4, 2026)
 In: AI skill tree generation, path view, node detail with quests, progress (XP, levels, streak), fresh content per node (RSS + YouTube, AI-tagged and summarized), Wick with hobby outfits, landing page with live "type a hobby, get a tree" demo + waitlist.

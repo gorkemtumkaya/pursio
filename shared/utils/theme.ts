@@ -1,7 +1,8 @@
 import type { Theme } from '../types/theme'
 
-export const THEMES: readonly Theme[] = ['trail', 'boulder', 'halloween']
-export const DEFAULT_THEME: Theme = 'trail'
+/** In the order shown in Settings; the default first. */
+export const THEMES: readonly Theme[] = ['boulder', 'trail', 'halloween']
+export const DEFAULT_THEME: Theme = 'boulder'
 export const THEME_STORAGE_KEY = 'pursio-theme'
 
 export function isTheme(value: unknown): value is Theme {

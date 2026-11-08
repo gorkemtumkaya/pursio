@@ -1,16 +1,22 @@
 <script setup lang="ts">
 import { computed, onMounted, ref, watch } from 'vue'
 import type { ErrorCode, Provider } from '#shared/types/llm'
+import type { Theme } from '#shared/types/theme'
 import { KEY_HEADER, MODEL_PRESETS, PROVIDERS, PROVIDER_LABELS } from '#shared/utils/llm'
 import { effectiveModel, emptySettings, loadSettings, saveSettings, type LlmSettings } from '~/utils/llm-settings'
 import type { StorageLike } from '~/utils/progress-store'
 import { errorCodeFrom, friendlyMessage } from '~/utils/tree-client'
 
 /**
- * Settings_Page (design "Settings_Page"). Provider, model and API key live in
- * this browser only (Req 11); "Test connection" checks them via the Test_Route (Req 12).
+ * Settings_Page (design "Settings_Page"). Theme applies at once and is saved in
+ * this browser. Provider, model and API key live in this browser only (Req 11);
+ * "Test connection" checks them via the Test_Route (Req 12).
  */
 useHead({ title: 'Settings · Pursio' })
+
+const { theme, themes, setTheme } = useTheme()
+
+const THEME_LABELS: Record<Theme, string> = { boulder: 'Boulder', trail: 'Trail', halloween: 'Halloween' }
 
 /** Client-side limit; the Test_Route itself gives up after 15 s (Req 12.3). */
 const TIMEOUT_MS = 20_000
@@ -105,6 +111,40 @@ async function testConnection(): Promise<void> {
         Back
       </NuxtLink>
     </div>
+
+    <section class="rounded-3xl bg-surface p-6">
+      <fieldset class="flex flex-col">
+        <legend class="mb-3 font-head text-lg font-semibold text-ink">Theme</legend>
+        <div class="grid grid-cols-3 gap-3">
+          <!-- Each card sets its own data-theme, so it previews that theme with the same tokens. -->
+          <label
+            v-for="name in themes"
+            :key="name"
+            :data-theme="name"
+            class="flex min-h-11 cursor-pointer flex-col gap-3 rounded-2xl border-2 border-line bg-bg p-3 text-ink has-checked:border-ink has-focus-visible:outline-2 has-focus-visible:outline-offset-2 has-focus-visible:outline-ink"
+          >
+            <input
+              type="radio"
+              name="theme"
+              :value="name"
+              :checked="theme === name"
+              class="sr-only"
+              @change="setTheme(name)"
+            >
+            <span aria-hidden="true" class="flex items-center gap-1.5">
+              <span class="size-5 rounded-node bg-primary" />
+              <span class="size-5 rounded-node bg-done" />
+              <span class="size-5 rounded-node bg-gold" />
+            </span>
+            <span class="flex items-center justify-between gap-1">
+              <span class="font-head text-base font-semibold">{{ THEME_LABELS[name] }}</span>
+              <PathIcon v-if="theme === name" name="check" class="size-4.5 shrink-0 text-done" />
+            </span>
+            <span v-if="name === DEFAULT_THEME" class="-mt-2 text-xs font-bold text-muted">Default</span>
+          </label>
+        </div>
+      </fieldset>
+    </section>
 
     <form class="flex flex-col gap-6 rounded-3xl bg-surface p-6" @submit.prevent="testConnection">
       <fieldset class="flex flex-col gap-3">

@@ -26,7 +26,7 @@ export default defineNuxtConfig({
   },
   app: {
     head: {
-      // data-theme is managed by useTheme(); no attribute means "trail".
+      // data-theme is managed by useTheme(); no attribute means "boulder" (DEFAULT_THEME).
       htmlAttrs: { lang: 'en' },
       title: 'Pursio',
       link: [
