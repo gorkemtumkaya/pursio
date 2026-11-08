@@ -23,8 +23,6 @@ import { detailTitleId } from '~/utils/node-visual'
 const props = defineProps<{
   tree: SkillTree
   progressKey: string
-  /** Model id of a Generated_Tree; null for the Sample_Tree (Req 10.7). */
-  model: string | null
   /** Demo_Mode: demo streak, week, hobbies and Fresh samples, no Completion_Log writes. */
   demo: boolean
   /** Hobby list for the sidebar and Hobby_Switcher, with stored percents. */
@@ -297,7 +295,7 @@ function onContinue(): void {
         />
       </div>
 
-      <div class="pt-4 lg:pt-2">
+      <div class="pt-4 lg:pt-2" :class="{ 'pb-24 lg:pb-6': status === 'ready' && layout }">
         <PathCanvas
           v-if="status === 'ready' && layout"
           ref="canvas"
@@ -317,7 +315,6 @@ function onContinue(): void {
             :message="status === 'error' ? 'This path could not be drawn.' : undefined"
           />
         </div>
-        <p v-if="model" class="px-6 pt-2 pb-24 text-xs text-muted lg:pb-6">Generated with {{ model }}</p>
       </div>
     </main>
 

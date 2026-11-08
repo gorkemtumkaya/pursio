@@ -40,8 +40,6 @@ useHead({ title: 'Your path · Pursio' })
 interface TreeChoice {
   tree: SkillTree
   progressKey: string
-  /** Model id for a generated hobby, null for the Sample_Tree. */
-  model: string | null
   demo: boolean
   hobbies: HobbyEntry[]
   archived: HobbyEntry[]
@@ -61,7 +59,6 @@ const demoChoice: TreeChoice | null = sampleLoaded?.ok
   ? {
       tree: sampleLoaded.value,
       progressKey: progressStorageKey(sampleLoaded.value.hobby),
-      model: null,
       demo: true,
       hobbies: demoHobbyEntries(sampleLoaded.value.hobby),
       archived: [],
@@ -86,7 +83,6 @@ onMounted(async () => {
   choice.value = {
     tree: picked.tree,
     progressKey: hobbyProgressKey(picked.id),
-    model: picked.model,
     demo: false,
     hobbies: hobbyEntries(browserStorage, library),
     archived: hobbyEntries(browserStorage, library, { archived: true }),
@@ -168,7 +164,6 @@ function undoDelete(removed: RemovedHobby): void {
     :key="choice.progressKey"
     :tree="choice.tree"
     :progress-key="choice.progressKey"
-    :model="choice.model"
     :demo="choice.demo"
     :hobbies="choice.hobbies"
     :archived="choice.archived"
