@@ -39,9 +39,16 @@ export default defineNuxtConfig({
   },
   runtimeConfig: {
     // Server-only values come from .env (NUXT_*)
+    llmProvider: '',
+    llmModel: '',
+    llmApiKey: '',
     public: {
       supabaseUrl: '',
       supabaseAnonKey: '',
     },
+  },
+  nitro: {
+    // Relative to server/; read with useStorage('assets:prompts').
+    serverAssets: [{ baseName: 'prompts', dir: './prompts' }],
   },
 })

@@ -42,10 +42,11 @@ function browserStorage(): StorageLike | null {
  * Reactive Progress for one tree. Starts empty on server and client so hydration
  * matches, then loads saved Progress after mount (Req 10.2, 10.3). Every action
  * saves in the same tick (Req 10.1, 10.8); storage failures stay silent (Req 10.6).
+ * `storageKey` overrides the default hobby key, e.g. for a Generated_Tree.
  */
-export function useSkillPath(tree: SkillTree): SkillPath {
+export function useSkillPath(tree: SkillTree, storageKey?: string): SkillPath {
   const progress = shallowRef<Progress>(emptyProgress())
-  const store = createProgressStore(browserStorage, tree)
+  const store = createProgressStore(browserStorage, tree, storageKey)
 
   onMounted(() => {
     progress.value = store.load()

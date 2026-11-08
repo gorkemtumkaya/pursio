@@ -1,0 +1,15 @@
+{
+  "version": "v1",
+  "hooks": [
+    {
+      "name": "Block .env access",
+      "trigger": "PreToolUse",
+      "description": "Blocks any tool call that references .env or .env.* files (secrets). .env.example is allowed.",
+      "action": {
+        "type": "command",
+        "command": "python3 .kiro/hooks/scripts/block-env-access.py",
+        "timeout": 10
+      }
+    }
+  ]
+}

@@ -75,11 +75,14 @@ export function pruneProgress(progress: Progress, tree: SkillTree): Progress {
 
 /**
  * Storage failures never surface: a `null` storage or a throw gives an empty
- * Progress on load and a silent no-op on save (Req 10.6).
+ * Progress on load and a silent no-op on save (Req 10.6). `key` defaults to the
+ * hobby key; a Generated_Tree passes its own fixed key.
  */
-export function createProgressStore(getStorage: () => StorageLike | null, tree: SkillTree): ProgressStore {
-  const key = progressStorageKey(tree.hobby)
-
+export function createProgressStore(
+  getStorage: () => StorageLike | null,
+  tree: SkillTree,
+  key: string = progressStorageKey(tree.hobby),
+): ProgressStore {
   function storage(): StorageLike | null {
     try {
       return getStorage()

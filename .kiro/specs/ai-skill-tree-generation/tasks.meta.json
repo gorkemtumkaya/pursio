@@ -1,0 +1,348 @@
+{
+  "pbtResults": {},
+  "executionHistory": {
+    "1.1 Add shared LLM types and constants": [
+      {
+        "executionId": "c699dc15-18f5-4116-908a-72b2e604c8cf",
+        "chatSessionId": "sess_02661751-8e4b-45a4-8296-6e06670d7f86",
+        "timestamp": 1794157250160
+      },
+      {
+        "executionId": "c699dc15-18f5-4116-908a-72b2e604c8cf",
+        "chatSessionId": "sess_02661751-8e4b-45a4-8296-6e06670d7f86",
+        "timestamp": 1794157262411
+      },
+      {
+        "executionId": "c699dc15-18f5-4116-908a-72b2e604c8cf",
+        "chatSessionId": "sess_02661751-8e4b-45a4-8296-6e06670d7f86",
+        "timestamp": 1794157337594
+      }
+    ],
+    "1.2 Implement Tree_Cache and Rate_Limiter": [
+      {
+        "executionId": "c699dc15-18f5-4116-908a-72b2e604c8cf",
+        "chatSessionId": "sess_02661751-8e4b-45a4-8296-6e06670d7f86",
+        "timestamp": 1794157250195
+      },
+      {
+        "executionId": "c699dc15-18f5-4116-908a-72b2e604c8cf",
+        "chatSessionId": "sess_02661751-8e4b-45a4-8296-6e06670d7f86",
+        "timestamp": 1794157343058
+      },
+      {
+        "executionId": "c699dc15-18f5-4116-908a-72b2e604c8cf",
+        "chatSessionId": "sess_02661751-8e4b-45a4-8296-6e06670d7f86",
+        "timestamp": 1794157646495
+      }
+    ],
+    "2.1 Implement the Generation_Schema": [
+      {
+        "executionId": "c699dc15-18f5-4116-908a-72b2e604c8cf",
+        "chatSessionId": "sess_02661751-8e4b-45a4-8296-6e06670d7f86",
+        "timestamp": 1794157250228
+      },
+      {
+        "executionId": "c699dc15-18f5-4116-908a-72b2e604c8cf",
+        "chatSessionId": "sess_02661751-8e4b-45a4-8296-6e06670d7f86",
+        "timestamp": 1794157344034
+      },
+      {
+        "executionId": "c699dc15-18f5-4116-908a-72b2e604c8cf",
+        "chatSessionId": "sess_02661751-8e4b-45a4-8296-6e06670d7f86",
+        "timestamp": 1794157647594
+      }
+    ],
+    "2.2 Implement the Provider_Adapters": [
+      {
+        "executionId": "c699dc15-18f5-4116-908a-72b2e604c8cf",
+        "chatSessionId": "sess_02661751-8e4b-45a4-8296-6e06670d7f86",
+        "timestamp": 1794157250307
+      },
+      {
+        "executionId": "c699dc15-18f5-4116-908a-72b2e604c8cf",
+        "chatSessionId": "sess_02661751-8e4b-45a4-8296-6e06670d7f86",
+        "timestamp": 1794157787978
+      },
+      {
+        "executionId": "c699dc15-18f5-4116-908a-72b2e604c8cf",
+        "chatSessionId": "sess_02661751-8e4b-45a4-8296-6e06670d7f86",
+        "timestamp": 1794157881726
+      }
+    ],
+    "2.3 Implement the Generator": [
+      {
+        "executionId": "c699dc15-18f5-4116-908a-72b2e604c8cf",
+        "chatSessionId": "sess_02661751-8e4b-45a4-8296-6e06670d7f86",
+        "timestamp": 1794157250333
+      },
+      {
+        "executionId": "c699dc15-18f5-4116-908a-72b2e604c8cf",
+        "chatSessionId": "sess_02661751-8e4b-45a4-8296-6e06670d7f86",
+        "timestamp": 1794157885975
+      },
+      {
+        "executionId": "c699dc15-18f5-4116-908a-72b2e604c8cf",
+        "chatSessionId": "sess_02661751-8e4b-45a4-8296-6e06670d7f86",
+        "timestamp": 1794157999777
+      }
+    ],
+    "3.1 Implement the handlers": [
+      {
+        "executionId": "c699dc15-18f5-4116-908a-72b2e604c8cf",
+        "chatSessionId": "sess_02661751-8e4b-45a4-8296-6e06670d7f86",
+        "timestamp": 1794157250356
+      },
+      {
+        "executionId": "c699dc15-18f5-4116-908a-72b2e604c8cf",
+        "chatSessionId": "sess_02661751-8e4b-45a4-8296-6e06670d7f86",
+        "timestamp": 1794158004984
+      },
+      {
+        "executionId": "c699dc15-18f5-4116-908a-72b2e604c8cf",
+        "chatSessionId": "sess_02661751-8e4b-45a4-8296-6e06670d7f86",
+        "timestamp": 1794158217191
+      }
+    ],
+    "3.2 Wire the runtime, routes and config": [
+      {
+        "executionId": "c699dc15-18f5-4116-908a-72b2e604c8cf",
+        "chatSessionId": "sess_02661751-8e4b-45a4-8296-6e06670d7f86",
+        "timestamp": 1794157250376
+      },
+      {
+        "executionId": "c699dc15-18f5-4116-908a-72b2e604c8cf",
+        "chatSessionId": "sess_02661751-8e4b-45a4-8296-6e06670d7f86",
+        "timestamp": 1794158223677
+      },
+      {
+        "executionId": "c699dc15-18f5-4116-908a-72b2e604c8cf",
+        "chatSessionId": "sess_02661751-8e4b-45a4-8296-6e06670d7f86",
+        "timestamp": 1794158382401
+      }
+    ],
+    "4.1 Implement the client storage and request helpers": [
+      {
+        "executionId": "c699dc15-18f5-4116-908a-72b2e604c8cf",
+        "chatSessionId": "sess_02661751-8e4b-45a4-8296-6e06670d7f86",
+        "timestamp": 1794157250405
+      },
+      {
+        "executionId": "c699dc15-18f5-4116-908a-72b2e604c8cf",
+        "chatSessionId": "sess_02661751-8e4b-45a4-8296-6e06670d7f86",
+        "timestamp": 1794157344849
+      },
+      {
+        "executionId": "c699dc15-18f5-4116-908a-72b2e604c8cf",
+        "chatSessionId": "sess_02661751-8e4b-45a4-8296-6e06670d7f86",
+        "timestamp": 1794157648047
+      }
+    ],
+    "4.2 Add an optional progress key": [
+      {
+        "executionId": "c699dc15-18f5-4116-908a-72b2e604c8cf",
+        "chatSessionId": "sess_02661751-8e4b-45a4-8296-6e06670d7f86",
+        "timestamp": 1794157250427
+      },
+      {
+        "executionId": "c699dc15-18f5-4116-908a-72b2e604c8cf",
+        "chatSessionId": "sess_02661751-8e4b-45a4-8296-6e06670d7f86",
+        "timestamp": 1794157263093
+      },
+      {
+        "executionId": "c699dc15-18f5-4116-908a-72b2e604c8cf",
+        "chatSessionId": "sess_02661751-8e4b-45a4-8296-6e06670d7f86",
+        "timestamp": 1794157338176
+      }
+    ],
+    "5.1 Build the Start_Screen in `app/pages/index.vue`": [
+      {
+        "executionId": "c699dc15-18f5-4116-908a-72b2e604c8cf",
+        "chatSessionId": "sess_02661751-8e4b-45a4-8296-6e06670d7f86",
+        "timestamp": 1794157250450
+      },
+      {
+        "executionId": "c699dc15-18f5-4116-908a-72b2e604c8cf",
+        "chatSessionId": "sess_02661751-8e4b-45a4-8296-6e06670d7f86",
+        "timestamp": 1794157886801
+      },
+      {
+        "executionId": "c699dc15-18f5-4116-908a-72b2e604c8cf",
+        "chatSessionId": "sess_02661751-8e4b-45a4-8296-6e06670d7f86",
+        "timestamp": 1794157999793
+      }
+    ],
+    "6.1 Split `/path` into a page and `PathView`": [
+      {
+        "executionId": "c699dc15-18f5-4116-908a-72b2e604c8cf",
+        "chatSessionId": "sess_02661751-8e4b-45a4-8296-6e06670d7f86",
+        "timestamp": 1794157250486
+      },
+      {
+        "executionId": "c699dc15-18f5-4116-908a-72b2e604c8cf",
+        "chatSessionId": "sess_02661751-8e4b-45a4-8296-6e06670d7f86",
+        "timestamp": 1794158006162
+      },
+      {
+        "executionId": "c699dc15-18f5-4116-908a-72b2e604c8cf",
+        "chatSessionId": "sess_02661751-8e4b-45a4-8296-6e06670d7f86",
+        "timestamp": 1794158218159
+      }
+    ],
+    "6.2 Build the Settings_Page in `app/pages/settings.vue`": [
+      {
+        "executionId": "c699dc15-18f5-4116-908a-72b2e604c8cf",
+        "chatSessionId": "sess_02661751-8e4b-45a4-8296-6e06670d7f86",
+        "timestamp": 1794157250519
+      },
+      {
+        "executionId": "c699dc15-18f5-4116-908a-72b2e604c8cf",
+        "chatSessionId": "sess_02661751-8e4b-45a4-8296-6e06670d7f86",
+        "timestamp": 1794158006791
+      },
+      {
+        "executionId": "c699dc15-18f5-4116-908a-72b2e604c8cf",
+        "chatSessionId": "sess_02661751-8e4b-45a4-8296-6e06670d7f86",
+        "timestamp": 1794158219815
+      }
+    ],
+    "7.1 Add CHANGELOG.md entries": [
+      {
+        "executionId": "c699dc15-18f5-4116-908a-72b2e604c8cf",
+        "chatSessionId": "sess_02661751-8e4b-45a4-8296-6e06670d7f86",
+        "timestamp": 1794157250548
+      },
+      {
+        "executionId": "c699dc15-18f5-4116-908a-72b2e604c8cf",
+        "chatSessionId": "sess_02661751-8e4b-45a4-8296-6e06670d7f86",
+        "timestamp": 1794158386252
+      },
+      {
+        "executionId": "c699dc15-18f5-4116-908a-72b2e604c8cf",
+        "chatSessionId": "sess_02661751-8e4b-45a4-8296-6e06670d7f86",
+        "timestamp": 1794158422749
+      }
+    ],
+    "7.2 Run the full test suite and typecheck": [
+      {
+        "executionId": "c699dc15-18f5-4116-908a-72b2e604c8cf",
+        "chatSessionId": "sess_02661751-8e4b-45a4-8296-6e06670d7f86",
+        "timestamp": 1794157250573
+      },
+      {
+        "executionId": "c699dc15-18f5-4116-908a-72b2e604c8cf",
+        "chatSessionId": "sess_02661751-8e4b-45a4-8296-6e06670d7f86",
+        "timestamp": 1794158427146
+      },
+      {
+        "executionId": "c699dc15-18f5-4116-908a-72b2e604c8cf",
+        "chatSessionId": "sess_02661751-8e4b-45a4-8296-6e06670d7f86",
+        "timestamp": 1794158744590
+      }
+    ],
+    "1. Shared LLM types, hobby normalization, Tree_Cache and Rate_Limiter": [
+      {
+        "executionId": "c699dc15-18f5-4116-908a-72b2e604c8cf",
+        "chatSessionId": "sess_02661751-8e4b-45a4-8296-6e06670d7f86",
+        "timestamp": 1794157646535
+      }
+    ],
+    "4. Client utilities and progress key": [
+      {
+        "executionId": "c699dc15-18f5-4116-908a-72b2e604c8cf",
+        "chatSessionId": "sess_02661751-8e4b-45a4-8296-6e06670d7f86",
+        "timestamp": 1794157648076
+      }
+    ],
+    "1.3 Write property tests for normalization and cache keys in `tests/property/llm-normalize.property.test.ts`": [
+      {
+        "executionId": "c699dc15-18f5-4116-908a-72b2e604c8cf",
+        "chatSessionId": "sess_02661751-8e4b-45a4-8296-6e06670d7f86",
+        "timestamp": 1794157773392
+      }
+    ],
+    "1.4 Write property tests for Tree_Cache and Rate_Limiter": [
+      {
+        "executionId": "c699dc15-18f5-4116-908a-72b2e604c8cf",
+        "chatSessionId": "sess_02661751-8e4b-45a4-8296-6e06670d7f86",
+        "timestamp": 1794157774141
+      }
+    ],
+    "4.3 Write property tests for the client utilities in `tests/property/client-storage.property.test.ts`": [
+      {
+        "executionId": "c699dc15-18f5-4116-908a-72b2e604c8cf",
+        "chatSessionId": "sess_02661751-8e4b-45a4-8296-6e06670d7f86",
+        "timestamp": 1794157775143
+      }
+    ],
+    "4.4 Write unit tests for the client utilities in `tests/unit/client-storage.test.ts`": [
+      {
+        "executionId": "c699dc15-18f5-4116-908a-72b2e604c8cf",
+        "chatSessionId": "sess_02661751-8e4b-45a4-8296-6e06670d7f86",
+        "timestamp": 1794157776113
+      }
+    ],
+    "2.4 Write unit tests for schema, adapters and Generator": [
+      {
+        "executionId": "c699dc15-18f5-4116-908a-72b2e604c8cf",
+        "chatSessionId": "sess_02661751-8e4b-45a4-8296-6e06670d7f86",
+        "timestamp": 1794157781247
+      }
+    ],
+    "2.5 Write property tests for provider failures and the Generator in `tests/property/generator.property.test.ts`": [
+      {
+        "executionId": "c699dc15-18f5-4116-908a-72b2e604c8cf",
+        "chatSessionId": "sess_02661751-8e4b-45a4-8296-6e06670d7f86",
+        "timestamp": 1794157782163
+      }
+    ],
+    "3.3 Write property tests for the handlers in `tests/property/llm-handlers.property.test.ts`": [
+      {
+        "executionId": "c699dc15-18f5-4116-908a-72b2e604c8cf",
+        "chatSessionId": "sess_02661751-8e4b-45a4-8296-6e06670d7f86",
+        "timestamp": 1794157783402
+      }
+    ],
+    "3.4 Write unit tests for handlers and config": [
+      {
+        "executionId": "c699dc15-18f5-4116-908a-72b2e604c8cf",
+        "chatSessionId": "sess_02661751-8e4b-45a4-8296-6e06670d7f86",
+        "timestamp": 1794157783898
+      }
+    ],
+    "2. Generation_Schema, Provider_Adapters and Generator": [
+      {
+        "executionId": "c699dc15-18f5-4116-908a-72b2e604c8cf",
+        "chatSessionId": "sess_02661751-8e4b-45a4-8296-6e06670d7f86",
+        "timestamp": 1794157999810
+      }
+    ],
+    "5. Start_Screen": [
+      {
+        "executionId": "c699dc15-18f5-4116-908a-72b2e604c8cf",
+        "chatSessionId": "sess_02661751-8e4b-45a4-8296-6e06670d7f86",
+        "timestamp": 1794157999831
+      }
+    ],
+    "6. Path page split and Settings_Page": [
+      {
+        "executionId": "c699dc15-18f5-4116-908a-72b2e604c8cf",
+        "chatSessionId": "sess_02661751-8e4b-45a4-8296-6e06670d7f86",
+        "timestamp": 1794158219839
+      }
+    ],
+    "3. Route handlers, runtime wiring and server config": [
+      {
+        "executionId": "c699dc15-18f5-4116-908a-72b2e604c8cf",
+        "chatSessionId": "sess_02661751-8e4b-45a4-8296-6e06670d7f86",
+        "timestamp": 1794158382431
+      }
+    ],
+    "7. Changelog and final checks": [
+      {
+        "executionId": "c699dc15-18f5-4116-908a-72b2e604c8cf",
+        "chatSessionId": "sess_02661751-8e4b-45a4-8296-6e06670d7f86",
+        "timestamp": 1794158744627
+      }
+    ]
+  }
+}
