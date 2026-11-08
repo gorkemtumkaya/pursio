@@ -5,6 +5,7 @@ import { loadSkillTree } from '../../shared/utils/skill-tree-load'
 import { GENERATED_PROGRESS_KEY, GENERATED_TREE_KEY, serializeGeneratedTree } from '../../app/utils/generated-tree'
 import {
   addHobby,
+  archiveHobby,
   HOBBY_LIBRARY_KEY,
   hobbyEntries,
   hobbyId,
@@ -13,9 +14,13 @@ import {
   lastActivePath,
   loadHobbyLibrary,
   parseHobbyLibrary,
+  nextHobbyId,
   pickHobby,
+  removeHobby,
+  restoreHobby,
   serializeHobbyLibrary,
   setActiveHobby,
+  undoRemoveHobby,
 } from '../../app/utils/hobby-store'
 import type { StorageLike } from '../../app/utils/progress-store'
 
@@ -116,8 +121,19 @@ describe('parseHobbyLibrary', () => {
   })
 
   it('round-trips a library', () => {
-    const library = { hobbies: [{ id: 'guitar', tree: guitar, model: 'm', addedAt: 5 }], activeId: 'guitar' }
+    const library = {
+      hobbies: [
+        { id: 'guitar', tree: guitar, model: 'm', addedAt: 5, archived: false },
+        { id: 'bouldering', tree: bouldering, model: 'm', addedAt: 6, archived: true },
+      ],
+      activeId: 'guitar',
+    }
     expect(parseHobbyLibrary(serializeHobbyLibrary(library))).toEqual({ library, invalid: false })
+  })
+
+  it('reads entries saved before archiving existed as not archived', () => {
+    const raw = JSON.stringify({ hobbies: [{ id: 'guitar', tree: guitar, model: 'm', addedAt: 5 }], activeId: null })
+    expect(parseHobbyLibrary(raw).library.hobbies[0]?.archived).toBe(false)
   })
 
   it('removes an unreadable stored library on load', () => {
@@ -134,7 +150,10 @@ describe('legacy migration', () => {
       [GENERATED_PROGRESS_KEY]: progressJson([firstId]),
     })
     const library = loadHobbyLibrary(() => storage, 42)
-    expect(library).toEqual({ hobbies: [{ id: 'guitar', tree: guitar, model: 'old-model', addedAt: 42 }], activeId: 'guitar' })
+    expect(library).toEqual({
+      hobbies: [{ id: 'guitar', tree: guitar, model: 'old-model', addedAt: 42, archived: false }],
+      activeId: 'guitar',
+    })
     expect(storage.data.get(hobbyProgressKey('guitar'))).toBe(progressJson([firstId]))
     expect(storage.data.has(GENERATED_TREE_KEY)).toBe(false)
     expect(storage.data.has(GENERATED_PROGRESS_KEY)).toBe(false)
@@ -183,6 +202,134 @@ describe('pickHobby and setActiveHobby', () => {
     expect(loadHobbyLibrary(() => storage).activeId).toBe('bouldering')
     setActiveHobby(() => storage, 'unknown')
     expect(loadHobbyLibrary(() => storage).activeId).toBe('bouldering')
+  })
+})
+
+describe('removeHobby', () => {
+  function twoHobbies() {
+    const storage = memoryStorage()
+    addHobby(() => storage, { tree: bouldering, model: 'm' }, 1)
+    addHobby(() => storage, { tree: guitar, model: 'm' }, 2)
+    storage.setItem(hobbyProgressKey('bouldering'), progressJson([firstId]))
+    storage.setItem(hobbyProgressKey('guitar'), progressJson([firstId]))
+    return storage
+  }
+
+  it('deletes the entry and only its own progress', () => {
+    const storage = twoHobbies()
+    setActiveHobby(() => storage, 'bouldering')
+    const { library } = removeHobby(() => storage, 'guitar')
+    expect(library.hobbies.map((h) => h.id)).toEqual(['bouldering'])
+    expect(library.activeId).toBe('bouldering')
+    expect(loadHobbyLibrary(() => storage)).toEqual(library)
+    expect(storage.data.has(hobbyProgressKey('guitar'))).toBe(false)
+    expect(storage.data.has(hobbyProgressKey('bouldering'))).toBe(true)
+  })
+
+  it('clears the active hobby when it is removed', () => {
+    const storage = twoHobbies()
+    const { library } = removeHobby(() => storage, 'guitar')
+    expect(library.activeId).toBeNull()
+    expect(lastActivePath(library)).toBe('/path?hobby=bouldering')
+    expect(lastActivePath(removeHobby(() => storage, 'bouldering').library)).toBeNull()
+  })
+
+  it('ignores unknown ids', () => {
+    const storage = twoHobbies()
+    expect(removeHobby(() => storage, 'chess')).toMatchObject({ removed: null, library: { hobbies: [{}, {}] } })
+  })
+
+  it('keeps everything when the library cannot be written', () => {
+    const storage = twoHobbies()
+    const readOnly = { ...storage, setItem: () => { throw new Error('quota') } }
+    expect(removeHobby(() => readOnly, 'guitar')).toMatchObject({ removed: null, library: { hobbies: [{}, {}] } })
+    expect(storage.data.has(hobbyProgressKey('guitar'))).toBe(true)
+  })
+
+  it('undo puts the entry back in place with its progress and active state', () => {
+    const storage = twoHobbies()
+    addHobby(() => storage, { tree: withHobby('Chess'), model: 'm' }, 3)
+    setActiveHobby(() => storage, 'guitar')
+    const before = loadHobbyLibrary(() => storage)
+    const { removed } = removeHobby(() => storage, 'guitar')
+    expect(removed).toMatchObject({ index: 1, wasActive: true, progress: progressJson([firstId]) })
+    const restored = undoRemoveHobby(() => storage, removed!)
+    expect(restored).toEqual(before)
+    expect(loadHobbyLibrary(() => storage)).toEqual(before)
+    expect(storage.data.get(hobbyProgressKey('guitar'))).toBe(progressJson([firstId]))
+  })
+
+  it('undo keeps the current active hobby when the removed one was not active', () => {
+    const storage = twoHobbies()
+    setActiveHobby(() => storage, 'bouldering')
+    const { removed } = removeHobby(() => storage, 'guitar')
+    expect(undoRemoveHobby(() => storage, removed!).activeId).toBe('bouldering')
+  })
+
+  it('undo does nothing when the same hobby was added again meanwhile', () => {
+    const storage = twoHobbies()
+    const { removed } = removeHobby(() => storage, 'guitar')
+    addHobby(() => storage, { tree: guitar, model: 'newer' }, 9)
+    const library = undoRemoveHobby(() => storage, removed!)
+    expect(library.hobbies.map((h) => [h.id, h.model])).toEqual([['bouldering', 'm'], ['guitar', 'newer']])
+  })
+})
+
+describe('archiveHobby and restoreHobby', () => {
+  function threeHobbies() {
+    const storage = memoryStorage()
+    addHobby(() => storage, { tree: bouldering, model: 'm' }, 1)
+    addHobby(() => storage, { tree: guitar, model: 'm' }, 2)
+    addHobby(() => storage, { tree: withHobby('Chess'), model: 'm' }, 3)
+    storage.setItem(hobbyProgressKey('guitar'), progressJson([firstId]))
+    return storage
+  }
+
+  it('hides an entry from the lists and from picking but keeps its data', () => {
+    const storage = threeHobbies()
+    setActiveHobby(() => storage, 'guitar')
+    const library = archiveHobby(() => storage, 'guitar')
+    expect(library.activeId).toBeNull()
+    expect(storage.data.get(hobbyProgressKey('guitar'))).toBe(progressJson([firstId]))
+    expect(hobbyEntries(() => storage, library).map((e) => e.id)).toEqual(['bouldering', 'chess'])
+    expect(hobbyEntries(() => storage, library, { archived: true }).map((e) => e.id)).toEqual(['guitar'])
+    expect(pickHobby(library, 'guitar')?.id).toBe('chess')
+    setActiveHobby(() => storage, 'guitar')
+    expect(loadHobbyLibrary(() => storage).activeId).toBeNull()
+  })
+
+  it('restores an entry in its original place', () => {
+    const storage = threeHobbies()
+    archiveHobby(() => storage, 'guitar')
+    const library = restoreHobby(() => storage, 'guitar')
+    expect(hobbyEntries(() => storage, library).map((e) => e.id)).toEqual(['bouldering', 'guitar', 'chess'])
+    expect(hobbyEntries(() => storage, library)[1]?.percent).toBeGreaterThan(0)
+  })
+
+  it('adding an archived hobby again restores it', () => {
+    const storage = threeHobbies()
+    archiveHobby(() => storage, 'guitar')
+    const library = (addHobby(() => storage, { tree: guitar, model: 'm2' }, 4), loadHobbyLibrary(() => storage))
+    expect(library.hobbies.find((h) => h.id === 'guitar')?.archived).toBe(false)
+  })
+})
+
+describe('nextHobbyId', () => {
+  const library = {
+    hobbies: [
+      { id: 'a', tree: bouldering, model: 'm', addedAt: 1, archived: false },
+      { id: 'b', tree: bouldering, model: 'm', addedAt: 2, archived: true },
+      { id: 'c', tree: bouldering, model: 'm', addedAt: 3, archived: false },
+      { id: 'd', tree: bouldering, model: 'm', addedAt: 4, archived: false },
+    ],
+    activeId: 'c',
+  }
+
+  it('picks the next visible entry, else the previous one, else nothing', () => {
+    expect(nextHobbyId(library, 'a')).toBe('c')
+    expect(nextHobbyId(library, 'c')).toBe('d')
+    expect(nextHobbyId(library, 'd')).toBe('c')
+    expect(nextHobbyId({ hobbies: [library.hobbies[0]!], activeId: null }, 'a')).toBeNull()
   })
 })
 

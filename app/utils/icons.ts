@@ -23,6 +23,9 @@ export const ICON_NAMES = [
   'article',
   'palette',
   'settings',
+  'more',
+  'archive',
+  'trash',
 ] as const
 
 export type IconName = (typeof ICON_NAMES)[number]
@@ -122,6 +125,25 @@ export const ICONS: Readonly<Record<IconName, IconDefinition>> = {
       { tag: 'circle', cx: 12, cy: 12, r: 3.2 },
       { tag: 'path', d: 'M12 2.5v3M12 18.5v3M2.5 12h3M18.5 12h3M5.3 5.3l2.1 2.1M16.6 16.6l2.1 2.1M5.3 18.7l2.1-2.1M16.6 7.4l2.1-2.1' },
     ],
+  },
+  more: {
+    filled: true,
+    shapes: [
+      { tag: 'circle', cx: 5, cy: 12, r: 1.4 },
+      { tag: 'circle', cx: 12, cy: 12, r: 1.4 },
+      { tag: 'circle', cx: 19, cy: 12, r: 1.4 },
+    ],
+  },
+  archive: {
+    filled: false,
+    shapes: [
+      { tag: 'rect', x: 3.5, y: 4.5, width: 17, height: 4.5, rx: 1.5 },
+      { tag: 'path', d: 'M5.5 9v9a1.5 1.5 0 0 0 1.5 1.5h10a1.5 1.5 0 0 0 1.5-1.5V9M10 13h4' },
+    ],
+  },
+  trash: {
+    filled: false,
+    shapes: [{ tag: 'path', d: 'M4.5 7h15M9.5 7V4.5h5V7M6.5 7l1 12.5h9l1-12.5M10.5 11v5M13.5 11v5' }],
   },
 }
 

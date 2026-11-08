@@ -5,7 +5,8 @@ import type { HobbyEntry } from '~/utils/hobby-store'
  * Desktop left sidebar: logo, main navigation and the hobby list (Req 12.3;
  * spec: local-progress-data, Req 4.1).
  */
-defineProps<{ hobbies: readonly HobbyEntry[]; activeId: string | null }>()
+defineProps<{ hobbies: readonly HobbyEntry[]; archived: readonly HobbyEntry[]; activeId: string | null }>()
+const emit = defineEmits<{ archive: [entry: HobbyEntry]; delete: [entry: HobbyEntry]; restore: [entry: HobbyEntry] }>()
 </script>
 
 <template>
@@ -24,6 +25,15 @@ defineProps<{ hobbies: readonly HobbyEntry[]; activeId: string | null }>()
 
     <PathNavItems variant="side" />
 
-    <PathHobbyList :hobbies="hobbies" :active-id="activeId" heading-id="sidebar-hobbies" layout="sidebar" />
+    <PathHobbyList
+      :hobbies="hobbies"
+      :archived="archived"
+      :active-id="activeId"
+      heading-id="sidebar-hobbies"
+      layout="sidebar"
+      @archive="emit('archive', $event)"
+      @delete="emit('delete', $event)"
+      @restore="emit('restore', $event)"
+    />
   </nav>
 </template>

@@ -42,11 +42,15 @@ const showContinue = computed(
   () => savedHobbies.value.length > 0 && (state.value === 'input' || state.value === 'error'),
 )
 
-onMounted(() => {
+function loadSaved(): void {
   const library = loadHobbyLibrary(browserStorage)
   savedHobbies.value = hobbyEntries(browserStorage, library)
   backTo.value = lastActivePath(library)
-})
+}
+
+onMounted(loadSaved)
+// An Undo from the toast can bring a hobby back while this page is open.
+watch(useLibraryRevision().revision, loadSaved)
 
 const labelClass = 'text-[13px] font-extrabold uppercase tracking-[0.06em] text-muted'
 const inputClass = computed(() => [

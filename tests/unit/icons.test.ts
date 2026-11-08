@@ -3,7 +3,7 @@ import { ICON_NAMES, ICONS, isIconName } from '~/utils/icons'
 
 describe('icon set', () => {
   it('defines at least one shape for every icon name', () => {
-    expect(ICON_NAMES).toHaveLength(18)
+    expect(ICON_NAMES).toHaveLength(21)
     for (const name of ICON_NAMES) {
       expect(ICONS[name].shapes.length).toBeGreaterThan(0)
     }

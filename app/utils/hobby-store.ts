@@ -13,6 +13,8 @@ export interface HobbyRecord {
   model: string
   /** Epoch ms when the hobby was first added. */
   addedAt: number
+  /** Hidden from the hobby lists and never picked, but its tree and Progress are kept. */
+  archived: boolean
 }
 
 export interface HobbyLibrary {
@@ -55,13 +57,13 @@ export function hobbyPath(id: string): string {
 
 function parseEntry(value: unknown): HobbyRecord | null {
   if (!isRecord(value)) return null
-  const { model, addedAt } = value
+  const { model, addedAt, archived } = value
   if (typeof model !== 'string' || model.length === 0) return null
   if (typeof addedAt !== 'number' || !Number.isFinite(addedAt)) return null
   const loaded = loadSkillTree(value.tree)
   if (!loaded.ok) return null
   // The id is recomputed from the tree, so it always matches its Progress key.
-  return { id: hobbyId(loaded.value), tree: loaded.value, model, addedAt }
+  return { id: hobbyId(loaded.value), tree: loaded.value, model, addedAt, archived: archived === true }
 }
 
 /**
@@ -93,7 +95,7 @@ export function parseHobbyLibrary(raw: string | null): { library: HobbyLibrary; 
 
 export function serializeHobbyLibrary(library: HobbyLibrary): string {
   return JSON.stringify({
-    hobbies: library.hobbies.map(({ id, tree, model, addedAt }) => ({ id, tree, model, addedAt })),
+    hobbies: library.hobbies.map(({ id, tree, model, addedAt, archived }) => ({ id, tree, model, addedAt, archived })),
     activeId: library.activeId,
   })
 }
@@ -134,7 +136,7 @@ function migrateLegacy(s: StorageLike, now: number): HobbyLibrary {
   if (!legacy) return emptyLibrary()
   const id = hobbyId(legacy.tree)
   const library: HobbyLibrary = {
-    hobbies: [{ id, tree: legacy.tree, model: legacy.model, addedAt: now }],
+    hobbies: [{ id, tree: legacy.tree, model: legacy.model, addedAt: now, archived: false }],
     activeId: id,
   }
   try {
@@ -168,8 +170,9 @@ export function loadHobbyLibrary(getStorage: () => StorageLike | null, now: numb
 
 /**
  * Adds a Generated_Tree and makes it the Active_Hobby (Req 3.1). An entry with
- * the same Hobby_Id gets the new tree and model, keeps its place, and only its
- * own Progress is reset (Req 3.2, 3.3). Returns the Hobby_Id.
+ * the same Hobby_Id gets the new tree and model, keeps its place, is restored
+ * if archived, and only its own Progress is reset (Req 3.2, 3.3). Returns the
+ * Hobby_Id.
  */
 export function addHobby(
   getStorage: () => StorageLike | null,
@@ -182,26 +185,140 @@ export function addHobby(
   const library = loadHobbyLibrary(() => s, now)
   const existing = library.hobbies.find((h) => h.id === id)
   const hobbies = existing
-    ? library.hobbies.map((h) => (h.id === id ? { ...h, tree: generated.tree, model: generated.model } : h))
-    : [...library.hobbies, { id, tree: generated.tree, model: generated.model, addedAt: now }]
+    ? library.hobbies.map((h) =>
+        h.id === id ? { ...h, tree: generated.tree, model: generated.model, archived: false } : h,
+      )
+    : [...library.hobbies, { id, tree: generated.tree, model: generated.model, addedAt: now, archived: false }]
   write(s, { hobbies, activeId: id })
   remove(s, hobbyProgressKey(id))
   return id
 }
 
-/** Remembers the entry last opened on `/path` (Req 3.6). Unknown ids are ignored. */
+/** Remembers the entry last opened on `/path` (Req 3.6). Unknown and archived ids are ignored. */
 export function setActiveHobby(getStorage: () => StorageLike | null, id: string): void {
   const s = safeStorage(getStorage)
   if (!s) return
   const library = loadHobbyLibrary(() => s)
-  if (library.activeId === id || !library.hobbies.some((h) => h.id === id)) return
+  if (library.activeId === id || !visibleHobbies(library).some((h) => h.id === id)) return
   write(s, { ...library, activeId: id })
 }
 
-/** The requested entry, else the Active_Hobby, else the last added entry, else null (Req 3.6, 3.7). */
+/** Entries shown in the hobby lists, in the order added. */
+function visibleHobbies(library: HobbyLibrary): HobbyRecord[] {
+  return library.hobbies.filter((h) => !h.archived)
+}
+
+/**
+ * The entry to open after `id` is archived or deleted: the next visible one in
+ * list order, else the previous one, else null.
+ */
+export function nextHobbyId(library: HobbyLibrary, id: string): string | null {
+  const visible = visibleHobbies(library)
+  const index = visible.findIndex((h) => h.id === id)
+  if (index === -1) return visible[0]?.id ?? null
+  return (visible[index + 1] ?? visible[index - 1])?.id ?? null
+}
+
+function setArchived(getStorage: () => StorageLike | null, id: string, archived: boolean): HobbyLibrary {
+  const s = safeStorage(getStorage)
+  if (!s) return emptyLibrary()
+  const library = loadHobbyLibrary(() => s)
+  const entry = library.hobbies.find((h) => h.id === id)
+  if (!entry || entry.archived === archived) return library
+  const next: HobbyLibrary = {
+    hobbies: library.hobbies.map((h) => (h.id === id ? { ...h, archived } : h)),
+    activeId: archived && library.activeId === id ? null : library.activeId,
+  }
+  return write(s, next) ? next : library
+}
+
+/**
+ * Hides an entry from the lists and keeps its tree and Progress. Archiving the
+ * Active_Hobby clears `activeId`. Returns the library as stored afterwards.
+ */
+export function archiveHobby(getStorage: () => StorageLike | null, id: string): HobbyLibrary {
+  return setArchived(getStorage, id, true)
+}
+
+/** Shows an archived entry again, in its original place. */
+export function restoreHobby(getStorage: () => StorageLike | null, id: string): HobbyLibrary {
+  return setArchived(getStorage, id, false)
+}
+
+/** What `removeHobby` deleted, so `undoRemoveHobby` can put it back. */
+export interface RemovedHobby {
+  record: HobbyRecord
+  /** Position in the library before removal. */
+  index: number
+  /** Raw stored Progress, or null when there was none. */
+  progress: string | null
+  wasActive: boolean
+}
+
+/**
+ * Deletes one entry and its Progress. Removing the Active_Hobby clears
+ * `activeId`. Returns the library as stored afterwards and what was removed;
+ * `removed` is null for an unknown id or when the write failed (the Progress
+ * is then kept too).
+ */
+export function removeHobby(
+  getStorage: () => StorageLike | null,
+  id: string,
+): { library: HobbyLibrary; removed: RemovedHobby | null } {
+  const s = safeStorage(getStorage)
+  if (!s) return { library: emptyLibrary(), removed: null }
+  const library = loadHobbyLibrary(() => s)
+  const index = library.hobbies.findIndex((h) => h.id === id)
+  const record = library.hobbies[index]
+  if (!record) return { library, removed: null }
+  let progress: string | null = null
+  try {
+    progress = s.getItem(hobbyProgressKey(id))
+  } catch {
+    // Unreadable Progress cannot be restored; the entry still can.
+  }
+  const next: HobbyLibrary = {
+    hobbies: library.hobbies.filter((h) => h.id !== id),
+    activeId: library.activeId === id ? null : library.activeId,
+  }
+  if (!write(s, next)) return { library, removed: null }
+  remove(s, hobbyProgressKey(id))
+  return { library: next, removed: { record, index, progress, wasActive: library.activeId === id } }
+}
+
+/**
+ * Puts a removed entry back in its old place with its Progress, and makes it
+ * active again if it was. Skipped when an entry with the same id was added
+ * since. Returns the library as stored afterwards.
+ */
+export function undoRemoveHobby(getStorage: () => StorageLike | null, removed: RemovedHobby): HobbyLibrary {
+  const s = safeStorage(getStorage)
+  if (!s) return emptyLibrary()
+  const library = loadHobbyLibrary(() => s)
+  const { record } = removed
+  if (library.hobbies.some((h) => h.id === record.id)) return library
+  const hobbies = [...library.hobbies]
+  hobbies.splice(Math.min(removed.index, hobbies.length), 0, record)
+  const next: HobbyLibrary = { hobbies, activeId: removed.wasActive ? record.id : library.activeId }
+  if (!write(s, next)) return library
+  if (removed.progress !== null) {
+    try {
+      s.setItem(hobbyProgressKey(record.id), removed.progress)
+    } catch {
+      // The entry is back without its Progress.
+    }
+  }
+  return next
+}
+
+/**
+ * The requested entry, else the Active_Hobby, else the last added entry, else
+ * null (Req 3.6, 3.7). Archived entries are never picked.
+ */
 export function pickHobby(library: HobbyLibrary, requestedId: unknown): HobbyRecord | null {
-  const byId = (id: unknown) => (typeof id === 'string' ? library.hobbies.find((h) => h.id === id) : undefined)
-  return byId(requestedId) ?? byId(library.activeId) ?? library.hobbies.at(-1) ?? null
+  const visible = visibleHobbies(library)
+  const byId = (id: unknown) => (typeof id === 'string' ? visible.find((h) => h.id === id) : undefined)
+  return byId(requestedId) ?? byId(library.activeId) ?? visible.at(-1) ?? null
 }
 
 /** `/path` URL of the Active_Hobby (else the last added one), or null when the library is empty. */
@@ -210,9 +327,16 @@ export function lastActivePath(library: HobbyLibrary): string | null {
   return picked ? hobbyPath(picked.id) : null
 }
 
-/** Sidebar rows with each entry's stored Progress as a percent (Req 4.1). */
-export function hobbyEntries(getStorage: () => StorageLike | null, library: HobbyLibrary): HobbyEntry[] {
-  return library.hobbies.map(({ id, tree }) => ({
+/**
+ * Sidebar rows with each entry's stored Progress as a percent (Req 4.1).
+ * Archived entries are left out, or listed alone with `{ archived: true }`.
+ */
+export function hobbyEntries(
+  getStorage: () => StorageLike | null,
+  library: HobbyLibrary,
+  { archived = false }: { archived?: boolean } = {},
+): HobbyEntry[] {
+  return library.hobbies.filter((h) => h.archived === archived).map(({ id, tree }) => ({
     id,
     hobby: tree.hobby,
     percent: completionPercent(tree, createProgressStore(getStorage, tree, hobbyProgressKey(id)).load()),

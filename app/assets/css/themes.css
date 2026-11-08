@@ -21,6 +21,11 @@
   --pursio-primary-soft: #ffe4d9;
   --pursio-accent-text: #b23d16;
 
+  --pursio-danger: #c62828;
+  --pursio-danger-deep: #8e1c1c;
+  --pursio-danger-ink: #ffffff;
+  --pursio-danger-text: #b3261e;
+
   --pursio-done: #1c8468;
   --pursio-done-deep: #12634d;
   --pursio-done-ink: #ffffff;
@@ -63,6 +68,11 @@
   --pursio-primary-soft: #f5dcd3;
   --pursio-accent-text: #a83620;
 
+  --pursio-danger: #b3261e;
+  --pursio-danger-deep: #7f1a14;
+  --pursio-danger-ink: #ffffff;
+  --pursio-danger-text: #9f2019;
+
   --pursio-done: #4e7a38;
   --pursio-done-deep: #345325;
   --pursio-done-ink: #ffffff;
@@ -104,6 +114,11 @@
   --pursio-primary-ink: #1a0e05;
   --pursio-primary-soft: #3a2340;
   --pursio-accent-text: #ff9a4d;
+
+  --pursio-danger: #ff5a6e;
+  --pursio-danger-deep: #b02a3c;
+  --pursio-danger-ink: #1a0e05;
+  --pursio-danger-text: #ff8090;
 
   --pursio-done: #8f49ff;
   --pursio-done-deep: #5b2bb0;

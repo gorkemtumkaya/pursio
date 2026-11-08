@@ -2,6 +2,7 @@
 import { computed, nextTick, onBeforeUnmount, ref, shallowRef, useTemplateRef } from 'vue'
 import type { QuestTriple, SkillNode, SkillTree } from '#shared/types/skill-tree'
 import { toWickOutfit } from '~/components/mascot/wick'
+import MascotWick from '~/components/mascot/wick.vue'
 import { completionPercent } from '#shared/utils/progress-engine'
 import { useActivity } from '~/composables/useActivity'
 import { usePathLayout } from '~/composables/usePathLayout'
@@ -28,8 +29,18 @@ const props = defineProps<{
   demo: boolean
   /** Hobby list for the sidebar and Hobby_Switcher, with stored percents. */
   hobbies: readonly HobbyEntry[]
+  /** Archived hobbies, listed under "Archived (N)" with Restore. */
+  archived: readonly HobbyEntry[]
   /** Entry shown here; its percent follows live Progress. */
   activeId: string
+}>()
+
+/** The page does the storage work and re-chooses the shown hobby when needed. */
+const emit = defineEmits<{
+  'archive-hobby': [id: string]
+  /** Emitted after the learner confirmed. */
+  'delete-hobby': [id: string]
+  'restore-hobby': [id: string]
 }>()
 
 const tree: SkillTree = props.tree
@@ -100,6 +111,46 @@ const hobbyList = computed<HobbyEntry[]>(() => {
 
 /** Mobile hobby Bottom_Sheet (spec: local-progress-data, Req 4.3). */
 const hobbySheetOpen = ref(false)
+
+/** Delete confirmation. It opens over the sheet, which stays open. */
+const deleteOpen = ref(false)
+/** Hobby being confirmed. Kept after closing so the leave transition shows no placeholder title. */
+const deleting = ref<HobbyEntry | null>(null)
+
+function askDelete(entry: HobbyEntry): void {
+  deleting.value = entry
+  deleteOpen.value = true
+}
+
+/** The entry that held focus moved or is gone: keep focus in the list (inside the sheet on mobile). */
+async function focusHobbyList(): Promise<void> {
+  await nextTick()
+  document.getElementById(hobbySheetOpen.value ? 'sheet-hobbies' : 'sidebar-hobbies')?.focus()
+}
+
+function confirmDelete(): void {
+  deleteOpen.value = false
+  const entry = deleting.value
+  if (!entry) return
+  emit('delete-hobby', entry.id)
+  void focusHobbyList()
+}
+
+/** "Archive instead" in the delete dialog. */
+function archiveInstead(): void {
+  deleteOpen.value = false
+  if (deleting.value) onArchive(deleting.value)
+}
+
+function onArchive(entry: HobbyEntry): void {
+  emit('archive-hobby', entry.id)
+  void focusHobbyList()
+}
+
+function onRestore(entry: HobbyEntry): void {
+  emit('restore-hobby', entry.id)
+  void focusHobbyList()
+}
 
 interface MobileHeaderHandle {
   focusSwitcher(): void
@@ -216,7 +267,14 @@ function onContinue(): void {
 <template>
   <div class="lg:grid lg:grid-cols-[248px_minmax(0,1fr)_clamp(360px,30vw,460px)]">
     <div class="hidden lg:block">
-      <PathSidebar :hobbies="hobbyList" :active-id="activeId" />
+      <PathSidebar
+        :hobbies="hobbyList"
+        :archived="archived"
+        :active-id="activeId"
+        @archive="onArchive"
+        @delete="askDelete"
+        @restore="onRestore"
+      />
     </div>
 
     <main class="mx-auto w-full min-w-0 max-w-160">
@@ -315,12 +373,32 @@ function onContinue(): void {
   >
     <PathHobbyList
       :hobbies="hobbyList"
+      :archived="archived"
       :active-id="activeId"
       heading-id="sheet-hobbies"
       layout="sheet"
       @navigate="closeHobbySheet"
+      @archive="onArchive"
+      @delete="askDelete"
+      @restore="onRestore"
     />
   </PathBottomSheet>
+
+  <PathConfirmDialog
+    :open="deleteOpen"
+    :title="`Delete your ${deleting?.hobby ?? ''} path?`"
+    message="Your progress and quests on this path will be lost. Archive it instead if you might come back."
+    confirm-label="Delete"
+    tone="danger"
+    secondary-label="Archive instead"
+    @confirm="confirmDelete"
+    @cancel="deleteOpen = false"
+    @secondary="archiveInstead"
+  >
+    <template #media>
+      <MascotWick :theme="theme" outfit="none" mood="sleep" :size="84" aria-hidden="true" class="mb-1" />
+    </template>
+  </PathConfirmDialog>
 
   <PathUnlockCard
     :open="unlockOpen"

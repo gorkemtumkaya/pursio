@@ -9,5 +9,6 @@ const route = useRoute()
   <NuxtLayout>
     <NuxtPage />
   </NuxtLayout>
+  <AppToast />
   <DevThemeSwitcher v-if="isDev && route.path !== '/' && route.path !== NEW_HOBBY_PATH" />
 </template>

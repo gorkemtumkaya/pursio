@@ -23,6 +23,11 @@
   --color-primary-soft: var(--pursio-primary-soft);
   --color-accent-text: var(--pursio-accent-text);
 
+  --color-danger: var(--pursio-danger);
+  --color-danger-deep: var(--pursio-danger-deep);
+  --color-danger-ink: var(--pursio-danger-ink);
+  --color-danger-text: var(--pursio-danger-text);
+
   --color-done: var(--pursio-done);
   --color-done-deep: var(--pursio-done-deep);
   --color-done-ink: var(--pursio-done-ink);
@@ -50,6 +55,7 @@
 
   /* Raised elements: solid bottom shadow in the matching -deep color. */
   --shadow-raised-primary: 0 6px 0 var(--pursio-primary-deep);
+  --shadow-raised-danger: 0 5px 0 var(--pursio-danger-deep);
   --shadow-raised-done: 0 6px 0 var(--pursio-done-deep);
   --shadow-raised-locked: 0 6px 0 var(--pursio-locked-deep);
   --shadow-raised-gold: 0 6px 0 var(--pursio-gold-deep);
