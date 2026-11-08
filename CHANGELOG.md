@@ -24,3 +24,4 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 - Completed skills in the trail and halloween themes use a slightly darker color, so the white text on them is easier to read. (spec: skill-path-ui)
 - A path you built before this update moves into your hobby list with its progress. Opening `/path` with no hobbies yet takes you to the start page. (spec: local-progress-data)
 - The Fresh, Quests and Profile menu items and the "Fresh this week" cards are hidden until those features exist. The demo at `/path?demo=1` still shows them as samples. (spec: local-progress-data)
+- The start page has a new look: Wick reacts while your path is built, and you can say how far along you are in the hobby so the path starts at the right level. (spec: new-hobby-page)

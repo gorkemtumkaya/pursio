@@ -1,5 +1,5 @@
 import { z } from 'zod'
-import { COMPLETION_LOG_LIMIT } from '../../shared/utils/streak'
+import { COMPLETION_LOG_LIMIT } from '#shared/utils/streak'
 import type { StorageLike } from './progress-store'
 
 export const ACTIVITY_STORAGE_KEY = 'pursio-activity:v1'

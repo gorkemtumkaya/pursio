@@ -45,6 +45,9 @@ export function hobbyProgressKey(id: string): string {
   return `pursio-progress:v${PROGRESS_SCHEMA_VERSION}:hobby:${id}`
 }
 
+/** Route of the new hobby page. "+ Add a hobby" and an empty library open it. */
+export const NEW_HOBBY_PATH = '/new'
+
 /** `/path` URL that opens one entry (Req 4.4). */
 export function hobbyPath(id: string): string {
   return `/path?hobby=${encodeURIComponent(id)}`
@@ -199,6 +202,12 @@ export function setActiveHobby(getStorage: () => StorageLike | null, id: string)
 export function pickHobby(library: HobbyLibrary, requestedId: unknown): HobbyRecord | null {
   const byId = (id: unknown) => (typeof id === 'string' ? library.hobbies.find((h) => h.id === id) : undefined)
   return byId(requestedId) ?? byId(library.activeId) ?? library.hobbies.at(-1) ?? null
+}
+
+/** `/path` URL of the Active_Hobby (else the last added one), or null when the library is empty. */
+export function lastActivePath(library: HobbyLibrary): string | null {
+  const picked = pickHobby(library, null)
+  return picked ? hobbyPath(picked.id) : null
 }
 
 /** Sidebar rows with each entry's stored Progress as a percent (Req 4.1). */

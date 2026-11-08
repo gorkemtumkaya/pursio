@@ -22,6 +22,7 @@ export const ICON_NAMES = [
   'play',
   'article',
   'palette',
+  'settings',
 ] as const
 
 export type IconName = (typeof ICON_NAMES)[number]
@@ -113,6 +114,13 @@ export const ICONS: Readonly<Record<IconName, IconDefinition>> = {
     shapes: [
       { tag: 'circle', cx: 12, cy: 12, r: 9 },
       { tag: 'path', d: 'M12 3v18M12 8a4 4 0 0 1 0 8' },
+    ],
+  },
+  settings: {
+    filled: false,
+    shapes: [
+      { tag: 'circle', cx: 12, cy: 12, r: 3.2 },
+      { tag: 'path', d: 'M12 2.5v3M12 18.5v3M2.5 12h3M18.5 12h3M5.3 5.3l2.1 2.1M16.6 16.6l2.1 2.1M5.3 18.7l2.1-2.1M16.6 7.4l2.1-2.1' },
     ],
   },
 }

@@ -1,0 +1,309 @@
+{
+  "pbtResults": {},
+  "executionHistory": {
+    "1.1 Add the starting level to the shared code": [
+      {
+        "executionId": "68ebf47e-114d-4253-b255-ba4be8acc7b6",
+        "chatSessionId": "sess_3625c81c-38c2-4b56-ae70-2bd5fd6f4010",
+        "timestamp": 1794164233275
+      },
+      {
+        "executionId": "68ebf47e-114d-4253-b255-ba4be8acc7b6",
+        "chatSessionId": "sess_3625c81c-38c2-4b56-ae70-2bd5fd6f4010",
+        "timestamp": 1794164240220
+      },
+      {
+        "executionId": "68ebf47e-114d-4253-b255-ba4be8acc7b6",
+        "chatSessionId": "sess_3625c81c-38c2-4b56-ae70-2bd5fd6f4010",
+        "timestamp": 1794164312287
+      }
+    ],
+    "2.1 Send the level in the provider user message": [
+      {
+        "executionId": "68ebf47e-114d-4253-b255-ba4be8acc7b6",
+        "chatSessionId": "sess_3625c81c-38c2-4b56-ae70-2bd5fd6f4010",
+        "timestamp": 1794164233310
+      },
+      {
+        "executionId": "68ebf47e-114d-4253-b255-ba4be8acc7b6",
+        "chatSessionId": "sess_3625c81c-38c2-4b56-ae70-2bd5fd6f4010",
+        "timestamp": 1794164378814
+      },
+      {
+        "executionId": "68ebf47e-114d-4253-b255-ba4be8acc7b6",
+        "chatSessionId": "sess_3625c81c-38c2-4b56-ae70-2bd5fd6f4010",
+        "timestamp": 1794164411988
+      }
+    ],
+    "2.2 Thread the level through the generator, cache and handler": [
+      {
+        "executionId": "68ebf47e-114d-4253-b255-ba4be8acc7b6",
+        "chatSessionId": "sess_3625c81c-38c2-4b56-ae70-2bd5fd6f4010",
+        "timestamp": 1794164233337
+      },
+      {
+        "executionId": "68ebf47e-114d-4253-b255-ba4be8acc7b6",
+        "chatSessionId": "sess_3625c81c-38c2-4b56-ae70-2bd5fd6f4010",
+        "timestamp": 1794164415136
+      },
+      {
+        "executionId": "68ebf47e-114d-4253-b255-ba4be8acc7b6",
+        "chatSessionId": "sess_3625c81c-38c2-4b56-ae70-2bd5fd6f4010",
+        "timestamp": 1794164494756
+      }
+    ],
+    "3.1 Add the level to the tree request": [
+      {
+        "executionId": "68ebf47e-114d-4253-b255-ba4be8acc7b6",
+        "chatSessionId": "sess_3625c81c-38c2-4b56-ae70-2bd5fd6f4010",
+        "timestamp": 1794164233362
+      },
+      {
+        "executionId": "68ebf47e-114d-4253-b255-ba4be8acc7b6",
+        "chatSessionId": "sess_3625c81c-38c2-4b56-ae70-2bd5fd6f4010",
+        "timestamp": 1794164379701
+      },
+      {
+        "executionId": "68ebf47e-114d-4253-b255-ba4be8acc7b6",
+        "chatSessionId": "sess_3625c81c-38c2-4b56-ae70-2bd5fd6f4010",
+        "timestamp": 1794164412378
+      }
+    ],
+    "3.2 Write the unit test for the level in the API request": [
+      {
+        "executionId": "68ebf47e-114d-4253-b255-ba4be8acc7b6",
+        "chatSessionId": "sess_3625c81c-38c2-4b56-ae70-2bd5fd6f4010",
+        "timestamp": 1794164233388
+      },
+      {
+        "executionId": "68ebf47e-114d-4253-b255-ba4be8acc7b6",
+        "chatSessionId": "sess_3625c81c-38c2-4b56-ae70-2bd5fd6f4010",
+        "timestamp": 1794164415778
+      },
+      {
+        "executionId": "68ebf47e-114d-4253-b255-ba4be8acc7b6",
+        "chatSessionId": "sess_3625c81c-38c2-4b56-ae70-2bd5fd6f4010",
+        "timestamp": 1794164494774
+      }
+    ],
+    "3.3 Add the tree summary helper": [
+      {
+        "executionId": "68ebf47e-114d-4253-b255-ba4be8acc7b6",
+        "chatSessionId": "sess_3625c81c-38c2-4b56-ae70-2bd5fd6f4010",
+        "timestamp": 1794164233420
+      },
+      {
+        "executionId": "68ebf47e-114d-4253-b255-ba4be8acc7b6",
+        "chatSessionId": "sess_3625c81c-38c2-4b56-ae70-2bd5fd6f4010",
+        "timestamp": 1794164240237
+      },
+      {
+        "executionId": "68ebf47e-114d-4253-b255-ba4be8acc7b6",
+        "chatSessionId": "sess_3625c81c-38c2-4b56-ae70-2bd5fd6f4010",
+        "timestamp": 1794164312306
+      }
+    ],
+    "4.1 Create `app/components/hobby/HobbyLevelPicker.vue`": [
+      {
+        "executionId": "68ebf47e-114d-4253-b255-ba4be8acc7b6",
+        "chatSessionId": "sess_3625c81c-38c2-4b56-ae70-2bd5fd6f4010",
+        "timestamp": 1794164233452
+      },
+      {
+        "executionId": "68ebf47e-114d-4253-b255-ba4be8acc7b6",
+        "chatSessionId": "sess_3625c81c-38c2-4b56-ae70-2bd5fd6f4010",
+        "timestamp": 1794164240344
+      },
+      {
+        "executionId": "68ebf47e-114d-4253-b255-ba4be8acc7b6",
+        "chatSessionId": "sess_3625c81c-38c2-4b56-ae70-2bd5fd6f4010",
+        "timestamp": 1794164312936
+      }
+    ],
+    "4.2 Create `app/components/hobby/HobbyIdeaChips.vue`": [
+      {
+        "executionId": "68ebf47e-114d-4253-b255-ba4be8acc7b6",
+        "chatSessionId": "sess_3625c81c-38c2-4b56-ae70-2bd5fd6f4010",
+        "timestamp": 1794164233486
+      },
+      {
+        "executionId": "68ebf47e-114d-4253-b255-ba4be8acc7b6",
+        "chatSessionId": "sess_3625c81c-38c2-4b56-ae70-2bd5fd6f4010",
+        "timestamp": 1794164240634
+      },
+      {
+        "executionId": "68ebf47e-114d-4253-b255-ba4be8acc7b6",
+        "chatSessionId": "sess_3625c81c-38c2-4b56-ae70-2bd5fd6f4010",
+        "timestamp": 1794164313351
+      }
+    ],
+    "4.3 Create `app/components/hobby/HobbyBuildSteps.vue` and `HobbyReadyCard.vue`": [
+      {
+        "executionId": "68ebf47e-114d-4253-b255-ba4be8acc7b6",
+        "chatSessionId": "sess_3625c81c-38c2-4b56-ae70-2bd5fd6f4010",
+        "timestamp": 1794164233509
+      },
+      {
+        "executionId": "68ebf47e-114d-4253-b255-ba4be8acc7b6",
+        "chatSessionId": "sess_3625c81c-38c2-4b56-ae70-2bd5fd6f4010",
+        "timestamp": 1794164241269
+      },
+      {
+        "executionId": "68ebf47e-114d-4253-b255-ba4be8acc7b6",
+        "chatSessionId": "sess_3625c81c-38c2-4b56-ae70-2bd5fd6f4010",
+        "timestamp": 1794164313969
+      }
+    ],
+    "4.4 Create `app/components/hobby/HobbyBenefits.vue`": [
+      {
+        "executionId": "68ebf47e-114d-4253-b255-ba4be8acc7b6",
+        "chatSessionId": "sess_3625c81c-38c2-4b56-ae70-2bd5fd6f4010",
+        "timestamp": 1794164233533
+      },
+      {
+        "executionId": "68ebf47e-114d-4253-b255-ba4be8acc7b6",
+        "chatSessionId": "sess_3625c81c-38c2-4b56-ae70-2bd5fd6f4010",
+        "timestamp": 1794164320694
+      },
+      {
+        "executionId": "68ebf47e-114d-4253-b255-ba4be8acc7b6",
+        "chatSessionId": "sess_3625c81c-38c2-4b56-ae70-2bd5fd6f4010",
+        "timestamp": 1794164371357
+      }
+    ],
+    "5.1 Create `app/composables/useHobbyBuilder.ts`": [
+      {
+        "executionId": "68ebf47e-114d-4253-b255-ba4be8acc7b6",
+        "chatSessionId": "sess_3625c81c-38c2-4b56-ae70-2bd5fd6f4010",
+        "timestamp": 1794164233552
+      },
+      {
+        "executionId": "68ebf47e-114d-4253-b255-ba4be8acc7b6",
+        "chatSessionId": "sess_3625c81c-38c2-4b56-ae70-2bd5fd6f4010",
+        "timestamp": 1794164416350
+      },
+      {
+        "executionId": "68ebf47e-114d-4253-b255-ba4be8acc7b6",
+        "chatSessionId": "sess_3625c81c-38c2-4b56-ae70-2bd5fd6f4010",
+        "timestamp": 1794164494917
+      }
+    ],
+    "6.1 Rewrite `app/pages/index.vue` to the new design": [
+      {
+        "executionId": "68ebf47e-114d-4253-b255-ba4be8acc7b6",
+        "chatSessionId": "sess_3625c81c-38c2-4b56-ae70-2bd5fd6f4010",
+        "timestamp": 1794164233576
+      },
+      {
+        "executionId": "68ebf47e-114d-4253-b255-ba4be8acc7b6",
+        "chatSessionId": "sess_3625c81c-38c2-4b56-ae70-2bd5fd6f4010",
+        "timestamp": 1794164497508
+      },
+      {
+        "executionId": "68ebf47e-114d-4253-b255-ba4be8acc7b6",
+        "chatSessionId": "sess_3625c81c-38c2-4b56-ae70-2bd5fd6f4010",
+        "timestamp": 1794164564135
+      }
+    ],
+    "6.2 Hide the dev theme switcher on the new hobby page": [
+      {
+        "executionId": "68ebf47e-114d-4253-b255-ba4be8acc7b6",
+        "chatSessionId": "sess_3625c81c-38c2-4b56-ae70-2bd5fd6f4010",
+        "timestamp": 1794164233595
+      },
+      {
+        "executionId": "68ebf47e-114d-4253-b255-ba4be8acc7b6",
+        "chatSessionId": "sess_3625c81c-38c2-4b56-ae70-2bd5fd6f4010",
+        "timestamp": 1794164320836
+      },
+      {
+        "executionId": "68ebf47e-114d-4253-b255-ba4be8acc7b6",
+        "chatSessionId": "sess_3625c81c-38c2-4b56-ae70-2bd5fd6f4010",
+        "timestamp": 1794164371722
+      }
+    ],
+    "7. Checkpoint - Verify": [
+      {
+        "executionId": "68ebf47e-114d-4253-b255-ba4be8acc7b6",
+        "chatSessionId": "sess_3625c81c-38c2-4b56-ae70-2bd5fd6f4010",
+        "timestamp": 1794164233619
+      },
+      {
+        "executionId": "68ebf47e-114d-4253-b255-ba4be8acc7b6",
+        "chatSessionId": "sess_3625c81c-38c2-4b56-ae70-2bd5fd6f4010",
+        "timestamp": 1794164579226
+      },
+      {
+        "executionId": "68ebf47e-114d-4253-b255-ba4be8acc7b6",
+        "chatSessionId": "sess_3625c81c-38c2-4b56-ae70-2bd5fd6f4010",
+        "timestamp": 1794164703239
+      }
+    ],
+    "8.1 Add the CHANGELOG entry": [
+      {
+        "executionId": "68ebf47e-114d-4253-b255-ba4be8acc7b6",
+        "chatSessionId": "sess_3625c81c-38c2-4b56-ae70-2bd5fd6f4010",
+        "timestamp": 1794164233642
+      },
+      {
+        "executionId": "68ebf47e-114d-4253-b255-ba4be8acc7b6",
+        "chatSessionId": "sess_3625c81c-38c2-4b56-ae70-2bd5fd6f4010",
+        "timestamp": 1794164573607
+      },
+      {
+        "executionId": "68ebf47e-114d-4253-b255-ba4be8acc7b6",
+        "chatSessionId": "sess_3625c81c-38c2-4b56-ae70-2bd5fd6f4010",
+        "timestamp": 1794164596831
+      }
+    ],
+    "1. Shared level type and prompt sentence": [
+      {
+        "executionId": "68ebf47e-114d-4253-b255-ba4be8acc7b6",
+        "chatSessionId": "sess_3625c81c-38c2-4b56-ae70-2bd5fd6f4010",
+        "timestamp": 1794164312341
+      }
+    ],
+    "4. Presentational components": [
+      {
+        "executionId": "68ebf47e-114d-4253-b255-ba4be8acc7b6",
+        "chatSessionId": "sess_3625c81c-38c2-4b56-ae70-2bd5fd6f4010",
+        "timestamp": 1794164371384
+      }
+    ],
+    "2. Server: pass the level into generation": [
+      {
+        "executionId": "68ebf47e-114d-4253-b255-ba4be8acc7b6",
+        "chatSessionId": "sess_3625c81c-38c2-4b56-ae70-2bd5fd6f4010",
+        "timestamp": 1794164494804
+      }
+    ],
+    "3. Client request and summary helpers": [
+      {
+        "executionId": "68ebf47e-114d-4253-b255-ba4be8acc7b6",
+        "chatSessionId": "sess_3625c81c-38c2-4b56-ae70-2bd5fd6f4010",
+        "timestamp": 1794164494827
+      }
+    ],
+    "5. Builder composable": [
+      {
+        "executionId": "68ebf47e-114d-4253-b255-ba4be8acc7b6",
+        "chatSessionId": "sess_3625c81c-38c2-4b56-ae70-2bd5fd6f4010",
+        "timestamp": 1794164494941
+      }
+    ],
+    "6. Page and app shell": [
+      {
+        "executionId": "68ebf47e-114d-4253-b255-ba4be8acc7b6",
+        "chatSessionId": "sess_3625c81c-38c2-4b56-ae70-2bd5fd6f4010",
+        "timestamp": 1794164564166
+      }
+    ],
+    "8. Changelog": [
+      {
+        "executionId": "68ebf47e-114d-4253-b255-ba4be8acc7b6",
+        "chatSessionId": "sess_3625c81c-38c2-4b56-ae70-2bd5fd6f4010",
+        "timestamp": 1794164596873
+      }
+    ]
+  }
+}

@@ -1,5 +1,6 @@
 import type { SkillTree } from './skill-tree'
 export type Provider = 'anthropic' | 'openai'
+export type StartLevel = 'new' | 'some' | 'serious'
 export interface ProviderConfig {
   provider: Provider
   model: string

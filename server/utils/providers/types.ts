@@ -1,13 +1,21 @@
-import type { ProviderConfig } from '../../../shared/types/llm'
+import type { ProviderConfig, StartLevel } from '../../../shared/types/llm'
+import { levelInstruction } from '../../../shared/utils/llm'
 
 export type AdapterFailure = 'provider_auth' | 'provider_error' | 'bad_output'
 export type AdapterResult = { ok: true; value: unknown } | { ok: false; error: AdapterFailure }
 
 export interface GenerateOptions {
   systemPrompt: string
+  /** The learner's starting level, sent with the hobby. */
+  level: StartLevel
   /** Extra user text for the retry call (Req 4.3). */
   retryNote?: string
   signal?: AbortSignal
+}
+
+/** The user message: the hobby, a blank line, then the level sentence. */
+export function userMessage(hobby: string, level: StartLevel): string {
+  return `${hobby}\n\n${levelInstruction(level)}`
 }
 
 export interface ProviderAdapter {

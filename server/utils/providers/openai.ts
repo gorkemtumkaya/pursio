@@ -1,6 +1,6 @@
 import { generationSchema } from '../generation-schema'
 import type { ProviderConfig } from '../../../shared/types/llm'
-import { callProvider, isRecord, type Fetcher, type ProviderAdapter } from './types'
+import { callProvider, isRecord, type Fetcher, type ProviderAdapter, userMessage } from './types'
 
 const URL = 'https://api.openai.com/v1/chat/completions'
 
@@ -32,7 +32,7 @@ export function createOpenAIAdapter(fetcher: Fetcher): ProviderAdapter {
     async generateTree(hobby, config, options) {
       const messages = [
         { role: 'system', content: options.systemPrompt },
-        { role: 'user', content: hobby },
+        { role: 'user', content: userMessage(hobby, options.level) },
       ]
       if (options.retryNote) messages.push({ role: 'user', content: options.retryNote })
       const body: Record<string, unknown> = {

@@ -1,14 +1,14 @@
-import type { Provider } from '../../shared/types/llm'
+import type { Provider, StartLevel } from '../../shared/types/llm'
 import type { SkillTree } from '../../shared/types/skill-tree'
 import { normalizeHobby } from '../../shared/utils/llm'
 
 /**
  * Cache key for a generated tree. JSON array encoding keeps the key injective
- * over (Normalized_Hobby, provider, model), even when the model id contains
+ * over (Normalized_Hobby, level, provider, model), even when the model id contains
  * separators such as commas or quotes (Req 6.5).
  */
-export function cacheKey(hobby: string, provider: Provider, model: string): string {
-  return JSON.stringify([normalizeHobby(hobby), provider, model])
+export function cacheKey(hobby: string, level: StartLevel, provider: Provider, model: string): string {
+  return JSON.stringify([normalizeHobby(hobby), level, provider, model])
 }
 
 /** A cache entry. It has no key field, so an API key can never be stored (Req 2.6). */

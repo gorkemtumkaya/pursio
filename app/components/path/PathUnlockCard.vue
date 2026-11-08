@@ -1,17 +1,22 @@
 <script setup lang="ts">
 import { computed, ref, useId } from 'vue'
+import MascotWick from '~/components/mascot/wick.vue'
+import type { WickOutfit, WickTheme } from '~/components/mascot/wick'
 import { useFocusTrap } from '~/composables/useFocusTrap'
 
 /**
  * Unlock_Moment card (Req 9.3, 9.4, 9.6). Teleported to `<body>` as a modal
  * dialog over `bg-overlay`. Rendered while `open` is true; it stays until the
  * user activates Continue: no Escape, backdrop or automatic dismissal. Focus
- * moves to Continue on open and Tab wraps inside the card.
+ * moves to Continue on open and Tab wraps inside the card. Wick cheers in
+ * the hobby's outfit each time the card opens (decorative).
  */
 const props = defineProps<{
   open: boolean
   completedTitle: string
   nextTitle: string | null
+  theme: WickTheme
+  outfit: WickOutfit
 }>()
 const emit = defineEmits<{ continue: [] }>()
 
@@ -40,12 +45,14 @@ useFocusTrap(card, { active, initialFocus: continueButton })
           :aria-labelledby="titleId"
           class="flex w-full max-w-sm flex-col items-center gap-3 rounded-3xl bg-surface px-6 pt-8 pb-6 text-center"
         >
-          <span
+          <MascotWick
+            :theme="theme"
+            :outfit="outfit"
+            mood="cheer"
+            :size="120"
             aria-hidden="true"
-            class="mb-2 flex size-21 items-center justify-center rounded-node bg-done text-done-ink shadow-raised-done"
-          >
-            <PathIcon name="check" class="size-10" />
-          </span>
+            class="-mt-2"
+          />
           <span class="font-display text-4xl font-bold text-accent-text">+50 XP</span>
           <h2 :id="titleId" class="font-body text-2xl font-extrabold text-ink">
             {{ completedTitle }} complete

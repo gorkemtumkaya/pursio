@@ -10,6 +10,7 @@ import {
   hobbyId,
   hobbyPath,
   hobbyProgressKey,
+  lastActivePath,
   loadHobbyLibrary,
   parseHobbyLibrary,
   pickHobby,
@@ -182,6 +183,19 @@ describe('pickHobby and setActiveHobby', () => {
     expect(loadHobbyLibrary(() => storage).activeId).toBe('bouldering')
     setActiveHobby(() => storage, 'unknown')
     expect(loadHobbyLibrary(() => storage).activeId).toBe('bouldering')
+  })
+})
+
+describe('lastActivePath', () => {
+  it('opens the active hobby, else the last added one, else nothing', () => {
+    const storage = memoryStorage()
+    expect(lastActivePath(loadHobbyLibrary(() => storage))).toBeNull()
+    addHobby(() => storage, { tree: bouldering, model: 'm' }, 1)
+    addHobby(() => storage, { tree: guitar, model: 'm' }, 2)
+    setActiveHobby(() => storage, 'bouldering')
+    const library = loadHobbyLibrary(() => storage)
+    expect(lastActivePath(library)).toBe('/path?hobby=bouldering')
+    expect(lastActivePath({ ...library, activeId: null })).toBe('/path?hobby=guitar')
   })
 })
 

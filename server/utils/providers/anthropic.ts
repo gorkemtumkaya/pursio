@@ -1,6 +1,6 @@
 import { generationSchema } from '../generation-schema'
 import type { ProviderConfig } from '../../../shared/types/llm'
-import { callProvider, isRecord, type Fetcher, type ProviderAdapter } from './types'
+import { callProvider, isRecord, type Fetcher, type ProviderAdapter, userMessage } from './types'
 
 const URL = 'https://api.anthropic.com/v1/messages'
 const TOOL_NAME = 'submit_skill_tree'
@@ -30,7 +30,7 @@ function toolInput(response: unknown): { found: true; input: unknown } | { found
 export function createAnthropicAdapter(fetcher: Fetcher): ProviderAdapter {
   return {
     async generateTree(hobby, config, options) {
-      const text = [{ type: 'text', text: hobby }]
+      const text = [{ type: 'text', text: userMessage(hobby, options.level) }]
       if (options.retryNote) text.push({ type: 'text', text: options.retryNote })
       const body: Record<string, unknown> = {
         model: config.model,

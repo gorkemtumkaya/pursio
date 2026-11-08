@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { computed, nextTick, onBeforeUnmount, ref, shallowRef, useTemplateRef } from 'vue'
 import type { QuestTriple, SkillNode, SkillTree } from '#shared/types/skill-tree'
+import { toWickOutfit } from '~/components/mascot/wick'
 import { completionPercent } from '#shared/utils/progress-engine'
 import { useActivity } from '~/composables/useActivity'
 import { usePathLayout } from '~/composables/usePathLayout'
@@ -37,6 +38,10 @@ const { progress, states, currentId, activeSection, xp, toggleQuest, complete } 
 const activity = useActivity(props.demo)
 const viewport = useViewportClass()
 const { status, layout } = usePathLayout(tree, viewport)
+
+/** Wick takes the theme's colors and the hobby's outfit (off-list `mascot.set` falls back to explorer). */
+const { theme } = useTheme()
+const outfit = toWickOutfit(tree.mascot.set)
 
 interface NodeEntry {
   node: SkillNode
@@ -225,7 +230,13 @@ function onContinue(): void {
         @switch="hobbySheetOpen = true"
       />
       <div class="hidden px-6 pt-7 pb-4 lg:block">
-        <PathDesktopHeader :hobby="tree.hobby" :xp="xp" :streak="activity.streak.value" />
+        <PathDesktopHeader
+          :hobby="tree.hobby"
+          :xp="xp"
+          :streak="activity.streak.value"
+          :theme="theme"
+          :outfit="outfit"
+        />
       </div>
 
       <div class="pt-4 lg:pt-2">
@@ -315,6 +326,8 @@ function onContinue(): void {
     :open="unlockOpen"
     :completed-title="unlock?.completedTitle ?? ''"
     :next-title="unlock?.nextTitle ?? null"
+    :theme="theme"
+    :outfit="outfit"
     @continue="onContinue"
   />
 </template>

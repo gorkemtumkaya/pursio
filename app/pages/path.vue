@@ -9,6 +9,7 @@ import {
   hobbyEntries,
   hobbyProgressKey,
   loadHobbyLibrary,
+  NEW_HOBBY_PATH,
   pickHobby,
   setActiveHobby,
   type HobbyEntry,
@@ -20,7 +21,7 @@ import { browserStorage, progressStorageKey } from '~/utils/progress-store'
  * SSR. Otherwise the Hobby_Library lives in localStorage, so SSR and the first
  * client render show the loading state and the choice happens after mount:
  * `?hobby=<id>`, else the Active_Hobby, else the last added hobby; an empty
- * library opens the Start_Screen (spec: local-progress-data, Req 3.6, 3.7).
+ * library opens the new hobby page (spec: local-progress-data, Req 3.6, 3.7).
  */
 
 // Remount when only the query changes, so switching hobby or to and from ?demo=1 re-chooses.
@@ -68,7 +69,7 @@ onMounted(async () => {
   const library = loadHobbyLibrary(browserStorage)
   const picked = pickHobby(library, route.query.hobby)
   if (!picked) {
-    await navigateTo('/', { replace: true })
+    await navigateTo(NEW_HOBBY_PATH, { replace: true })
     return
   }
   setActiveHobby(browserStorage, picked.id)

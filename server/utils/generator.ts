@@ -1,4 +1,4 @@
-import type { Provider, ProviderConfig } from '../../shared/types/llm'
+import type { Provider, ProviderConfig, StartLevel } from '../../shared/types/llm'
 import type { SkillTree } from '../../shared/types/skill-tree'
 import type { ValidationError } from '../../shared/types/validation'
 import { formatValidationError, loadSkillTree } from '../../shared/utils/skill-tree-load'
@@ -38,6 +38,7 @@ export function retryNote(errors: ValidationError[] | null): string {
  */
 export async function generateSkillTree(
   hobby: string,
+  level: StartLevel,
   config: ProviderConfig,
   deps: GeneratorDeps,
 ): Promise<GenerationResult> {
@@ -46,7 +47,7 @@ export async function generateSkillTree(
   let note: string | undefined
 
   for (let attempt = 1; attempt <= MAX_ATTEMPTS; attempt++) {
-    const result = await adapter.generateTree(hobby, config, { systemPrompt, retryNote: note, signal })
+    const result = await adapter.generateTree(hobby, config, { systemPrompt, level, retryNote: note, signal })
     if (signal?.aborted) return { kind: 'error', code: 'timeout' }
 
     if (!result.ok) {

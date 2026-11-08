@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import type { HobbyEntry } from '~/utils/hobby-store'
+import { NEW_HOBBY_PATH, type HobbyEntry } from '~/utils/hobby-store'
 
 /**
  * "Your hobbies" list with real progress and "+ Add a hobby", shared by the
@@ -54,7 +54,7 @@ const cardClass =
       </li>
     </ul>
     <NuxtLink
-      to="/"
+      :to="NEW_HOBBY_PATH"
       class="flex h-12 items-center justify-center rounded-2xl border-2 border-dashed border-locked-deep text-[15px] font-extrabold text-muted hover:bg-surface-2 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink"
       @click="emit('navigate')"
     >

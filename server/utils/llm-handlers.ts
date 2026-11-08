@@ -1,5 +1,5 @@
-import type { ErrorCode, Provider, ProviderConfig, TestResponse, TreeResponse } from '../../shared/types/llm'
-import { HOBBY_MAX_LENGTH, MODEL_MAX_LENGTH, isProvider } from '../../shared/utils/llm'
+import type { ErrorCode, Provider, ProviderConfig, StartLevel, TestResponse, TreeResponse } from '../../shared/types/llm'
+import { DEFAULT_LEVEL, HOBBY_MAX_LENGTH, MODEL_MAX_LENGTH, isProvider, isStartLevel } from '../../shared/utils/llm'
 import { generateSkillTree, type GenerationResult } from './generator'
 import type { ProviderAdapter } from './providers/types'
 import type { RateLimiter } from './rate-limiter'
@@ -115,6 +115,11 @@ export async function handleTreeRequest(
   const hobby = body.hobby.trim()
   if (hobby === '' || hobby.length > HOBBY_MAX_LENGTH) return treeError('invalid_input')
 
+  // 1b. Starting level: missing means the default, anything else must be a StartLevel.
+  const rawLevel = body.level
+  if (rawLevel !== undefined && !isStartLevel(rawLevel)) return treeError('invalid_input')
+  const level: StartLevel = rawLevel ?? DEFAULT_LEVEL
+
   // 2. Provider_Config (Req 2.1 to 2.4).
   const resolved = resolveProviderConfig({ headerKey: input.headerKey, body, defaults: deps.defaults })
   if (!resolved.ok) return treeError(resolved.code)
@@ -125,7 +130,7 @@ export async function handleTreeRequest(
   }
 
   // 3. Cache lookup; a hit is not counted (Req 6.2, 7.3).
-  const key = cacheKey(hobby, config.provider, config.model)
+  const key = cacheKey(hobby, level, config.provider, config.model)
   const cached = deps.cache.get(key)
   if (cached) return { status: 200, body: { tree: cached.tree, model: cached.model } }
 
@@ -143,7 +148,7 @@ export async function handleTreeRequest(
   let result: GenerationResult
   try {
     result = await withTimeout(deps.timeoutMs, timeout, (signal) =>
-      generateSkillTree(hobby, config, { adapters: deps.adapters, systemPrompt, signal }),
+      generateSkillTree(hobby, level, config, { adapters: deps.adapters, systemPrompt, signal }),
     )
   } catch {
     result = { kind: 'error', code: 'provider_error' }

@@ -1,0 +1,518 @@
+<!doctype html>
+<html lang="en" data-theme="boulder">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Pursio · New hobby</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Fredoka:wght@500;600;700&family=Nunito+Sans:wght@400;600;700;800&family=Archivo:wght@400;600;800&family=Archivo+Black&family=Creepster&display=swap">
+<style>
+/* ---------- Theme tokens ---------- */
+:root, [data-theme="trail"] {
+  --bg:#F2F4EF; --surface:#FFFFFF; --surface-2:#E7ECE4; --ink:#16211B; --muted:#56635B; --line:#D3DBD0;
+  --primary:#FF6A3D; --primary-deep:#C2441C; --primary-ink:#1A120D; --primary-soft:#FFE4D9; --accent-text:#B23D16;
+  --done:#1E8C6E; --done-ink:#FFFFFF; --locked:#DCE2D9;
+  --font-head:'Fredoka', sans-serif; --font-display:'Fredoka', sans-serif; --font-body:'Nunito Sans', sans-serif;
+  --w-top:#FFB25C; --w-bot:#FF6A3D; --w-core:#FFF6CF; --w-inner:#FFD27A; --w-glow:#FFB25C; --w-ink:#16211B; --w-cheek:#FF4A2E; --w-tongue:#FF8A8A; --w-shadow:#16211B; --w-spark:#F2B33D; --w-soft:#56635B;
+}
+[data-theme="boulder"] {
+  --bg:#ECE6DD; --surface:#F8F4EE; --surface-2:#E2D9CC; --ink:#2A231E; --muted:#675A50; --line:#D2C6B7;
+  --primary:#C63F23; --primary-deep:#8A2813; --primary-ink:#FFFFFF; --primary-soft:#F5DCD3; --accent-text:#A83620;
+  --done:#4E7A38; --done-ink:#FFFFFF; --locked:#D7CDBF;
+  --font-head:'Archivo Black', sans-serif; --font-display:'Archivo Black', sans-serif; --font-body:'Archivo', sans-serif;
+  --w-top:#F59A62; --w-bot:#D9542F; --w-core:#FFF2D6; --w-inner:#FFD9A0; --w-glow:#F5B48E; --w-ink:#2A231E; --w-cheek:#B8361B; --w-tongue:#FF8A7A; --w-shadow:#2A231E; --w-spark:#E3A82B; --w-soft:#675A50;
+}
+[data-theme="halloween"] {
+  --bg:#1A1225; --surface:#261A35; --surface-2:#33244A; --ink:#F6EEFF; --muted:#BBA9D6; --line:#3E2D57;
+  --primary:#FF7A1A; --primary-deep:#A8470A; --primary-ink:#1A0E05; --primary-soft:#3A2340; --accent-text:#FF9A4D;
+  --done:#9B5CFF; --done-ink:#FFFFFF; --locked:#2C2140;
+  --font-head:'Fredoka', sans-serif; --font-display:'Creepster', cursive; --font-body:'Nunito Sans', sans-serif;
+  --w-top:#FFA040; --w-bot:#E85A0C; --w-core:#FFF2B0; --w-inner:#FFC85A; --w-glow:#9B5CFF; --w-ink:#1A0E05; --w-cheek:#C2410C; --w-tongue:#FF8A6A; --w-shadow:#000000; --w-spark:#C9A6FF; --w-soft:#BBA9D6;
+}
+
+/* ---------- Base ---------- */
+* { box-sizing: border-box; }
+body { margin: 0; min-height: 100vh; background: var(--bg); color: var(--ink); font-family: var(--font-body); }
+button, input { font: inherit; }
+button { cursor: pointer; }
+:focus-visible { outline: 3px solid var(--primary); outline-offset: 2px; }
+
+.topbar { display: flex; align-items: center; justify-content: space-between; padding: 16px 20px; }
+.brand { display: flex; align-items: center; gap: 10px; font-family: var(--font-head); font-size: 24px; font-weight: 700; color: var(--ink); text-decoration: none; }
+.brand-mark { width: 36px; height: 36px; border-radius: 50%; background: var(--primary); color: var(--primary-ink); box-shadow: 0 4px 0 var(--primary-deep); display: grid; place-items: center; }
+.icon-btn { display: flex; align-items: center; gap: 8px; height: 44px; padding: 0 14px; border-radius: 14px; border: 2px solid var(--line); background: var(--surface); color: var(--ink); text-decoration: none; font-weight: 800; font-size: 15px; }
+
+main { width: 100%; max-width: 1080px; margin: 0 auto; padding: 0 16px 48px; display: flex; flex-direction: column; gap: 32px; }
+.hero { display: flex; flex-wrap: wrap; align-items: center; gap: 24px; }
+.hero-wick { flex: 1 1 340px; display: flex; flex-direction: column; align-items: center; gap: 6px; }
+.bubble { max-width: 400px; padding: 12px 18px; border-radius: 18px; background: var(--ink); color: var(--bg); font-family: var(--font-display); font-weight: 600; font-size: clamp(17px, 2.4vw, 26px); line-height: 1.25; text-align: center; }
+.hero-card { flex: 1 1 400px; min-width: 0; }
+
+.card { padding: 20px; border-radius: 26px; background: var(--surface); border: 2px solid var(--line); box-shadow: 0 6px 0 var(--line); display: flex; flex-direction: column; gap: 14px; }
+.label { font-size: 13px; font-weight: 800; letter-spacing: .06em; color: var(--muted); text-transform: uppercase; }
+.input { width: 100%; height: 58px; padding: 0 18px; border-radius: 18px; border: 2px solid var(--line); background: var(--bg); color: var(--ink); font-size: 18px; font-weight: 700; outline: none; }
+.input.has-value, .input:focus { border-color: var(--primary); }
+.input::placeholder { color: var(--muted); font-weight: 600; }
+
+.segmented { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 6px; padding: 4px; border-radius: 14px; background: var(--surface-2); }
+.segmented button { min-height: 46px; padding: 4px 8px; border: none; border-radius: 10px; background: transparent; color: var(--muted); font-size: 14px; font-weight: 800; line-height: 1.15; }
+.segmented button[aria-pressed="true"] { background: var(--surface); color: var(--ink); box-shadow: 0 3px 0 var(--line); }
+
+.btn-primary { height: 58px; border: none; border-radius: 18px; background: var(--primary); color: var(--primary-ink); box-shadow: 0 5px 0 var(--primary-deep); font-family: var(--font-head); font-size: 19px; font-weight: 600; transition: transform .08s, box-shadow .08s; }
+.btn-primary:active { transform: translateY(4px); box-shadow: 0 1px 0 var(--primary-deep); }
+
+.chips { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
+.chip { height: 40px; padding: 0 14px; border-radius: 20px; border: 2px solid var(--line); background: var(--surface); color: var(--ink); font-size: 14px; font-weight: 800; display: inline-flex; align-items: center; gap: 6px; }
+.chip--surprise { border-style: dashed; border-color: var(--primary); background: var(--primary-soft); color: var(--accent-text); }
+
+.progress { height: 14px; border-radius: 7px; background: var(--surface-2); overflow: hidden; }
+.progress > div { height: 100%; border-radius: 7px; background: var(--primary); transition: width .4s ease; }
+.steps { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 14px; }
+.steps li { display: flex; align-items: center; gap: 14px; font-size: 16px; font-weight: 800; color: var(--muted); }
+.steps .dot { flex: 0 0 32px; height: 32px; border-radius: 16px; background: var(--locked); display: grid; place-items: center; color: var(--done-ink); }
+.steps li.done, .steps li.active { color: var(--ink); }
+.steps li.done .dot { background: var(--done); }
+.steps li.active .dot { background: var(--primary); }
+.steps li.active .dot::after { content: ""; width: 12px; height: 12px; border-radius: 6px; background: var(--primary-ink); }
+.steps li .check { display: none; }
+.steps li.done .check { display: block; }
+.note { font-size: 14px; font-weight: 700; color: var(--muted); margin: 0; }
+
+.summary { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 10px; }
+.summary div { padding: 12px; border-radius: 16px; background: var(--surface-2); display: flex; flex-direction: column; align-items: center; }
+.summary strong { font-family: var(--font-head); font-size: 28px; font-weight: 600; }
+.summary span { font-size: 13px; font-weight: 800; color: var(--muted); }
+
+.benefits { display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 16px; }
+.benefit { padding: 18px 20px; border-radius: 22px; background: var(--surface); border: 2px solid var(--line); display: flex; flex-direction: column; gap: 8px; }
+.benefit h3 { margin: 0; font-family: var(--font-head); font-size: 19px; font-weight: 600; }
+.benefit p { margin: 0; font-size: 14px; line-height: 1.45; color: var(--muted); }
+.mini-path { display: flex; align-items: center; gap: 6px; }
+.mini-path i { width: 26px; height: 26px; border-radius: 50%; display: block; }
+.mini-path b { width: 16px; height: 4px; border-radius: 2px; background: var(--line); display: block; }
+.badge-ico { width: 28px; height: 28px; border-radius: 8px; display: grid; place-items: center; }
+
+/* State visibility */
+[data-show] { display: none !important; }
+body[data-state="input"] [data-show~="input"],
+body[data-state="generating"] [data-show~="generating"],
+body[data-state="ready"] [data-show~="ready"],
+body[data-state="error"] [data-show~="error"] { display: flex !important; }
+
+.theme-switch { position: fixed; right: 12px; bottom: 12px; display: flex; gap: 4px; padding: 4px; border-radius: 14px; background: var(--surface); border: 2px solid var(--line); box-shadow: 0 4px 0 var(--line); z-index: 10; }
+.theme-switch button { height: 34px; padding: 0 10px; border: none; border-radius: 10px; background: transparent; color: var(--muted); font-weight: 800; font-size: 13px; }
+.theme-switch button[aria-pressed="true"] { background: var(--primary); color: var(--primary-ink); }
+
+@media (max-width: 700px) {
+  .topbar { padding: 12px 16px; }
+  .brand { font-size: 21px; }
+  .icon-btn span { display: none; }
+  .hero { gap: 8px; }
+  .card { padding: 16px; border-radius: 22px; }
+  .get-section { display: none !important; }
+}
+
+/* ---------- Wick ---------- */
+.wick { display: block; overflow: visible; }
+.wick [data-part] { display: none; }
+.wick[data-mood="idle"] [data-part~="idle"],
+.wick[data-mood="cheer"] [data-part~="cheer"],
+.wick[data-mood="think"] [data-part~="think"],
+.wick[data-mood="sleep"] [data-part~="sleep"],
+.wick:not([data-mood="cheer"]) [data-part~="arms-down"],
+.wick[data-outfit="none"][data-theme="trail"] [data-part~="costume-trail"],
+.wick[data-outfit="none"][data-theme="boulder"] [data-part~="costume-boulder"],
+.wick[data-outfit="none"][data-theme="halloween"] [data-part~="costume-halloween"],
+.wick[data-outfit="bouldering"] [data-part~="outfit-bouldering"],
+.wick[data-outfit="photography"] [data-part~="outfit-photography"],
+.wick[data-outfit="cooking"] [data-part~="outfit-cooking"],
+.wick[data-outfit="guitar"] [data-part~="outfit-guitar"],
+.wick[data-outfit="gardening"] [data-part~="outfit-gardening"],
+.wick[data-outfit="reading"] [data-part~="outfit-reading"],
+.wick[data-outfit="explorer"] [data-part~="outfit-explorer"],
+.wick[data-theme="halloween"]:not([data-mood="sleep"]) [data-part~="bat"] { display: inline; }
+.wick[data-mood="cheer"] .w-body-pose { transform: translateY(-10px); }
+.wick[data-mood="sleep"] .w-body-pose { transform: translateY(6px) scaleY(.97); }
+
+.wick .w-tip, .wick .w-eyes, .wick .w-float, .wick .w-zz, .wick .w-body-pose { transform-box: view-box; }
+.wick .w-tip { transform-origin: 136px 62px; }
+.wick .w-eyes { transform-origin: 100px 140px; }
+.wick .w-float, .wick .w-body-pose { transform-origin: 100px 204px; }
+
+.wick[data-mood="idle"] .w-float { animation: w-float 3s ease-in-out infinite; }
+.wick[data-mood="idle"] .w-tip, .wick[data-mood="cheer"] .w-tip, .wick[data-mood="think"] .w-tip { animation: w-flicker 1.6s ease-in-out infinite; }
+.wick[data-mood="idle"] .w-halo, .wick[data-mood="think"] .w-halo { animation: w-glow 2.6s ease-in-out infinite; }
+.wick[data-mood="idle"] .w-eyes { animation: w-blink 4.2s infinite; }
+.wick[data-mood="idle"] .w-sparks { animation: w-twinkle 2.6s ease-in-out infinite; }
+.wick[data-mood="cheer"] .w-float { animation: w-jump 1.1s cubic-bezier(.3,.7,.4,1) 2; }
+.wick[data-mood="cheer"] .w-sparks { animation: w-burst 1.1s ease-out 2 both; }
+.wick[data-mood="think"] .w-float { animation: w-float 4.5s ease-in-out infinite; }
+.wick[data-mood="think"] .w-dots circle { animation: w-dot 1.2s ease-in-out infinite; opacity: .25; }
+.wick[data-mood="think"] .w-dots circle:nth-child(2) { animation-delay: .2s; }
+.wick[data-mood="think"] .w-dots circle:nth-child(3) { animation-delay: .4s; }
+.wick[data-mood="sleep"] .w-float { animation: w-breathe 5s ease-in-out infinite; }
+.wick[data-mood="sleep"] .w-zz { animation: w-zz 2.8s ease-in-out infinite; }
+.wick[data-mood="sleep"] .w-halo { opacity: .4; }
+
+@keyframes w-float { 0%,100% { transform: translateY(0); } 50% { transform: translateY(-7px); } }
+@keyframes w-breathe { 0%,100% { transform: translateY(2px) scaleY(.98); } 50% { transform: translateY(-1px) scaleY(1); } }
+@keyframes w-flicker { 0%,100% { transform: rotate(0); } 33% { transform: rotate(9deg); } 66% { transform: rotate(-5deg); } }
+@keyframes w-glow { 0%,100% { opacity: .75; } 50% { opacity: 1; } }
+@keyframes w-blink { 0%,90%,98%,100% { transform: scaleY(1); } 94% { transform: scaleY(.1); } }
+@keyframes w-twinkle { 0%,100% { opacity: .35; } 50% { opacity: 1; } }
+@keyframes w-burst { 0% { opacity: 0; } 25% { opacity: 1; } 100% { opacity: .2; } }
+@keyframes w-dot { 0%,100% { opacity: .25; } 50% { opacity: 1; } }
+@keyframes w-zz { 0% { opacity: 0; transform: translateY(10px); } 25%,70% { opacity: 1; } 100% { opacity: 0; transform: translateY(-14px); } }
+@keyframes w-jump { 0% { transform: translateY(0) scale(1,1); } 15% { transform: translateY(2px) scale(1.06,.92); } 45% { transform: translateY(-22px) scale(.96,1.05); } 70% { transform: translateY(2px) scale(1.05,.94); } 100% { transform: translateY(0) scale(1,1); } }
+
+@media (prefers-reduced-motion: reduce) {
+  .wick, .wick * { animation: none !important; }
+  .progress > div, .btn-primary { transition: none; }
+}
+</style>
+</head>
+<body data-state="input">
+
+<header class="topbar">
+  <a class="brand" href="#">
+    <span class="brand-mark"><svg aria-hidden="true" width="20" height="20" viewBox="0 0 24 24" fill="currentColor"><path d="M12 3.5l2.6 5.3 5.9.9-4.3 4.1 1 5.8L12 16.9l-5.2 2.7 1-5.8-4.3-4.1 5.9-.9z"/></svg></span>
+    Pursio
+  </a>
+  <a class="icon-btn" href="#settings" aria-label="Settings">
+    <svg aria-hidden="true" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3.2"/><path d="M12 2.5v3M12 18.5v3M2.5 12h3M18.5 12h3M5.3 5.3l2.1 2.1M16.6 16.6l2.1 2.1M5.3 18.7l2.1-2.1M16.6 7.4l2.1-2.1"/></svg>
+    <span>Settings</span>
+  </a>
+</header>
+
+<main>
+  <div class="hero">
+    <div class="hero-wick">
+      <p class="bubble" id="bubble" aria-live="polite">What do you want to get better at?</p>
+
+      <svg class="wick" id="wick" data-mood="idle" data-outfit="none" data-theme="boulder" width="220" height="264" viewBox="0 0 200 240" role="img" aria-label="Wick, the lantern spirit">
+        <defs>
+          <linearGradient id="wBody" x1="0" y1="0" x2="0" y2="1"><stop offset="0" style="stop-color:var(--w-top)"/><stop offset="1" style="stop-color:var(--w-bot)"/></linearGradient>
+          <radialGradient id="wCore" cx=".5" cy=".5" r=".5"><stop offset="0" style="stop-color:var(--w-core)"/><stop offset=".55" style="stop-color:var(--w-inner);stop-opacity:.85"/><stop offset="1" style="stop-color:var(--w-inner);stop-opacity:0"/></radialGradient>
+          <radialGradient id="wHalo" cx=".5" cy=".5" r=".5"><stop offset="0" style="stop-color:var(--w-glow);stop-opacity:.65"/><stop offset="1" style="stop-color:var(--w-glow);stop-opacity:0"/></radialGradient>
+        </defs>
+        <circle class="w-halo" cx="100" cy="128" r="104" fill="url(#wHalo)"/>
+        <ellipse cx="100" cy="232" rx="42" ry="5" style="fill:var(--w-shadow)" opacity=".16"/>
+        <g class="w-float"><g class="w-body-pose">
+          <g data-part="cheer">
+            <path d="M46 134 C 26 120, 20 98, 30 78 C 34 96, 42 106, 54 114 Z" fill="url(#wBody)"/>
+            <path d="M154 134 C 174 120, 180 98, 170 78 C 166 96, 158 106, 146 114 Z" fill="url(#wBody)"/>
+          </g>
+          <g data-part="arms-down">
+            <path d="M44 156 C 30 156, 25 144, 30 134 C 35 143, 40 146, 48 146 Z" fill="url(#wBody)"/>
+            <path d="M156 156 C 170 156, 175 144, 170 134 C 165 143, 160 146, 152 146 Z" fill="url(#wBody)"/>
+          </g>
+          <path class="w-tip" d="M128 60 C 138 50, 137 38, 130 28 C 146 38, 150 54, 142 68 Z" fill="url(#wBody)"/>
+          <path d="M100 18 C 107 38, 124 46, 134 64 C 152 84, 166 106, 166 142 C 166 180, 137 204, 100 204 C 63 204, 34 180, 34 142 C 34 112, 50 92, 68 76 C 79 66, 84 56, 82 42 C 92 50, 97 34, 100 18 Z" fill="url(#wBody)"/>
+          <ellipse cx="100" cy="152" rx="50" ry="44" fill="url(#wCore)"/>
+          <path d="M56 128 C 54 108, 62 92, 76 80" fill="none" stroke="#fff" stroke-width="5" stroke-linecap="round" opacity=".45"/>
+          <circle cx="62" cy="144" r="3" fill="#fff" opacity=".5"/>
+
+          <g data-part="idle">
+            <g class="w-eyes">
+              <ellipse cx="82" cy="140" rx="8.5" ry="11.5" style="fill:var(--w-ink)"/><ellipse cx="118" cy="140" rx="8.5" ry="11.5" style="fill:var(--w-ink)"/>
+              <circle cx="85" cy="135" r="3.4" fill="#fff"/><circle cx="121" cy="135" r="3.4" fill="#fff"/>
+              <circle cx="79.5" cy="145" r="1.6" fill="#fff"/><circle cx="115.5" cy="145" r="1.6" fill="#fff"/>
+            </g>
+            <path d="M92 160 q8 8 16 0" fill="none" style="stroke:var(--w-ink)" stroke-width="3.6" stroke-linecap="round"/>
+          </g>
+          <g data-part="cheer">
+            <path d="M72 143 q10 -13 20 0" fill="none" style="stroke:var(--w-ink)" stroke-width="4.6" stroke-linecap="round"/>
+            <path d="M108 143 q10 -13 20 0" fill="none" style="stroke:var(--w-ink)" stroke-width="4.6" stroke-linecap="round"/>
+            <path d="M85 153 q15 22 30 0 z" style="fill:var(--w-ink)"/><ellipse cx="100" cy="163" rx="7" ry="4" style="fill:var(--w-tongue)"/>
+          </g>
+          <g data-part="sleep">
+            <path d="M72 141 q10 7 20 0" fill="none" style="stroke:var(--w-ink)" stroke-width="4.4" stroke-linecap="round"/>
+            <path d="M108 141 q10 7 20 0" fill="none" style="stroke:var(--w-ink)" stroke-width="4.4" stroke-linecap="round"/>
+            <ellipse cx="100" cy="161" rx="4.5" ry="3.5" style="fill:var(--w-ink)"/>
+          </g>
+          <g data-part="think">
+            <ellipse cx="84" cy="136" rx="7.5" ry="10" style="fill:var(--w-ink)"/><ellipse cx="120" cy="136" rx="7.5" ry="10" style="fill:var(--w-ink)"/>
+            <circle cx="86.5" cy="131" r="3" fill="#fff"/><circle cx="122.5" cy="131" r="3" fill="#fff"/>
+            <circle cx="106" cy="160" r="4.5" style="fill:var(--w-ink)"/>
+          </g>
+          <circle cx="68" cy="158" r="8" style="fill:var(--w-cheek)" opacity=".55"/><circle cx="132" cy="158" r="8" style="fill:var(--w-cheek)" opacity=".55"/>
+
+          <g data-part="costume-trail">
+            <path d="M68 74 C 70 48, 130 48, 132 74 Z" fill="#3C7A5A"/>
+            <path d="M56 76 C 80 67, 120 67, 144 76 C 120 85, 80 85, 56 76 Z" fill="#2C5E45"/>
+            <rect x="70" y="63" width="60" height="6" fill="#F2B33D"/>
+            <path d="M124 64 C 130 52, 138 46, 148 44" fill="none" stroke="#FF6A3D" stroke-width="3.5" stroke-linecap="round"/>
+          </g>
+          <g data-part="costume-boulder outfit-bouldering">
+            <path d="M40 118 C 70 103, 130 103, 160 118" fill="none" stroke="#C63F23" stroke-width="9" stroke-linecap="round"/>
+            <path d="M160 116 C 168 108, 176 112, 182 104 M160 119 C 170 122, 175 130, 183 128" fill="none" stroke="#C63F23" stroke-width="5" stroke-linecap="round"/>
+            <path d="M54 170 C 90 190, 130 190, 156 176" fill="none" stroke="#3A2E26" stroke-width="3"/>
+            <rect x="150" y="170" width="34" height="38" rx="11" fill="#C63F23"/>
+            <rect x="148" y="166" width="38" height="10" rx="5" fill="#F8F4EE"/>
+            <circle cx="158" cy="158" r="4.5" fill="#fff"/><circle cx="170" cy="151" r="3.2" fill="#fff"/><circle cx="179" cy="159" r="2.6" fill="#fff"/>
+            <ellipse cx="62" cy="152" rx="7" ry="4" fill="#fff" opacity=".6"/>
+          </g>
+          <g data-part="costume-halloween">
+            <path d="M64 76 C 80 62, 90 34, 118 6 C 110 32, 118 54, 136 76 Z" fill="#3B1F66"/>
+            <path d="M48 78 C 76 67, 124 67, 152 78 C 124 89, 76 89, 48 78 Z" fill="#1C0D33"/>
+            <rect x="72" y="65" width="56" height="7" fill="#FF7A1A"/>
+            <rect x="94" y="64" width="12" height="9" rx="2" fill="none" stroke="#FFE08A" stroke-width="2.5"/>
+          </g>
+          <g data-part="outfit-photography">
+            <ellipse cx="94" cy="64" rx="42" ry="14" fill="#2A2A2E"/><circle cx="90" cy="49" r="4.5" fill="#2A2A2E"/>
+            <path d="M66 112 C 82 150, 112 162, 128 164" fill="none" stroke="#2A2A2E" stroke-width="3"/>
+            <rect x="120" y="160" width="58" height="40" rx="9" fill="#2A2A2E"/><rect x="132" y="152" width="20" height="11" rx="3" fill="#2A2A2E"/>
+            <rect x="162" y="165" width="10" height="6" rx="2" fill="#F2B33D"/>
+            <circle cx="149" cy="181" r="13" fill="#4A4A52" stroke="#9AA0A8" stroke-width="3"/><circle cx="149" cy="181" r="5.5" fill="#141416"/><circle cx="146" cy="178" r="2" fill="#fff" opacity=".8"/>
+          </g>
+          <g data-part="outfit-cooking">
+            <rect x="74" y="50" width="52" height="22" rx="5" fill="#fff" stroke="#D3DBD0" stroke-width="2"/>
+            <circle cx="80" cy="42" r="16" fill="#fff" stroke="#D3DBD0" stroke-width="2"/><circle cx="120" cy="42" r="16" fill="#fff" stroke="#D3DBD0" stroke-width="2"/><circle cx="100" cy="32" r="19" fill="#fff" stroke="#D3DBD0" stroke-width="2"/>
+            <rect x="76" y="48" width="48" height="12" fill="#fff"/>
+            <path d="M164 182 L188 124" stroke="#B07A45" stroke-width="6" stroke-linecap="round"/>
+            <ellipse cx="190" cy="116" rx="8" ry="12" fill="#C98A50" transform="rotate(22 190 116)"/>
+          </g>
+          <g data-part="outfit-guitar">
+            <path d="M44 128 C 42 66, 158 66, 156 128" fill="none" stroke="#2A2A2E" stroke-width="7" stroke-linecap="round"/>
+            <rect x="32" y="116" width="16" height="30" rx="7" fill="#2A2A2E"/><rect x="152" y="116" width="16" height="30" rx="7" fill="#2A2A2E"/>
+            <path d="M92 166 L144 104" stroke="#6B3F1D" stroke-width="9" stroke-linecap="round"/>
+            <rect x="138" y="90" width="14" height="20" rx="3" fill="#6B3F1D" transform="rotate(40 145 100)"/>
+            <circle cx="66" cy="190" r="22" fill="#C6763A"/><circle cx="84" cy="172" r="16" fill="#C6763A"/><circle cx="74" cy="182" r="6" fill="#3A2214"/>
+          </g>
+          <g data-part="outfit-gardening">
+            <path d="M70 72 C 72 48, 128 48, 130 72 Z" fill="#E8C46A"/><ellipse cx="100" cy="74" rx="60" ry="11" fill="#D9AE4A"/>
+            <rect x="72" y="62" width="56" height="7" fill="#4E9A5E"/>
+            <path d="M128 60 C 136 46, 148 46, 152 40 C 146 52, 138 58, 128 60 Z" fill="#4E9A5E"/>
+            <rect x="140" y="170" width="40" height="30" rx="7" fill="#4E9AB0"/>
+            <path d="M178 176 L196 160" stroke="#4E9AB0" stroke-width="6" stroke-linecap="round"/>
+            <path d="M148 172 C 148 156, 172 156, 172 172" fill="none" stroke="#3B7C8F" stroke-width="5"/>
+          </g>
+          <g data-part="outfit-reading">
+            <circle cx="82" cy="140" r="15" fill="none" stroke="#3A2E26" stroke-width="3.5"/><circle cx="118" cy="140" r="15" fill="none" stroke="#3A2E26" stroke-width="3.5"/>
+            <path d="M97 139 q3 -3 6 0 M67 136 L52 130 M133 136 L148 130" fill="none" stroke="#3A2E26" stroke-width="3.5" stroke-linecap="round"/>
+            <path d="M60 182 L100 192 L140 182 L140 208 L100 218 L60 208 Z" fill="#1E8C6E"/>
+            <path d="M64 178 L100 188 L100 212 L64 202 Z" fill="#fff"/><path d="M136 178 L100 188 L100 212 L136 202 Z" fill="#F4F1E8"/>
+          </g>
+          <g data-part="outfit-explorer">
+            <path d="M66 72 C 68 44, 132 44, 134 72 Z" fill="#CDB48A"/><ellipse cx="100" cy="74" rx="58" ry="10" fill="#B39A6E"/>
+            <rect x="68" y="62" width="64" height="7" fill="#6F5A45"/>
+            <path d="M66 112 C 90 150, 130 160, 150 162" fill="none" stroke="#6F5A45" stroke-width="3"/>
+            <circle cx="152" cy="178" r="15" fill="#F2B33D" stroke="#B47D0E" stroke-width="3"/><path d="M152 168 L156 178 L152 188 L148 178 Z" fill="#C63F23"/>
+          </g>
+        </g></g>
+        <g class="w-sparks" data-part="idle cheer" style="fill:var(--w-spark)">
+          <path d="M30 60 l2.2 -6 2.2 6 6 2.2 -6 2.2 -2.2 6 -2.2 -6 -6 -2.2 z"/>
+          <path d="M168 168 l1.8 -5 1.8 5 5 1.8 -5 1.8 -1.8 5 -1.8 -5 -5 -1.8 z"/>
+          <path d="M176 40 l1.5 -4 1.5 4 4 1.5 -4 1.5 -1.5 4 -1.5 -4 -4 -1.5 z"/>
+          <path d="M22 178 l1.5 -4 1.5 4 4 1.5 -4 1.5 -1.5 4 -1.5 -4 -4 -1.5 z"/>
+        </g>
+        <path data-part="bat" d="M150 34 c4 -6 8 -6 10 -2 c2 -6 6 -6 8 0 c2 -4 6 -4 10 2 c-6 0 -8 4 -10 6 c-2 -2 -4 -2 -8 0 c-2 -2 -4 -6 -10 -6 z" fill="#9B5CFF"/>
+        <g class="w-zz" data-part="sleep" style="fill:var(--w-soft)" font-family="Fredoka, sans-serif" font-weight="600"><text x="148" y="70" font-size="30">z</text><text x="168" y="46" font-size="21">z</text></g>
+        <g class="w-dots" data-part="think" style="fill:var(--w-soft)"><circle cx="142" cy="66" r="3.5"/><circle cx="154" cy="56" r="4.5"/><circle cx="168" cy="44" r="6"/></g>
+      </svg>
+    </div>
+
+    <div class="hero-card">
+      <!-- Input -->
+      <form class="card" data-show="input" id="form" novalidate>
+        <label class="label" for="hobby">Your hobby</label>
+        <input class="input" id="hobby" name="hobby" maxlength="60" autocomplete="off" placeholder="Type any hobby…">
+        <span class="label" id="level-label">Where are you now?</span>
+        <div class="segmented" role="group" aria-labelledby="level-label">
+          <button type="button" data-level="new" aria-pressed="true">New to it</button>
+          <button type="button" data-level="some" aria-pressed="false">Tried it a bit</button>
+          <button type="button" data-level="serious" aria-pressed="false">Getting serious</button>
+        </div>
+        <button class="btn-primary" type="submit">Build my path</button>
+        <div class="chips">
+          <span class="label">Or try</span>
+          <button type="button" class="chip" data-idea>bouldering</button>
+          <button type="button" class="chip" data-idea>film photography</button>
+          <button type="button" class="chip" data-idea>guitar</button>
+          <button type="button" class="chip" data-idea>sourdough baking</button>
+          <button type="button" class="chip" data-idea>chess</button>
+          <button type="button" class="chip chip--surprise" id="surprise">
+            <svg aria-hidden="true" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="4" width="16" height="16" rx="4"/><circle cx="9" cy="9" r="1.2" fill="currentColor"/><circle cx="15" cy="15" r="1.2" fill="currentColor"/><circle cx="15" cy="9" r="1.2" fill="currentColor"/><circle cx="9" cy="15" r="1.2" fill="currentColor"/></svg>
+            Surprise me
+          </button>
+        </div>
+      </form>
+
+      <!-- Generating -->
+      <section class="card" data-show="generating" aria-live="polite">
+        <div class="progress" role="progressbar" aria-label="Building your path" aria-valuemin="0" aria-valuemax="100"><div id="bar" style="width:12%"></div></div>
+        <ol class="steps" id="steps">
+          <li><span class="dot"><svg class="check" aria-hidden="true" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3.4" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12.5l4.5 4.5L19 7.5"/></svg></span>Mapping the skills</li>
+          <li><span class="dot"><svg class="check" aria-hidden="true" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3.4" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12.5l4.5 4.5L19 7.5"/></svg></span>Putting them in order</li>
+          <li><span class="dot"><svg class="check" aria-hidden="true" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3.4" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12.5l4.5 4.5L19 7.5"/></svg></span>Writing quests for each skill</li>
+          <li><span class="dot"><svg class="check" aria-hidden="true" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3.4" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12.5l4.5 4.5L19 7.5"/></svg></span>Picking Wick’s outfit</li>
+        </ol>
+        <p class="note">Usually takes about 15 seconds.</p>
+      </section>
+
+      <!-- Ready -->
+      <section class="card" data-show="ready">
+        <div class="summary">
+          <div><strong>14</strong><span>skills</span></div>
+          <div><strong>3</strong><span>sections</span></div>
+          <div><strong>42</strong><span>quests</span></div>
+        </div>
+        <p class="note">First up: <strong style="color:var(--ink)" id="first-skill">The basics</strong></p>
+        <button class="btn-primary" type="button" id="open">Open my path</button>
+      </section>
+
+      <!-- Error -->
+      <form class="card" data-show="error" id="error-form" novalidate>
+        <p class="note" style="font-size:16px;line-height:1.5">Pursio builds paths for things you can practice and get better at. Try a hobby, a craft, a sport or a skill.</p>
+        <input class="input has-value" id="hobby-retry" maxlength="60" aria-label="Your hobby" autocomplete="off">
+        <div class="chips">
+          <button type="button" class="chip" data-idea>bouldering</button>
+          <button type="button" class="chip" data-idea>film photography</button>
+          <button type="button" class="chip" data-idea>guitar</button>
+          <button type="button" class="chip" data-idea>chess</button>
+        </div>
+        <button class="btn-primary" type="submit">Try again</button>
+      </form>
+    </div>
+  </div>
+
+  <section class="get-section" aria-labelledby="get-title" style="display:flex;flex-direction:column;gap:14px">
+    <h2 class="label" id="get-title" style="margin:0;text-align:center">What you’ll get</h2>
+    <div class="benefits">
+      <div class="benefit">
+        <div class="mini-path" aria-hidden="true"><i style="background:var(--done)"></i><b></b><i style="background:var(--primary)"></i><b></b><i style="background:var(--locked)"></i></div>
+        <h3>A skill path</h3>
+        <p>Around 15 skills in 3 sections, in the order people really learn them.</p>
+      </div>
+      <div class="benefit">
+        <span class="badge-ico" style="background:var(--done);color:var(--done-ink)" aria-hidden="true"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3.4" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12.5l4.5 4.5L19 7.5"/></svg></span>
+        <h3>Small daily quests</h3>
+        <p>Three concrete things to try for every skill, so you always know what to do next.</p>
+      </div>
+      <div class="benefit">
+        <span class="badge-ico" style="background:var(--primary);color:var(--primary-ink)" aria-hidden="true"><svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor"><path d="M8 5v14l11-7z"/></svg></span>
+        <h3>Fresh content</h3>
+        <p>New videos and articles matched to the skill you’re on, every day.</p>
+      </div>
+    </div>
+  </section>
+</main>
+
+<div class="theme-switch" role="group" aria-label="Theme (preview only)">
+  <button type="button" data-theme-pick="trail" aria-pressed="false">Trail</button>
+  <button type="button" data-theme-pick="boulder" aria-pressed="true">Boulder</button>
+  <button type="button" data-theme-pick="halloween" aria-pressed="false">Halloween</button>
+</div>
+
+<script>
+(() => {
+  const $ = (s, el = document) => el.querySelector(s);
+  const $$ = (s, el = document) => [...el.querySelectorAll(s)];
+  const body = document.body;
+  const wick = $('#wick');
+  const bubble = $('#bubble');
+  const input = $('#hobby');
+  const retry = $('#hobby-retry');
+  let level = 'new';
+  let timers = [];
+
+  function setState(state) { body.dataset.state = state; }
+  function setWick(mood, outfit = 'none') {
+    wick.dataset.mood = mood;
+    wick.dataset.outfit = outfit;
+    const labels = { idle: 'Wick, the lantern spirit', cheer: 'Wick cheering', think: 'Wick thinking', sleep: 'Wick sleeping' };
+    wick.setAttribute('aria-label', labels[mood] || labels.idle);
+  }
+  function outfitFor(q) {
+    const s = q.toLowerCase();
+    if (/boulder|climb/.test(s)) return 'bouldering';
+    if (/photo|camera|film/.test(s)) return 'photography';
+    if (/cook|bak|sourdough|bread|kitchen/.test(s)) return 'cooking';
+    if (/guitar|music|piano|ukulele|bass/.test(s)) return 'guitar';
+    if (/garden|plant|flower/.test(s)) return 'gardening';
+    if (/read|book|writ/.test(s)) return 'reading';
+    return 'explorer';
+  }
+  // Placeholder check. In the real app, the model decides and returns { error: "not_a_hobby" }.
+  function looksWrong(q) {
+    const x = q.trim();
+    return x.length < 3 || (/^[a-z]{5,}$/i.test(x) && !/[aeiou].*[aeiou]/i.test(x)) || /^(.)\1+$/.test(x);
+  }
+
+  function build(raw) {
+    const q = raw.trim();
+    if (!q) { input.focus(); return; }
+    if (looksWrong(q)) {
+      retry.value = q;
+      bubble.textContent = `Hmm, I don’t know “${q}” as a hobby.`;
+      setWick('idle');
+      setState('error');
+      retry.focus();
+      return;
+    }
+    const name = q.toLowerCase();
+    bubble.textContent = `Building your ${name} path…`;
+    setWick('think', outfitFor(q));
+    setState('generating');
+    // Simulated progress. In the real app, drive this from the /api/tree request ({ hobby, level }).
+    const steps = $$('#steps li');
+    const bar = $('#bar');
+    const show = (i) => {
+      steps.forEach((li, n) => { li.classList.toggle('done', n < i); li.classList.toggle('active', n === i); });
+      bar.style.width = Math.round(((i + 0.5) / steps.length) * 100) + '%';
+    };
+    timers.forEach(clearTimeout);
+    show(0);
+    timers = [1, 2, 3, 4].map((i) => setTimeout(() => {
+      if (i < steps.length) return show(i);
+      bubble.textContent = `Your ${name} path is ready!`;
+      $('#first-skill').textContent = /boulder|climb/i.test(q) ? 'Gear basics' : 'The basics';
+      setWick('cheer', outfitFor(q));
+      setState('ready');
+      $('#open').focus();
+    }, i * 1100));
+  }
+
+  input.addEventListener('input', () => input.classList.toggle('has-value', input.value.length > 0));
+  $('#form').addEventListener('submit', (e) => { e.preventDefault(); build(input.value); });
+  $('#error-form').addEventListener('submit', (e) => { e.preventDefault(); input.value = retry.value; build(retry.value); });
+
+  $$('[data-idea]').forEach((b) => b.addEventListener('click', () => {
+    input.value = b.textContent.trim();
+    input.classList.add('has-value');
+    bubble.textContent = 'What do you want to get better at?';
+    setWick('idle');
+    setState('input');
+    input.focus();
+  }));
+  $('#surprise').addEventListener('click', () => {
+    const pool = ['pottery', 'birdwatching', 'calligraphy', 'skateboarding', 'origami', 'trail running'];
+    input.value = pool[Math.floor(Math.random() * pool.length)];
+    input.classList.add('has-value');
+    input.focus();
+  });
+  $$('[data-level]').forEach((b) => b.addEventListener('click', () => {
+    level = b.dataset.level;
+    $$('[data-level]').forEach((x) => x.setAttribute('aria-pressed', String(x === b)));
+  }));
+  $('#open').addEventListener('click', () => {
+    // In the real app: navigate to the new path. Here we just reset the demo.
+    bubble.textContent = 'What do you want to get better at?';
+    setWick('idle');
+    setState('input');
+  });
+  wick.addEventListener('animationend', (e) => {
+    if (e.animationName === 'w-jump' && wick.dataset.mood === 'cheer') { /* could return to idle here */ }
+  });
+
+  $$('[data-theme-pick]').forEach((b) => b.addEventListener('click', () => {
+    const t = b.dataset.themePick;
+    document.documentElement.dataset.theme = t;
+    wick.dataset.theme = t;
+    $$('[data-theme-pick]').forEach((x) => x.setAttribute('aria-pressed', String(x === b)));
+  }));
+})();
+</script>
+</body>
+</html>
