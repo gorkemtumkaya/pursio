@@ -54,6 +54,28 @@
   --shadow-raised-locked: 0 6px 0 var(--pursio-locked-deep);
   --shadow-raised-gold: 0 6px 0 var(--pursio-gold-deep);
   --shadow-raised-banner: 0 6px 0 var(--pursio-banner-deep);
+  /* Surface-colored elements (side quests) rest on the line color. */
+  --shadow-raised-line: 0 6px 0 var(--pursio-line);
+}
+
+/*
+ * Unlock moment: a quick scale pop on the newly unlocked node. Kept outside
+ * @theme so it always ships; applied with
+ * `motion-safe:animate-[pursio-unlock_450ms_ease-out]`.
+ */
+@keyframes pursio-unlock {
+  0% {
+    transform: scale(1);
+  }
+  40% {
+    transform: scale(1.18);
+  }
+  70% {
+    transform: scale(0.96);
+  }
+  100% {
+    transform: scale(1);
+  }
 }
 
 @layer base {

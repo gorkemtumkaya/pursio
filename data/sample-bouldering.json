@@ -1,0 +1,187 @@
+{
+  "hobby": "Bouldering",
+  "mascot": { "set": "bouldering" },
+  "sections": [
+    {
+      "title": "First sessions",
+      "level": "beginner",
+      "nodes": [
+        {
+          "id": "gear-basics",
+          "title": "Gear basics",
+          "description": "Shoes, chalk and what to rent on your first day.",
+          "prerequisites": [],
+          "optional": false,
+          "milestone": false,
+          "quests": [
+            "Try on 2 pairs of rental shoes and pick the snug one",
+            "Chalk up before every climb in one session",
+            "Watch the beginner gear guide"
+          ]
+        },
+        {
+          "id": "reading-grades",
+          "title": "Reading grades",
+          "description": "How V-grades and gym color circuits work.",
+          "prerequisites": ["gear-basics"],
+          "optional": false,
+          "milestone": false,
+          "quests": [
+            "Find the grade chart at your gym",
+            "Climb 3 routes from the easiest circuit",
+            "Try one route a grade harder"
+          ]
+        },
+        {
+          "id": "falling-safely",
+          "title": "Falling safely",
+          "description": "Land, roll and down-climb without getting hurt.",
+          "prerequisites": ["reading-grades"],
+          "optional": true,
+          "milestone": false,
+          "quests": [
+            "Practice 5 controlled falls from low height",
+            "Down-climb 3 routes instead of jumping",
+            "Learn the landing roll"
+          ]
+        },
+        {
+          "id": "warm-up-routine",
+          "title": "Warm-up routine",
+          "description": "A 10-minute routine to start every session.",
+          "prerequisites": ["reading-grades"],
+          "optional": false,
+          "milestone": false,
+          "quests": [
+            "Do 5 minutes of shoulder and wrist mobility",
+            "Climb 3 routes well below your grade",
+            "Warm up the same way for 2 sessions"
+          ]
+        },
+        {
+          "id": "footwork-basics",
+          "title": "Footwork basics",
+          "description": "Quiet, precise feet are the fastest way to climb harder.",
+          "prerequisites": ["warm-up-routine"],
+          "optional": false,
+          "milestone": false,
+          "quests": [
+            "Climb 3 easy routes with silent feet",
+            "Place every foot on the tip of your shoe",
+            "Watch the silent feet drill"
+          ]
+        },
+        {
+          "id": "body-positioning",
+          "title": "Body positioning",
+          "description": "Hips close to the wall, straight arms, push with your legs.",
+          "prerequisites": ["footwork-basics"],
+          "optional": false,
+          "milestone": false,
+          "quests": [
+            "Climb 2 routes keeping your arms straight",
+            "Turn one hip into the wall on a traverse",
+            "Film one climb and check your hips"
+          ]
+        },
+        {
+          "id": "resting-on-the-wall",
+          "title": "Resting on the wall",
+          "description": "Shake out, breathe and plan your next moves.",
+          "prerequisites": ["body-positioning"],
+          "optional": false,
+          "milestone": false,
+          "quests": [
+            "Shake out each arm once mid-route",
+            "Hang on a big hold for 3 slow breaths",
+            "Find the rest spot on 2 routes before climbing"
+          ]
+        },
+        {
+          "id": "first-v2",
+          "title": "First V2",
+          "description": "Send your first V2 route from start to top.",
+          "prerequisites": ["resting-on-the-wall"],
+          "optional": false,
+          "milestone": true,
+          "quests": [
+            "Pick a V2 and try it 3 times",
+            "Work out the hardest move on its own",
+            "Send the route from start to top"
+          ]
+        }
+      ]
+    },
+    {
+      "title": "Technique",
+      "level": "intermediate",
+      "nodes": [
+        {
+          "id": "flagging",
+          "title": "Flagging",
+          "description": "Use a free leg to stay balanced instead of swinging off.",
+          "prerequisites": ["first-v2"],
+          "optional": false,
+          "milestone": false,
+          "quests": [
+            "Flag your leg on 3 sideways reaches",
+            "Try an inside and an outside flag",
+            "Watch the flagging drill"
+          ]
+        },
+        {
+          "id": "heel-hooks",
+          "title": "Heel hooks",
+          "description": "Pull with your heel to take weight off your arms.",
+          "prerequisites": ["flagging"],
+          "optional": false,
+          "milestone": false,
+          "quests": [
+            "Place 5 heel hooks on a big hold",
+            "Pull your hips up using only the heel",
+            "Use a heel hook on one route"
+          ]
+        },
+        {
+          "id": "toe-hooks",
+          "title": "Toe hooks",
+          "description": "Hook with your toes to stay on steep walls.",
+          "prerequisites": ["heel-hooks"],
+          "optional": false,
+          "milestone": false,
+          "quests": [
+            "Hold a toe hook for 5 seconds on an overhang",
+            "Stop a swing with a toe hook 3 times",
+            "Use a toe hook on one route"
+          ]
+        },
+        {
+          "id": "reading-a-route",
+          "title": "Reading a route",
+          "description": "Plan the moves from the ground before you start.",
+          "prerequisites": ["toe-hooks"],
+          "optional": false,
+          "milestone": false,
+          "quests": [
+            "Plan every hand move of a route from the ground",
+            "Mime the moves before you climb",
+            "Compare your plan with how you climbed it"
+          ]
+        },
+        {
+          "id": "first-v4",
+          "title": "First V4",
+          "description": "Send your first V4 route.",
+          "prerequisites": ["reading-a-route"],
+          "optional": false,
+          "milestone": true,
+          "quests": [
+            "Pick a V4 and read it from the ground",
+            "Link the moves in 2 sections",
+            "Send the route from start to top"
+          ]
+        }
+      ]
+    }
+  ]
+}

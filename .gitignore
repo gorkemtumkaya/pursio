@@ -16,11 +16,10 @@ logs
 # Misc
 .DS_Store
 .idea
-.dev_docs
+dev_docs
 
 # Local env files (secrets). Never commit.
 .env
 .env.*
 !.env.example
 
-dev_docs/

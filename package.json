@@ -9,17 +9,22 @@
     "generate": "nuxt generate",
     "preview": "nuxt preview",
     "postinstall": "nuxt prepare",
-    "typecheck": "nuxt typecheck"
+    "typecheck": "nuxt typecheck",
+    "test": "vitest run"
   },
   "dependencies": {
+    "elkjs": "0.12.1",
     "nuxt": "4.6.4",
     "vue": "3.5.45",
-    "vue-router": "5.4.0"
+    "vue-router": "5.4.0",
+    "zod": "4.6.7"
   },
   "devDependencies": {
     "@tailwindcss/vite": "4.3.5",
+    "fast-check": "4.10.2",
     "tailwindcss": "4.3.5",
     "typescript": "6.0.3",
+    "vitest": "5.1.0",
     "vue-tsc": "3.3.14"
   }
 }

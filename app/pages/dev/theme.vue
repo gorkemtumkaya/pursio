@@ -122,6 +122,18 @@ watch(theme, () => nextTick(readValues))
         >
           Locked
         </button>
+        <button
+          type="button"
+          class="min-h-12 rounded-2xl border-3 border-dashed border-trail bg-surface px-6 font-head font-bold text-ink uppercase shadow-raised-line transition-transform active:translate-y-1.5 active:shadow-none"
+        >
+          Side quest
+        </button>
+        <button
+          type="button"
+          class="min-h-12 rounded-2xl bg-primary px-6 font-head font-bold text-primary-ink uppercase shadow-raised-primary motion-safe:animate-[pursio-unlock_450ms_ease-out]"
+        >
+          Unlock pop
+        </button>
       </div>
     </section>
 

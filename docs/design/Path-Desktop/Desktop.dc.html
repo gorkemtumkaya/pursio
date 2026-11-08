@@ -1,0 +1,369 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Pursio · Desktop skill path</title>
+<script src="./vendor/react.js"></script>
+<script src="./vendor/react-dom.js"></script>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Fredoka:wght@500;600;700&amp;family=Nunito+Sans:wght@400;600;700;800&amp;family=Archivo:wght@400;600;800&amp;family=Archivo+Black&amp;family=Space+Grotesk:wght@500;700&amp;family=Inter:wght@400;600;700&amp;family=Creepster&amp;display=swap">
+<style>
+body{margin:0}
+</style>
+</helmet>
+<div style="position: relative; min-height: 100vh; background: {{t.bg}}; color: {{t.ink}}; font-family: {{t.body}}; display: flex; flex-wrap: wrap; align-items: flex-start; box-sizing: border-box">
+
+  <nav aria-label="Main" style="flex: 0 0 248px; box-sizing: border-box; padding: 28px 20px; display: flex; flex-direction: column; gap: 28px; border-right: 2px solid {{t.line}}; align-self: stretch">
+    <div style="display: flex; align-items: center; gap: 10px">
+      <span style="width: 38px; height: 38px; border-radius: {{t.radius}}; background: {{t.primary}}; color: {{t.primaryInk}}; box-shadow: 0 4px 0 {{t.primaryDeep}}; display: flex; align-items: center; justify-content: center">
+        <svg aria-hidden="true" width="22" height="22" viewBox="0 0 24 24" fill="currentColor"><path d="M12 3.5l2.6 5.3 5.9.9-4.3 4.1 1 5.8L12 16.9l-5.2 2.7 1-5.8-4.3-4.1 5.9-.9z"></path></svg>
+      </span>
+      <span style="font-family: {{t.head}}; font-size: 26px; font-weight: 700">Pursio</span>
+    </div>
+    <div style="display: flex; flex-direction: column; gap: 6px">
+      <a href="#" aria-current="page" style="display: flex; align-items: center; gap: 12px; height: 48px; padding: 0 14px; border-radius: 14px; background: {{t.primarySoft}}; color: {{t.accentText}}; text-decoration: none; font-weight: 800; font-size: 15px">
+        <svg aria-hidden="true" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 4L3 6v14l6-2 6 2 6-2V4l-6 2z"></path><path d="M9 4v14M15 6v14"></path></svg>
+        Path
+      </a>
+      <a href="#" style="display: flex; align-items: center; gap: 12px; height: 48px; padding: 0 14px; border-radius: 14px; color: {{t.muted}}; text-decoration: none; font-weight: 700; font-size: 15px">
+        <svg aria-hidden="true" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="4" width="16" height="16" rx="3"></rect><path d="M8 9h8M8 13h8M8 17h5"></path></svg>
+        Fresh feed
+      </a>
+      <a href="#" style="display: flex; align-items: center; gap: 12px; height: 48px; padding: 0 14px; border-radius: 14px; color: {{t.muted}}; text-decoration: none; font-weight: 700; font-size: 15px">
+        <svg aria-hidden="true" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="8"></circle><circle cx="12" cy="12" r="3.5"></circle></svg>
+        Quests
+      </a>
+      <a href="#" style="display: flex; align-items: center; gap: 12px; height: 48px; padding: 0 14px; border-radius: 14px; color: {{t.muted}}; text-decoration: none; font-weight: 700; font-size: 15px">
+        <svg aria-hidden="true" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="8" r="4"></circle><path d="M4 20c1.5-4 4.5-6 8-6s6.5 2 8 6"></path></svg>
+        Profile
+      </a>
+    </div>
+    <div style="display: flex; flex-direction: column; gap: 10px">
+      <span style="font-size: 12px; font-weight: 800; letter-spacing: 0.08em; color: {{t.muted}}">YOUR HOBBIES</span>
+      <a href="#" style="display: flex; flex-direction: column; gap: 8px; padding: 12px 14px; border-radius: 14px; border: 2px solid {{t.ink}}; background: {{t.surface}}; color: {{t.ink}}; text-decoration: none">
+        <span style="font-weight: 800; font-size: 15px">Bouldering</span>
+        <span style="height: 8px; border-radius: 4px; background: {{t.locked}}; overflow: hidden; display: block"><span style="display: block; height: 8px; width: {{hobbyPct}}%; background: {{t.done}}"></span></span>
+      </a>
+      <a href="#" style="display: flex; flex-direction: column; gap: 8px; padding: 12px 14px; border-radius: 14px; border: 2px solid {{t.line}}; background: {{t.surface}}; color: {{t.ink}}; text-decoration: none">
+        <span style="font-weight: 800; font-size: 15px">Film photography</span>
+        <span style="height: 8px; border-radius: 4px; background: {{t.locked}}; overflow: hidden; display: block"><span style="display: block; height: 8px; width: 12%; background: {{t.done}}"></span></span>
+      </a>
+      <button style="height: 48px; border-radius: 14px; border: 2px dashed {{t.lockedDeep}}; background: transparent; color: {{t.muted}}; font-family: {{t.body}}; font-weight: 800; font-size: 15px; cursor: pointer">+ Add a hobby</button>
+    </div>
+  </nav>
+
+  <main style="flex: 999 1 560px; min-width: 0; box-sizing: border-box; padding: 28px 32px 48px; display: flex; flex-direction: column; align-items: center; gap: 20px">
+    <header style="width: 100%; max-width: 640px; display: flex; flex-wrap: wrap; align-items: flex-end; justify-content: space-between; gap: 16px">
+      <div style="display: flex; flex-direction: column; gap: 4px">
+        <span style="font-size: 13px; font-weight: 800; letter-spacing: 0.08em; color: {{t.muted}}">YOUR PATH</span>
+        <h1 style="margin: 0; font-family: {{t.display}}; font-size: 40px; font-weight: 600; line-height: 1">Bouldering</h1>
+      </div>
+      <div style="display: flex; align-items: center; gap: 16px; font-weight: 800; font-size: 15px">
+        <span style="display: flex; align-items: center; gap: 5px" aria-label="6 day streak">
+          <svg aria-hidden="true" width="22" height="22" viewBox="0 0 24 24" fill="{{t.primary}}" stroke="{{t.primaryDeep}}" stroke-width="1.6" stroke-linejoin="round"><path d="M12 3c1 3 4.5 4.6 4.5 9a4.5 4.5 0 0 1-9 0c0-2 .9-3.3 2.2-4.3 0 1.6.8 2.5 1.6 2.7C11 7.8 11 5.4 12 3z"></path></svg>
+          6 day streak
+        </span>
+        <span style="display: flex; align-items: center; gap: 10px">
+          <span style="font-family: {{t.head}}">Lv 3</span>
+          <span style="width: 140px; height: 12px; border-radius: 6px; background: {{t.locked}}; overflow: hidden; display: block"><span style="display: block; height: 12px; width: {{xpPct}}%; border-radius: 6px; background: {{t.done}}"></span></span>
+          <span style="color: {{t.muted}}">{{xp}} / 400 XP</span>
+        </span>
+      </div>
+    </header>
+
+    <section style="width: 100%; max-width: 640px; box-sizing: border-box; padding: 18px 22px; border-radius: 22px; background: {{t.banner}}; color: {{t.bannerInk}}; box-shadow: 0 5px 0 {{t.bannerDeep}}; display: flex; align-items: center; justify-content: space-between; gap: 16px">
+      <div style="display: flex; flex-direction: column; gap: 4px">
+        <span style="font-size: 12px; font-weight: 800; letter-spacing: 0.08em; color: {{t.bannerMuted}}">SECTION 1 · BEGINNER</span>
+        <span style="font-family: {{t.display}}; font-size: 28px; font-weight: 600">First sessions</span>
+      </div>
+      <span style="font-family: {{t.head}}; font-size: 20px; font-weight: 600">{{done}}/7 skills</span>
+    </section>
+
+    <div style="position: relative; width: 100%; max-width: 640px; height: {{pathH}}px">
+      <sc-for list="{{dots}}" as="d" hint-placeholder-count="20">
+        <span aria-hidden="true" style="position: absolute; width: 10px; height: 10px; border-radius: 5px; {{d.css}}"></span>
+      </sc-for>
+      <div style="position: absolute; left: 0; right: 0; display: flex; align-items: center; gap: 16px; top: {{divY}}px">
+        <span style="flex: 1; height: 2px; background: {{t.line}}"></span>
+        <div style="display: flex; flex-direction: column; align-items: center; gap: 4px; text-align: center">
+          <span style="font-size: 12px; font-weight: 800; letter-spacing: 0.08em; color: {{t.muted}}">SECTION 2 · INTERMEDIATE</span>
+          <span style="font-family: {{t.display}}; font-size: 28px; font-weight: 600">Technique</span>
+          <span style="display: flex; align-items: center; gap: 6px; font-size: 13px; font-weight: 700; color: {{t.muted}}">
+            <svg aria-hidden="true" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><rect x="5" y="11" width="14" height="9" rx="2"></rect><path d="M8 11V8a4 4 0 0 1 8 0v3"></path></svg>
+            Reach First V2 to unlock
+          </span>
+        </div>
+        <span style="flex: 1; height: 2px; background: {{t.line}}"></span>
+      </div>
+      <sc-for list="{{rings}}" as="r" hint-placeholder-count="1">
+        <span aria-hidden="true" style="position: absolute; {{r.css}}"></span>
+      </sc-for>
+      <sc-for list="{{nodes}}" as="n" hint-placeholder-count="12">
+        <button aria-label="{{n.aria}}" onClick="{{n.open}}" style="position: absolute; border: none; padding: 0; display: flex; align-items: center; justify-content: center; cursor: pointer; {{n.css}}">
+          <sc-if value="{{n.iCheck}}" hint-placeholder-val="{{true}}"><svg aria-hidden="true" width="36" height="36" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12.5l4.5 4.5L19 7.5"></path></svg></sc-if>
+          <sc-if value="{{n.iLock}}" hint-placeholder-val="{{false}}"><svg aria-hidden="true" width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><rect x="5" y="11" width="14" height="9" rx="2"></rect><path d="M8 11V8a4 4 0 0 1 8 0v3"></path></svg></sc-if>
+          <sc-if value="{{n.iStar}}" hint-placeholder-val="{{false}}"><svg aria-hidden="true" width="36" height="36" viewBox="0 0 24 24" fill="currentColor" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round"><path d="M12 3.5l2.6 5.3 5.9.9-4.3 4.1 1 5.8L12 16.9l-5.2 2.7 1-5.8-4.3-4.1 5.9-.9z"></path></svg></sc-if>
+          <sc-if value="{{n.iTrophy}}" hint-placeholder-val="{{false}}"><svg aria-hidden="true" width="38" height="38" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M8 4h8v5a4 4 0 0 1-8 0z"></path><path d="M8 6H5a3 3 0 0 0 3 4M16 6h3a3 3 0 0 1-3 4"></path><path d="M12 13v4M8.5 20h7"></path></svg></sc-if>
+          <sc-if value="{{n.iCompass}}" hint-placeholder-val="{{false}}"><svg aria-hidden="true" width="30" height="30" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="8"></circle><path d="M15.5 8.5l-2 5-5 2 2-5z"></path></svg></sc-if>
+        </button>
+      </sc-for>
+      <sc-for list="{{nodes}}" as="n" hint-placeholder-count="12">
+        <div style="position: absolute; display: flex; flex-direction: column; gap: 2px; {{n.labelCss}}">
+          <span style="font-size: 16px; font-weight: 800; line-height: 1.2; color: {{n.titleColor}}">{{n.title}}</span>
+          <span style="font-size: 13px; font-weight: 700; color: {{n.subColor}}">{{n.sub}}</span>
+        </div>
+      </sc-for>
+      <sc-if value="{{bubble.show}}" hint-placeholder-val="{{true}}">
+        <span style="position: absolute; height: 30px; border-radius: 10px; display: flex; align-items: center; justify-content: center; font-size: 13px; font-weight: 800; letter-spacing: 0.04em; {{bubble.css}}">NEXT UP</span>
+      </sc-if>
+    </div>
+  </main>
+
+  <aside aria-label="Skill details" style="flex: 1 1 360px; max-width: 460px; box-sizing: border-box; padding: 28px 28px 48px 0; display: flex; flex-direction: column; gap: 20px">
+    <section style="padding: 24px; border-radius: 24px; background: {{t.surface}}; border: 2px solid {{t.line}}; box-shadow: 0 6px 0 {{t.line}}; display: flex; flex-direction: column; gap: 18px">
+      <div style="display: flex; align-items: center; justify-content: space-between">
+        <span style="padding: 5px 10px; border-radius: 8px; font-size: 12px; font-weight: 800; letter-spacing: 0.05em; background: {{sel.chipBg}}; color: {{sel.chipInk}}">{{sel.chip}}</span>
+        <span style="font-size: 13px; font-weight: 700; color: {{t.muted}}">{{sel.where}}</span>
+      </div>
+      <div style="display: flex; flex-direction: column; gap: 6px">
+        <h2 style="margin: 0; font-family: {{t.head}}; font-size: 30px; font-weight: 600; line-height: 1.1">{{sel.title}}</h2>
+        <p style="margin: 0; font-size: 15px; line-height: 1.5; color: {{t.muted}}">{{sel.desc}}</p>
+      </div>
+      <sc-if value="{{sel.locked}}" hint-placeholder-val="{{false}}">
+        <div style="padding: 16px; border-radius: 16px; background: {{t.surface2}}; display: flex; flex-direction: column; gap: 10px">
+          <span style="display: flex; gap: 10px; align-items: center; font-size: 15px; font-weight: 800">
+            <svg aria-hidden="true" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><rect x="5" y="11" width="14" height="9" rx="2"></rect><path d="M8 11V8a4 4 0 0 1 8 0v3"></path></svg>
+            Finish {{sel.requires}} first
+          </span>
+          <span style="font-size: 14px; line-height: 1.45; color: {{t.muted}}">You can preview what this skill covers. Quests and fresh content open once it unlocks.</span>
+        </div>
+      </sc-if>
+      <sc-if value="{{sel.open}}" hint-placeholder-val="{{true}}">
+        <div style="display: flex; flex-direction: column; gap: 8px">
+          <span style="font-size: 13px; font-weight: 800; letter-spacing: 0.06em; color: {{t.muted}}">QUESTS · {{sel.doneQ}} OF 3</span>
+          <sc-for list="{{sel.quests}}" as="q" hint-placeholder-count="3">
+            <button aria-pressed="{{q.on}}" onClick="{{q.toggle}}" style="display: flex; align-items: center; gap: 12px; min-height: 50px; padding: 8px 14px; border-radius: 14px; border: 2px solid {{t.line}}; background: {{t.surface}}; color: {{t.ink}}; font-family: {{t.body}}; font-size: 15px; font-weight: 700; text-align: left; cursor: pointer">
+              <span style="flex: 0 0 24px; height: 24px; border-radius: 7px; display: flex; align-items: center; justify-content: center; {{q.boxCss}}">
+                <sc-if value="{{q.on}}" hint-placeholder-val="{{false}}"><svg aria-hidden="true" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3.4" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12.5l4.5 4.5L19 7.5"></path></svg></sc-if>
+              </span>
+              <span style="{{q.textCss}}">{{q.text}}</span>
+            </button>
+          </sc-for>
+        </div>
+        <div style="display: flex; flex-direction: column; gap: 10px">
+          <span style="font-size: 13px; font-weight: 800; letter-spacing: 0.06em; color: {{t.muted}}">FRESH THIS WEEK</span>
+          <sc-for list="{{fresh}}" as="f" hint-placeholder-count="3">
+            <a href="#" style="display: flex; gap: 12px; align-items: center; text-decoration: none; color: {{t.ink}}">
+              <span style="flex: 0 0 88px; height: 60px; border-radius: 12px; background: {{f.thumb}}; display: flex; align-items: center; justify-content: center; color: {{t.ink}}">
+                <sc-if value="{{f.video}}" hint-placeholder-val="{{true}}"><svg aria-hidden="true" width="24" height="24" viewBox="0 0 24 24" fill="currentColor"><path d="M8 5v14l11-7z"></path></svg></sc-if>
+                <sc-if value="{{f.article}}" hint-placeholder-val="{{false}}"><svg aria-hidden="true" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><rect x="5" y="4" width="14" height="16" rx="2"></rect><path d="M8 8h8M8 12h8M8 16h5"></path></svg></sc-if>
+              </span>
+              <span style="display: flex; flex-direction: column; gap: 3px">
+                <span style="font-size: 15px; font-weight: 800; line-height: 1.25">{{f.title}}</span>
+                <span style="font-size: 13px; font-weight: 700; color: {{t.muted}}">{{f.src}}</span>
+              </span>
+            </a>
+          </sc-for>
+        </div>
+      </sc-if>
+      <button onClick="{{complete}}" style="height: 56px; border-radius: 16px; border: none; font-family: {{t.head}}; font-size: 18px; font-weight: 600; cursor: pointer; {{sel.btnCss}}">{{sel.btn}}</button>
+    </section>
+
+    <section style="padding: 20px 24px; border-radius: 24px; background: {{t.surface}}; border: 2px solid {{t.line}}; display: flex; flex-direction: column; gap: 14px">
+      <div style="display: flex; align-items: center; justify-content: space-between">
+        <span style="font-family: {{t.head}}; font-size: 20px; font-weight: 600">This week</span>
+        <span style="font-size: 14px; font-weight: 700; color: {{t.muted}}">3 of 4 sessions</span>
+      </div>
+      <div style="display: grid; grid-template-columns: repeat(7, minmax(0, 1fr)); gap: 8px">
+        <sc-for list="{{week}}" as="w" hint-placeholder-count="7">
+          <span style="display: flex; flex-direction: column; align-items: center; gap: 6px; font-size: 12px; font-weight: 800; color: {{t.muted}}">
+            <span style="width: 32px; height: 32px; border-radius: {{t.radius}}; {{w.css}}"></span>
+            {{w.d}}
+          </span>
+        </sc-for>
+      </div>
+    </section>
+  </aside>
+
+  <sc-if value="{{isUnlock}}" hint-placeholder-val="{{false}}">
+    <div style="position: absolute; inset: 0; background: {{t.overlay}}"></div>
+    <section aria-label="Skill complete" style="position: absolute; top: 180px; left: 50%; width: 440px; margin-left: -220px; box-sizing: border-box; background: {{t.surface}}; border-radius: 28px; padding: 36px 32px 28px; display: flex; flex-direction: column; align-items: center; gap: 14px; text-align: center; box-shadow: 0 8px 0 {{t.line}}">
+      <div style="width: 124px; height: 124px; border-radius: 62px; background: {{t.primarySoft}}; display: flex; align-items: center; justify-content: center">
+        <span style="width: 92px; height: 92px; border-radius: {{t.radius}}; background: {{t.done}}; box-shadow: 0 6px 0 {{t.doneDeep}}; color: {{t.doneInk}}; display: flex; align-items: center; justify-content: center">
+          <svg aria-hidden="true" width="44" height="44" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12.5l4.5 4.5L19 7.5"></path></svg>
+        </span>
+      </div>
+      <span style="font-family: {{t.display}}; font-size: 42px; font-weight: 700; color: {{t.accentText}}">+50 XP</span>
+      <h2 style="margin: 0; font-family: {{t.display}}; font-size: 28px; font-weight: 600">{{justDone}} complete</h2>
+      <p style="margin: 0; font-size: 15px; color: {{t.muted}}">New skill unlocked on your path</p>
+      <span style="display: flex; align-items: center; gap: 8px; padding: 10px 14px; border-radius: 14px; border: 2px dashed {{t.primary}}; font-weight: 800; font-size: 15px">
+        <svg aria-hidden="true" width="18" height="18" viewBox="0 0 24 24" fill="{{t.primary}}" stroke="{{t.primaryDeep}}" stroke-width="1.5" stroke-linejoin="round"><path d="M12 3.5l2.6 5.3 5.9.9-4.3 4.1 1 5.8L12 16.9l-5.2 2.7 1-5.8-4.3-4.1 5.9-.9z"></path></svg>
+        {{nextTitle}}
+      </span>
+      <button onClick="{{close}}" style="align-self: stretch; margin-top: 8px; height: 56px; border-radius: 16px; border: none; background: {{t.primary}}; color: {{t.primaryInk}}; box-shadow: 0 5px 0 {{t.primaryDeep}}; font-family: {{t.head}}; font-size: 18px; font-weight: 600; cursor: pointer">Continue</button>
+    </section>
+  </sc-if>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props="{&quot;theme&quot;:{&quot;editor&quot;:&quot;enum&quot;,&quot;options&quot;:[&quot;trail&quot;,&quot;boulder&quot;,&quot;halloween&quot;],&quot;default&quot;:&quot;trail&quot;},&quot;startState&quot;:{&quot;editor&quot;:&quot;enum&quot;,&quot;options&quot;:[&quot;path&quot;,&quot;locked&quot;,&quot;unlock&quot;],&quot;default&quot;:&quot;path&quot;},&quot;$preview&quot;:{&quot;width&quot;:1440,&quot;height&quot;:1960}}">
+class Component extends DCLogic {
+  tokens(name) {
+    const T = {
+      trail: { bg:'#F2F4EF', surface:'#FFFFFF', surface2:'#E7ECE4', ink:'#16211B', muted:'#56635B', line:'#D3DBD0', primary:'#FF6A3D', primaryDeep:'#C2441C', primaryInk:'#1A120D', primarySoft:'#FFE4D9', accentText:'#B23D16', done:'#1E8C6E', doneDeep:'#12634D', doneInk:'#FFFFFF', locked:'#DCE2D9', lockedDeep:'#BAC3B6', lockedInk:'#6F7A72', gold:'#F2B33D', goldDeep:'#B47D0E', trail:'#C3CCBF', banner:'#16211B', bannerDeep:'#05100A', bannerInk:'#F2F4EF', bannerMuted:'#A9B5AD', overlay:'rgba(22,33,27,0.55)', radius:'50%', head:"'Fredoka', sans-serif", display:"'Fredoka', sans-serif", body:"'Nunito Sans', sans-serif" },
+      boulder: { bg:'#ECE6DD', surface:'#F8F4EE', surface2:'#E2D9CC', ink:'#2A231E', muted:'#675A50', line:'#D2C6B7', primary:'#C63F23', primaryDeep:'#8A2813', primaryInk:'#FFFFFF', primarySoft:'#F5DCD3', accentText:'#A83620', done:'#4E7A38', doneDeep:'#345325', doneInk:'#FFFFFF', locked:'#D7CDBF', lockedDeep:'#B2A390', lockedInk:'#6E6152', gold:'#E3A82B', goldDeep:'#9C6E0E', trail:'#B39A7A', banner:'#3A2E26', bannerDeep:'#1E1712', bannerInk:'#F8F4EE', bannerMuted:'#CDBFAF', overlay:'rgba(42,35,30,0.55)', radius:'46% 54% 42% 58% / 54% 44% 56% 46%', head:"'Archivo Black', sans-serif", display:"'Archivo Black', sans-serif", body:"'Archivo', sans-serif" },
+      halloween: { bg:'#1A1225', surface:'#261A35', surface2:'#33244A', ink:'#F6EEFF', muted:'#BBA9D6', line:'#3E2D57', primary:'#FF7A1A', primaryDeep:'#A8470A', primaryInk:'#1A0E05', primarySoft:'#3A2340', accentText:'#FF9A4D', done:'#9B5CFF', doneDeep:'#5B2BB0', doneInk:'#FFFFFF', locked:'#2C2140', lockedDeep:'#120B1C', lockedInk:'#8E7BAE', gold:'#FFB23E', goldDeep:'#A86A00', trail:'#5A4380', banner:'#3B1F66', bannerDeep:'#1C0D33', bannerInk:'#FFF3E6', bannerMuted:'#D2B8FF', overlay:'rgba(10,5,18,0.72)', radius:'50% 50% 46% 46% / 58% 58% 42% 42%', head:"'Fredoka', sans-serif", display:"'Creepster', cursive", body:"'Nunito Sans', sans-serif" }
+    };
+    return T[name] || T.trail;
+  }
+  data() {
+    const s1 = [
+      { id:'n1', title:'Gear basics', desc:'Shoes, chalk and what to rent on your first day.' },
+      { id:'n2', title:'Reading grades', desc:'How V-grades and gym color circuits work.' },
+      { id:'n3', title:'Warm-up routine', desc:'A 10-minute routine to start every session.' },
+      { id:'n4', title:'Footwork basics', desc:'Quiet, precise feet are the fastest way to climb harder.', quests:['Climb 3 easy routes with silent feet','Place every foot on the tip of your shoe','Watch the silent feet drill'] },
+      { id:'n5', title:'Body positioning', desc:'Hips close to the wall, straight arms, push with your legs.', quests:['Climb 2 routes keeping your arms straight','Turn one hip into the wall on a traverse','Film one climb and check your hips'] },
+      { id:'n6', title:'Resting on the wall', desc:'Shake out, breathe and plan your next moves.' },
+      { id:'m1', title:'First V2', desc:'Send your first V2 route from start to top.', milestone:true }
+    ];
+    const s2 = [
+      { id:'n7', title:'Flagging', desc:'Use a free leg to stay balanced instead of swinging off.' },
+      { id:'n8', title:'Heel hooks', desc:'Pull with your heel to take weight off your arms.' },
+      { id:'n9', title:'Toe hooks', desc:'Hook with your toes to stay on steep walls.' },
+      { id:'n10', title:'Reading a route', desc:'Plan the moves from the ground before you start.' },
+      { id:'m2', title:'First V4', desc:'Send your first V4 route.', milestone:true }
+    ];
+    const side = { id:'s1', title:'Falling safely', desc:'Land, roll and down-climb without getting hurt.', quests:['Practice 5 controlled falls from low height','Down-climb 3 routes instead of jumping','Learn the landing roll'] };
+    return { s1, s2, side };
+  }
+  renderVals() {
+    const t = this.tokens(this.props.theme);
+    const st = this.state || {};
+    const start = this.props.startState || 'path';
+    const mode = st.mode || (start === 'unlock' ? 'unlock' : 'path');
+    const done = st.done != null ? st.done : (start === 'unlock' ? 4 : 3);
+    const sideDone = !!st.sideDone;
+    const checks = st.checks || { n4:[true,false,false] };
+    const D = this.data();
+    const generic = ['Watch one short tutorial on this skill','Try it in your next session','Note one thing that felt hard'];
+    const OFF = [0,-90,-135,-90,0,-90,-135,-90];
+    const S = 80, rowH = 124, top0 = 60;
+    const curId = D.s1[done] ? D.s1[done].id : null;
+    const defaultSel = start === 'locked' ? 'n5' : curId;
+    const selId = st.sel || defaultSel || 'n4';
+    const all = [], pos = {};
+    D.s1.forEach((n, i) => {
+      const size = n.milestone ? 92 : S;
+      const dx = OFF[i % 8];
+      const y = top0 + i * rowH - (n.milestone ? 6 : 0);
+      const state = i < done ? 'done' : (i === done ? 'current' : 'locked');
+      all.push({ n, dx, y, size, state, side:false, sec:1, idx:i });
+      pos[n.id] = { cx: dx, cy: y + size / 2 };
+    });
+    const sideA = { n: D.side, dx: 170, y: top0 + rowH + 70, size: 70, state: sideDone ? 'done' : 'side', side:true, sec:1, idx:1 };
+    all.push(sideA);
+    pos.s1 = { cx: 170, cy: sideA.y + 35 };
+    const divY = top0 + 7 * rowH + 20;
+    const top2 = divY + 150;
+    D.s2.forEach((n, i) => {
+      const size = n.milestone ? 92 : S;
+      const dx = OFF[i % 8];
+      const y = top2 + i * rowH - (n.milestone ? 6 : 0);
+      all.push({ n, dx, y, size, state:'locked', side:false, sec:2, idx:i });
+      pos[n.id] = { cx: dx, cy: y + size / 2 };
+    });
+
+    const dots = [];
+    const addDots = (a, b, color) => {
+      [0.28, 0.5, 0.72].forEach((f) => {
+        const x = a.cx + (b.cx - a.cx) * f, y = a.cy + (b.cy - a.cy) * f;
+        dots.push({ css: `left:calc(50% + ${x - 5}px);top:${y - 5}px;background:${color};` });
+      });
+    };
+    for (let i = 0; i < D.s1.length - 1; i++) addDots(pos[D.s1[i].id], pos[D.s1[i + 1].id], i < done ? t.done : t.trail);
+    for (let i = 0; i < D.s2.length - 1; i++) addDots(pos[D.s2[i].id], pos[D.s2[i + 1].id], t.trail);
+    addDots(pos.n2, pos.s1, sideDone ? t.done : t.trail);
+
+    const rings = [];
+    let bubble = { show:false, css:'' };
+    const nodes = all.map((a) => {
+      const n = a.n, s = a.state;
+      let fill = t.locked, deep = t.lockedDeep, ink = t.lockedInk;
+      if (s === 'done') { fill = t.done; deep = t.doneDeep; ink = t.doneInk; }
+      if (s === 'current') { fill = t.primary; deep = t.primaryDeep; ink = t.primaryInk; }
+      if (s === 'side') { fill = t.surface; deep = t.line; ink = t.ink; }
+      if (n.milestone && s !== 'done') { fill = s === 'current' ? t.gold : t.locked; deep = s === 'current' ? t.goldDeep : t.lockedDeep; }
+      const border = s === 'side' ? `border:3px dashed ${t.trail} !important;` : '';
+      const selected = n.id === selId && s !== 'current' ? `outline:4px solid ${t.ink};outline-offset:6px;` : '';
+      const css = `left:calc(50% + ${a.dx - a.size / 2}px);top:${a.y}px;width:${a.size}px;height:${a.size}px;border-radius:${t.radius};background:${fill};box-shadow:0 6px 0 ${deep};color:${ink};${border}${selected}`;
+      const cq = (checks[n.id] || []).filter(Boolean).length;
+      if (s === 'current') {
+        const deg = Math.round(360 * cq / 3);
+        rings.push({ css: `left:calc(50% + ${a.dx - a.size / 2 - 10}px);top:${a.y - 10}px;width:${a.size + 20}px;height:${a.size + 20}px;border-radius:${t.radius};background:conic-gradient(${t.primary} 0deg ${deg}deg, ${t.line} ${deg}deg 360deg);` });
+        bubble = { show:true, css: `left:calc(50% + ${a.dx - 48}px);top:${a.y - 50}px;width:96px;background:${t.ink};color:${t.bg};` };
+      }
+      const labelCss = a.side
+        ? `left:calc(50% + ${a.dx - 70}px);top:${a.y + a.size + 12}px;width:140px;text-align:center;align-items:center;`
+        : `left:calc(50% + ${a.dx + a.size / 2 + 16}px);top:${a.y + a.size / 2 - 22}px;width:150px;`;
+      const sub = s === 'done' ? 'Done' : s === 'current' ? `In progress · ${cq}/3` : s === 'side' ? 'Side quest' : (n.milestone ? 'Milestone' : 'Locked');
+      return {
+        title: n.title, sub, css, labelCss,
+        titleColor: s === 'locked' ? t.muted : t.ink,
+        subColor: s === 'current' ? t.accentText : t.muted,
+        iCheck: s === 'done', iLock: s === 'locked' && !n.milestone, iStar: s === 'current' && !n.milestone,
+        iTrophy: !!n.milestone && s !== 'done', iCompass: s === 'side',
+        aria: `${n.title}, ${sub}`,
+        open: () => this.setState({ sel:n.id })
+      };
+    });
+
+    const selA = all.find((a) => a.n.id === selId) || all[3];
+    const sn = selA.n, ss = selA.state;
+    const arr = checks[sn.id] || [false,false,false];
+    const quests = (sn.quests || generic).map((text, qi) => ({
+      text, on: !!arr[qi],
+      boxCss: arr[qi] ? `background:${t.done};color:${t.doneInk};border:2px solid ${t.done};` : `background:transparent;border:2px solid ${t.lockedDeep};`,
+      textCss: arr[qi] ? `color:${t.muted};text-decoration:line-through;` : '',
+      toggle: () => { const c = Object.assign({}, checks); const a2 = (c[sn.id] || [false,false,false]).slice(); a2[qi] = !a2[qi]; c[sn.id] = a2; this.setState({ checks:c }); }
+    }));
+    const list = selA.sec === 2 ? D.s2 : D.s1;
+    const li = list.findIndex((x) => x.id === sn.id);
+    const requires = selA.sec === 2 && li === 0 ? 'First V2' : (li > 0 ? list[li - 1].title : (curId ? D.s1[done].title : ''));
+    const chipMap = { done:['COMPLETED', t.done, t.doneInk], current:['IN PROGRESS', t.primarySoft, t.accentText], side:['SIDE QUEST', t.surface2, t.ink], locked:['LOCKED', t.surface2, t.muted] };
+    const ch = chipMap[ss] || chipMap.locked;
+    const btnActive = ss === 'current' || ss === 'side';
+    const locked = ss === 'locked';
+    const sel = {
+      title: sn.title, desc: sn.desc || '', chip: ch[0], chipBg: ch[1], chipInk: ch[2],
+      where: selA.side ? 'Section 1 · Bonus' : `Section ${selA.sec} · Skill ${selA.idx + 1}`,
+      locked, open: !locked, requires, quests, doneQ: quests.filter((q) => q.on).length,
+      btn: ss === 'done' ? 'Completed' : locked ? 'Locked' : 'Mark complete',
+      btnCss: btnActive ? `background:${t.primary};color:${t.primaryInk};box-shadow:0 5px 0 ${t.primaryDeep};` : `background:${t.surface2};color:${t.muted};box-shadow:none;`
+    };
+    const complete = () => {
+      if (ss === 'current') this.setState({ mode:'unlock', done: done + 1, sel:null });
+      else if (ss === 'side') this.setState({ sideDone:true });
+    };
+    const xp = 240 + (done - 3) * 50;
+    const week = ['M','T','W','T','F','S','S'].map((d, i) => ({ d, css: [0,2,4].indexOf(i) >= 0 ? `background:${t.done};box-shadow:0 3px 0 ${t.doneDeep};` : (i === 5 ? `background:${t.primarySoft};border:2px dashed ${t.primary};box-sizing:border-box;` : `background:${t.locked};`) }));
+    const fresh = [
+      { video:true, article:false, src:'Video · 8 min', title:'The silent feet drill', thumb: t.primarySoft },
+      { video:false, article:true, src:'Article · 5 min read', title:'Why your feet keep slipping', thumb: t.surface2 },
+      { video:true, article:false, src:'Video · 12 min', title:'Edging vs smearing, explained', thumb: t.surface2 }
+    ];
+    return {
+      t, done, xp, xpPct: Math.min(100, Math.round(xp / 4)), hobbyPct: Math.round(done / 12 * 100),
+      pathH: top2 + 5 * rowH + 40, divY, dots, rings, nodes, bubble,
+      isUnlock: mode === 'unlock', sel, fresh, week, complete,
+      close: () => this.setState({ mode:'path' }),
+      justDone: D.s1[done - 1] ? D.s1[done - 1].title : '',
+      nextTitle: D.s1[done] ? D.s1[done].title : 'Section 2'
+    };
+  }
+}
+</script>
+</body>
+</html>
