@@ -1,0 +1,65 @@
+@import "tailwindcss";
+@import "./themes.css";
+
+/*
+ * Map theme tokens to Tailwind. `inline` makes utilities read the
+ * --pursio-* variable directly, so a data-theme switch restyles everything
+ * without touching markup.
+ */
+@theme inline {
+  /* Drop Tailwind's default palette: only theme tokens are allowed. */
+  --color-*: initial;
+
+  --color-bg: var(--pursio-bg);
+  --color-surface: var(--pursio-surface);
+  --color-surface-2: var(--pursio-surface-2);
+  --color-ink: var(--pursio-ink);
+  --color-muted: var(--pursio-muted);
+  --color-line: var(--pursio-line);
+
+  --color-primary: var(--pursio-primary);
+  --color-primary-deep: var(--pursio-primary-deep);
+  --color-primary-ink: var(--pursio-primary-ink);
+  --color-primary-soft: var(--pursio-primary-soft);
+  --color-accent-text: var(--pursio-accent-text);
+
+  --color-done: var(--pursio-done);
+  --color-done-deep: var(--pursio-done-deep);
+  --color-done-ink: var(--pursio-done-ink);
+
+  --color-locked: var(--pursio-locked);
+  --color-locked-deep: var(--pursio-locked-deep);
+  --color-locked-ink: var(--pursio-locked-ink);
+
+  --color-gold: var(--pursio-gold);
+  --color-gold-deep: var(--pursio-gold-deep);
+  --color-trail: var(--pursio-trail);
+
+  --color-banner: var(--pursio-banner);
+  --color-banner-deep: var(--pursio-banner-deep);
+  --color-banner-ink: var(--pursio-banner-ink);
+  --color-banner-muted: var(--pursio-banner-muted);
+
+  --color-overlay: var(--pursio-overlay);
+
+  --radius-node: var(--pursio-radius-node);
+
+  --font-head: var(--pursio-font-head);
+  --font-display: var(--pursio-font-display);
+  --font-body: var(--pursio-font-body);
+
+  /* Raised elements: solid bottom shadow in the matching -deep color. */
+  --shadow-raised-primary: 0 6px 0 var(--pursio-primary-deep);
+  --shadow-raised-done: 0 6px 0 var(--pursio-done-deep);
+  --shadow-raised-locked: 0 6px 0 var(--pursio-locked-deep);
+  --shadow-raised-gold: 0 6px 0 var(--pursio-gold-deep);
+  --shadow-raised-banner: 0 6px 0 var(--pursio-banner-deep);
+}
+
+@layer base {
+  html {
+    background-color: var(--pursio-bg);
+    color: var(--pursio-ink);
+    font-family: var(--pursio-font-body);
+  }
+}

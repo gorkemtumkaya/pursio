@@ -1,0 +1,132 @@
+/*
+ * Theme tokens. Each theme sets every --pursio-* variable.
+ * The active theme is chosen by data-theme on <html>; no attribute = trail.
+ * Tailwind utilities read these through the @theme mapping in main.css.
+ */
+
+:root,
+[data-theme="trail"] {
+  color-scheme: light;
+
+  --pursio-bg: #f2f4ef;
+  --pursio-surface: #ffffff;
+  --pursio-surface-2: #e7ece4;
+  --pursio-ink: #16211b;
+  --pursio-muted: #56635b;
+  --pursio-line: #d3dbd0;
+
+  --pursio-primary: #ff6a3d;
+  --pursio-primary-deep: #c2441c;
+  --pursio-primary-ink: #1a120d;
+  --pursio-primary-soft: #ffe4d9;
+  --pursio-accent-text: #b23d16;
+
+  --pursio-done: #1e8c6e;
+  --pursio-done-deep: #12634d;
+  --pursio-done-ink: #ffffff;
+
+  --pursio-locked: #dce2d9;
+  --pursio-locked-deep: #bac3b6;
+  --pursio-locked-ink: #6f7a72;
+
+  --pursio-gold: #f2b33d;
+  --pursio-gold-deep: #b47d0e;
+  --pursio-trail: #c3ccbf;
+
+  --pursio-banner: #16211b;
+  --pursio-banner-deep: #05100a;
+  --pursio-banner-ink: #f2f4ef;
+  --pursio-banner-muted: #a9b5ad;
+
+  --pursio-overlay: rgba(22, 33, 27, 0.55);
+
+  --pursio-radius-node: 50%;
+
+  --pursio-font-head: "Fredoka", ui-rounded, system-ui, sans-serif;
+  --pursio-font-display: "Fredoka", ui-rounded, system-ui, sans-serif;
+  --pursio-font-body: "Nunito Sans", system-ui, sans-serif;
+}
+
+[data-theme="boulder"] {
+  color-scheme: light;
+
+  --pursio-bg: #ece6dd;
+  --pursio-surface: #f8f4ee;
+  --pursio-surface-2: #e2d9cc;
+  --pursio-ink: #2a231e;
+  --pursio-muted: #675a50;
+  --pursio-line: #d2c6b7;
+
+  --pursio-primary: #c63f23;
+  --pursio-primary-deep: #8a2813;
+  --pursio-primary-ink: #ffffff;
+  --pursio-primary-soft: #f5dcd3;
+  --pursio-accent-text: #a83620;
+
+  --pursio-done: #4e7a38;
+  --pursio-done-deep: #345325;
+  --pursio-done-ink: #ffffff;
+
+  --pursio-locked: #d7cdbf;
+  --pursio-locked-deep: #b2a390;
+  --pursio-locked-ink: #6e6152;
+
+  --pursio-gold: #e3a82b;
+  --pursio-gold-deep: #9c6e0e;
+  --pursio-trail: #b39a7a;
+
+  --pursio-banner: #3a2e26;
+  --pursio-banner-deep: #1e1712;
+  --pursio-banner-ink: #f8f4ee;
+  --pursio-banner-muted: #cdbfaf;
+
+  --pursio-overlay: rgba(42, 35, 30, 0.55);
+
+  --pursio-radius-node: 46% 54% 42% 58% / 54% 44% 56% 46%;
+
+  --pursio-font-head: "Archivo Black", "Archivo", system-ui, sans-serif;
+  --pursio-font-display: "Archivo Black", "Archivo", system-ui, sans-serif;
+  --pursio-font-body: "Archivo", system-ui, sans-serif;
+}
+
+[data-theme="halloween"] {
+  color-scheme: dark;
+
+  --pursio-bg: #1a1225;
+  --pursio-surface: #261a35;
+  --pursio-surface-2: #33244a;
+  --pursio-ink: #f6eeff;
+  --pursio-muted: #bba9d6;
+  --pursio-line: #3e2d57;
+
+  --pursio-primary: #ff7a1a;
+  --pursio-primary-deep: #a8470a;
+  --pursio-primary-ink: #1a0e05;
+  --pursio-primary-soft: #3a2340;
+  --pursio-accent-text: #ff9a4d;
+
+  --pursio-done: #9b5cff;
+  --pursio-done-deep: #5b2bb0;
+  --pursio-done-ink: #ffffff;
+
+  --pursio-locked: #2c2140;
+  --pursio-locked-deep: #120b1c;
+  --pursio-locked-ink: #8e7bae;
+
+  --pursio-gold: #ffb23e;
+  --pursio-gold-deep: #a86a00;
+  --pursio-trail: #5a4380;
+
+  --pursio-banner: #3b1f66;
+  --pursio-banner-deep: #1c0d33;
+  --pursio-banner-ink: #fff3e6;
+  --pursio-banner-muted: #d2b8ff;
+
+  --pursio-overlay: rgba(10, 5, 18, 0.72);
+
+  --pursio-radius-node: 50% 50% 46% 46% / 58% 58% 42% 42%;
+
+  --pursio-font-head: "Fredoka", ui-rounded, system-ui, sans-serif;
+  --pursio-font-display: "Creepster", "Fredoka", system-ui, cursive;
+  --pursio-font-body: "Nunito Sans", system-ui, sans-serif;
+}
