@@ -4,6 +4,7 @@
     {
       "name": "Block .env access",
       "trigger": "PreToolUse",
+      "matcher": "read|write|shell",
       "description": "Blocks any tool call that references .env or .env.* files (secrets). .env.example is allowed.",
       "action": {
         "type": "command",
