@@ -31,6 +31,7 @@ const colorTokens = [
   { name: 'locked-ink', swatchClass: 'bg-locked-ink' },
   { name: 'gold', swatchClass: 'bg-gold' },
   { name: 'gold-deep', swatchClass: 'bg-gold-deep' },
+  { name: 'gold-ink', swatchClass: 'bg-gold-ink' },
   { name: 'trail', swatchClass: 'bg-trail' },
   { name: 'banner', swatchClass: 'bg-banner' },
   { name: 'banner-deep', swatchClass: 'bg-banner-deep' },

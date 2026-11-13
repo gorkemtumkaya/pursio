@@ -26,6 +26,8 @@ export type CloudStatus = 'idle' | 'loading' | 'importing' | 'ready' | 'error'
 export interface CloudProfile {
   displayName: string | null
   theme: Theme | null
+  /** ISO 8601 time the Profile_Row was created, or null when unknown. */
+  createdAt: string | null
 }
 
 interface CloudState {
@@ -107,7 +109,8 @@ export function useCloudStore() {
       const record = typeof row === 'object' && row !== null ? (row as Record<string, unknown>) : {}
       const stored = isTheme(record.theme) ? record.theme : null
       const displayName = typeof record.display_name === 'string' ? record.display_name : null
-      state.value = { ...state.value, profile: { displayName, theme: stored } }
+      const createdAt = typeof record.created_at === 'string' ? record.created_at : null
+      state.value = { ...state.value, profile: { displayName, theme: stored, createdAt } }
       // A valid, different theme is applied and replaces the one in localStorage (Req 7.1);
       // a bad or missing one changes nothing and is not written back (Req 7.7).
       if (stored !== null && stored !== theme.value) setTheme(stored)
@@ -318,7 +321,7 @@ export function useCloudStore() {
     if (state.value.userId === '') return
     if (!(await updateProfile({ theme: next }))) return
     const current = state.value.profile
-    state.value = { ...state.value, profile: { displayName: current?.displayName ?? null, theme: next } }
+    state.value = { ...state.value, profile: { displayName: current?.displayName ?? null, theme: next, createdAt: current?.createdAt ?? null } }
   }
 
   /** Saves the trimmed display name; empty means no name (Req 7.4). Returns true when it was saved. */
@@ -327,7 +330,7 @@ export function useCloudStore() {
     const displayName = normalizeDisplayName(raw)
     if (!(await updateProfile({ display_name: displayName }))) return false
     const current = state.value.profile
-    state.value = { ...state.value, profile: { displayName, theme: current?.theme ?? null } }
+    state.value = { ...state.value, profile: { displayName, theme: current?.theme ?? null, createdAt: current?.createdAt ?? null } }
     return true
   }
 

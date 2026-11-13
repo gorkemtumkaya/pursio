@@ -32,3 +32,6 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 - Paths and progress saved in this browser are imported into your account the first time you open Pursio (spec: accounts-cloud-save).
 - Building a new path now needs a session and is limited per user instead of per network address (spec: accounts-cloud-save).
 - Streak and week now count every completion saved in your account (spec: accounts-cloud-save).
+- The Profile page has a new look: Wick in your hobby's outfit, your level and totals over all your paths, your hobbies with their progress, and eight milestones to earn.
+- The Settings page has a new look with Account, App, About and Danger zone groups. Your display name, log out and delete account now live there, and the AI model and your own API key open in place. A Settings link sits at the bottom of the sidebar.
+- Settings warns you when the custom model field holds an email address, which some browsers fill in by mistake, and lets you clear it.

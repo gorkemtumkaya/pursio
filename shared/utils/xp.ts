@@ -36,7 +36,11 @@ export function levelFor(xp: number): XpLevel {
 }
 
 export function xpSummary(tree: SkillTree, progress: Progress): XpSummary {
-  const xp = xpFor(tree, progress)
+  return xpSummaryOf(xpFor(tree, progress))
+}
+
+/** The summary for an XP total, e.g. the sum over every path on the Profile_Page. */
+export function xpSummaryOf(xp: number): XpSummary {
   const level = levelFor(xp)
   if (level === 5) {
     return { xp, level, nextLevelXp: null, barPercent: 100, label: `${xp} XP` }

@@ -2,7 +2,7 @@
 import { computed } from 'vue'
 
 /**
- * Main navigation (Req 12.7). "Path" and "Profile" exist; Fresh and Quests
+ * Main navigation (Req 12.7), with the item of the open page marked. "Path" and "Profile" exist; Fresh and Quests
  * stay hidden until those features ship (spec: local-progress-data, Req 5.1).
  * Demo_Mode has no account, so it shows no Profile item (spec: accounts-cloud-save, Req 11.1, 12.6).
  */
@@ -19,6 +19,16 @@ const itemClass = computed(() =>
     : 'flex h-full min-h-11 w-full min-w-11 flex-col items-center justify-center gap-0.5 rounded-2xl text-xs',
 )
 const iconClass = computed(() => (isSide.value ? 'size-5.5 shrink-0' : 'size-6 shrink-0'))
+
+const ACTIVE_CLASS = 'bg-primary-soft text-accent-text'
+const IDLE_CLASS = 'text-muted hover:bg-surface-2 hover:text-ink'
+const onSettings = computed(() => route.path === '/settings')
+/**
+ * On Settings the sidebar marks its own Settings link; the bottom bar has none,
+ * so there Settings marks the Profile item it is opened from.
+ */
+const onProfile = computed(() => route.path === '/profile' || (onSettings.value && !isSide.value))
+const onPath = computed(() => !onProfile.value && !onSettings.value)
 </script>
 
 <template>
@@ -26,9 +36,9 @@ const iconClass = computed(() => (isSide.value ? 'size-5.5 shrink-0' : 'size-6 s
     <li :class="isSide ? '' : 'w-28'">
       <NuxtLink
         to="/path"
-        aria-current="page"
-        :class="itemClass"
-        class="bg-primary-soft font-extrabold text-accent-text focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink"
+        :aria-current="onPath ? 'page' : undefined"
+        :class="[itemClass, onPath ? ACTIVE_CLASS : IDLE_CLASS]"
+        class="font-extrabold focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink"
       >
         <PathIcon name="map" :class="iconClass" />
         <span>Path</span>
@@ -37,8 +47,9 @@ const iconClass = computed(() => (isSide.value ? 'size-5.5 shrink-0' : 'size-6 s
     <li v-if="!isDemo" :class="isSide ? '' : 'w-28'">
       <NuxtLink
         to="/profile"
-        :class="itemClass"
-        class="font-extrabold text-muted hover:bg-surface-2 hover:text-ink focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink"
+        :aria-current="route.path === '/profile' ? 'page' : onProfile ? 'true' : undefined"
+        :class="[itemClass, onProfile ? ACTIVE_CLASS : IDLE_CLASS]"
+        class="font-extrabold focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink"
       >
         <PathIcon name="user" :class="iconClass" />
         <span>Profile</span>

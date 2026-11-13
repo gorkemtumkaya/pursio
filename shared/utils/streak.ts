@@ -47,6 +47,22 @@ export function streakDays(completions: readonly number[], now: number): number 
   return count
 }
 
+/** The longest run of consecutive Local_Days with at least one completion, at any time. */
+export function longestStreak(completions: readonly number[]): number {
+  const days = new Set(completions.map(localDayKey))
+  let best = 0
+  for (const key of days) {
+    const [year = 0, month = 1, day = 1] = key.split('-').map(Number)
+    const start = new Date(year, month - 1, day)
+    // Count only from the first day of each run.
+    if (days.has(dayKeyOf(addDays(start, -1)))) continue
+    let length = 1
+    while (days.has(dayKeyOf(addDays(start, length)))) length++
+    best = Math.max(best, length)
+  }
+  return best
+}
+
 /** Monday to Sunday of the week containing `now`, each done, missed or upcoming (Req 2.1). */
 export function weekDays(completions: readonly number[], now: number): WeekDay[] {
   const days = new Set(completions.map(localDayKey))

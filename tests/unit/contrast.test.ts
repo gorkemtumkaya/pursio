@@ -28,6 +28,7 @@ const PAIRS: ReadonlyArray<readonly [string, string]> = [
   ['danger-text', 'surface'],
   ['danger-text', 'surface-2'],
   ['done-ink', 'done'],
+  ['gold-ink', 'gold'],
   ['banner-ink', 'banner'],
   ['banner-muted', 'banner'],
   ['bg', 'ink'],
