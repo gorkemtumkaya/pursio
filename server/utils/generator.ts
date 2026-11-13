@@ -8,7 +8,7 @@ import type { ProviderAdapter } from './providers/types'
 export type GenerationResult =
   | { kind: 'tree'; tree: SkillTree; model: string }
   | { kind: 'not_a_hobby' }
-  | { kind: 'error'; code: 'generation_failed' | 'provider_auth' | 'provider_error' | 'timeout' }
+  | { kind: 'error'; code: 'generation_failed' | 'provider_auth' | 'provider_error' | 'timeout'; status?: number }
 
 export interface GeneratorDeps {
   adapters: Record<Provider, ProviderAdapter>
@@ -55,7 +55,9 @@ export async function generateSkillTree(
         note = retryNote(null)
         continue
       }
-      return { kind: 'error', code: result.error }
+      return result.status === undefined
+        ? { kind: 'error', code: result.error }
+        : { kind: 'error', code: result.error, status: result.status }
     }
 
     const unwrapped = unwrapGenerationOutput(result.value)

@@ -15,6 +15,11 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 - Every quest you tick now gives +10 XP, so levels rise faster than before. (spec: quests-page)
 - Your streak and "This week" card now also count days on which you ticked a quest. (spec: quests-page)
 - The main menu now shows Quests between Path and Profile. (spec: quests-page)
+- Provider errors now tell you to try later or add your own key in Settings. (spec: tree-api-502-on-new-path)
+
+### Fixed
+
+- Failed path builds now record where they failed, so setup problems are easier to find. (spec: tree-api-502-on-new-path)
 
 ## [Released]
 

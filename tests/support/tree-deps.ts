@@ -3,10 +3,10 @@
 import { readFileSync } from 'node:fs'
 import { fileURLToPath } from 'node:url'
 import type { PathSaveInput } from '../../shared/types/cloud'
-import type { ErrorCode, Provider, ProviderConfig } from '../../shared/types/llm'
+import type { Provider, ProviderConfig } from '../../shared/types/llm'
 import type { SkillTree } from '../../shared/types/skill-tree'
 import { loadSkillTree } from '../../shared/utils/skill-tree-load'
-import type { DefaultConfigInput, TreeDeps } from '../../server/utils/llm-handlers'
+import type { DefaultConfigInput, TreeDeps, TreeLogEntry } from '../../server/utils/llm-handlers'
 import type { AdapterResult, ProviderAdapter } from '../../server/utils/providers/types'
 import type { RateLimiter } from '../../server/utils/rate-limiter'
 import { createTreeCache, type TreeCache } from '../../server/utils/tree-cache'
@@ -76,7 +76,7 @@ export interface TreeCalls {
   consume: string[]
   adapter: AdapterCall[]
   save: SaveCall[]
-  log: { code: ErrorCode; provider: Provider; model: string }[]
+  log: TreeLogEntry[]
 }
 
 export interface FakeTreeOptions {

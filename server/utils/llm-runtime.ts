@@ -1,5 +1,5 @@
-import type { ErrorCode, Provider } from '../../shared/types/llm'
-import type { DefaultConfigInput, TestDeps, TreeDeps } from './llm-handlers'
+import type { Provider } from '../../shared/types/llm'
+import type { DefaultConfigInput, TestDeps, TreeDeps, TreeLogEntry } from './llm-handlers'
 import { createAnthropicAdapter } from './providers/anthropic'
 import { createOpenAIAdapter } from './providers/openai'
 import type { Fetcher, ProviderAdapter } from './providers/types'
@@ -60,9 +60,15 @@ function llmDefaultConfig(): DefaultConfigInput {
   }
 }
 
-/** Logs only the code, provider and model, never keys or bodies (Req 2.6). */
-function logLlmError(entry: { code: ErrorCode; provider: Provider; model: string }): void {
-  console.error('[llm]', { code: entry.code, provider: entry.provider, model: entry.model })
+/** Logs only code, stage, reason, provider and model, never keys or bodies (Req 2.2, 2.6). Explicit fields, no spread. */
+function logLlmError(entry: TreeLogEntry): void {
+  console.error('[llm]', {
+    code: entry.code,
+    stage: entry.stage,
+    reason: entry.reason,
+    provider: entry.provider,
+    model: entry.model,
+  })
 }
 
 export function llmTreeDeps(): TreeDeps {

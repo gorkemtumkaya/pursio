@@ -94,6 +94,24 @@ export async function withTimeout<T>(ms: number, onTimeout: T, task: (signal: Ab
   }
 }
 
+/** Where in the request a failure happened (spec: tree-api-502-on-new-path). */
+export type TreeStage = 'token_check' | 'prompt_load' | 'provider_call' | 'tree_validation' | 'path_save'
+
+/** One error log entry. `reason` is a short fixed label. Provider and model are absent before the config is resolved. */
+export interface TreeLogEntry {
+  code: ErrorCode
+  stage: TreeStage
+  reason: string
+  provider?: Provider
+  model?: string
+}
+
+/** A thrown error's `reason` if it is a short safe label, else 'unknown'. Never the message. */
+function errorReason(error: unknown): string {
+  const reason = isRecord(error) ? error.reason : undefined
+  return typeof reason === 'string' && /^[A-Za-z0-9_:]{1,40}$/.test(reason) ? reason : 'unknown'
+}
+
 export interface TreeDeps {
   adapters: Record<Provider, ProviderAdapter>
   systemPrompt: () => Promise<string>
@@ -110,8 +128,8 @@ export interface TreeDeps {
   verifyTimeoutMs: number
   /** 10_000 at runtime (spec: accounts-cloud-save, Req 9.10). */
   saveTimeoutMs: number
-  /** Receives only the code, provider and model, never keys, tokens or bodies (Req 2.6). */
-  log?: (entry: { code: ErrorCode; provider: Provider; model: string }) => void
+  /** Receives only code, stage, reason, provider and model, never keys, tokens or bodies (Req 2.6). */
+  log?: (entry: TreeLogEntry) => void
 }
 
 function treeError(code: ErrorCode): HandlerResponse<TreeResponse> {
@@ -124,15 +142,25 @@ export async function handleTreeRequest(
 ): Promise<HandlerResponse<TreeResponse>> {
   // 0. Access_Token before anything else (spec: accounts-cloud-save, Req 9.1, 9.2).
   // The user id comes from the verified token only, never from the request.
+  const unauthorized = (reason: string): HandlerResponse<TreeResponse> => {
+    deps.log?.({ code: 'unauthorized', stage: 'token_check', reason })
+    return treeError('unauthorized')
+  }
   const token = parseBearer(input.authorization)
-  if (token === null) return treeError('unauthorized')
-  let userId: string | null
+  if (token === null) return unauthorized('missing_token')
+  // undefined marks a timeout; null is a token the verifier rejected.
+  let userId: string | null | undefined
+  let verifyReason = 'invalid_token'
   try {
-    userId = await withTimeout<string | null>(deps.verifyTimeoutMs, null, (signal) => deps.verifyToken(token, signal))
+    userId = await withTimeout<string | null | undefined>(deps.verifyTimeoutMs, undefined, (signal) =>
+      deps.verifyToken(token, signal),
+    )
+    if (userId === undefined) verifyReason = 'timeout'
   } catch {
     userId = null
+    verifyReason = 'verify_error'
   }
-  if (typeof userId !== 'string' || userId === '') return treeError('unauthorized')
+  if (typeof userId !== 'string' || userId === '') return unauthorized(verifyReason)
 
   // 1. Hobby check (Req 1.1, 1.2).
   const body = isRecord(input.body) ? input.body : {}
@@ -149,8 +177,8 @@ export async function handleTreeRequest(
   const resolved = resolveProviderConfig({ headerKey: input.headerKey, body, defaults: deps.defaults })
   if (!resolved.ok) return treeError(resolved.code)
   const { config, source } = resolved
-  const fail = (code: ErrorCode): HandlerResponse<TreeResponse> => {
-    deps.log?.({ code, provider: config.provider, model: config.model })
+  const fail = (code: ErrorCode, stage: TreeStage, reason: string): HandlerResponse<TreeResponse> => {
+    deps.log?.({ code, stage, reason, provider: config.provider, model: config.model })
     return treeError(code)
   }
 
@@ -164,27 +192,41 @@ export async function handleTreeRequest(
     model = cached.model
   } else {
     // 4. Billable_Generation: Default_Config only, counted per user (Req 7.2, 7.3).
-    if (source === 'default' && !deps.limiter.tryConsume(userId)) return fail('rate_limited')
+    if (source === 'default' && !deps.limiter.tryConsume(userId)) return fail('rate_limited', 'provider_call', 'rate_limited')
 
     // 5. Generator under the abort (Req 8.1).
     let systemPrompt: string
     try {
       systemPrompt = await deps.systemPrompt()
     } catch {
-      return fail('provider_error')
+      return fail('provider_error', 'prompt_load', 'prompt_missing')
     }
     const timeout: GenerationResult = { kind: 'error', code: 'timeout' }
     let result: GenerationResult
+    let thrown = false
     try {
       result = await withTimeout(deps.timeoutMs, timeout, (signal) =>
         generateSkillTree(hobby, level, config, { adapters: deps.adapters, systemPrompt, signal }),
       )
     } catch {
       result = { kind: 'error', code: 'provider_error' }
+      thrown = true
     }
-    if (result.kind !== 'tree') return fail(result.kind === 'not_a_hobby' ? 'not_a_hobby' : result.code)
+    if (result.kind === 'not_a_hobby') return fail('not_a_hobby', 'tree_validation', 'not_a_hobby')
+    if (result.kind === 'error') {
+      const { code } = result
+      if (code === 'generation_failed') return fail(code, 'tree_validation', 'bad_output')
+      const { status } = result
+      const httpReason =
+        !thrown && typeof status === 'number' && Number.isInteger(status) && status >= 100 && status <= 599
+          ? `http_${status}`
+          : undefined
+      const reason = code === 'provider_auth' ? 'auth' : code === 'timeout' ? 'timeout' : 'provider'
+      return fail(code, 'provider_call', httpReason ?? (thrown ? 'provider' : reason))
+    }
 
-    // 6. Cached before saving, so a retry after a failed save is free (Req 9.10).
+    // 6. Cache the tree BEFORE the save. If the save fails, the learner's retry hits the cache:
+    // no second provider call and no second use of the hourly limit (Req 9.10).
     deps.cache.set(key, { tree: result.tree, model: result.model })
     tree = result.tree
     model = result.model
@@ -192,15 +234,19 @@ export async function handleTreeRequest(
 
   // 7. Save as the user's Path_Row with the user's own token (Req 9.7 to 9.10).
   const saveInput: PathSaveInput = { hobby, level, tree, model }
+  // null marks a timeout (the sentinel); a thrown error carries its own reason.
   let pathId: string | null
+  let saveReason = 'unknown'
   try {
     pathId = await withTimeout<string | null>(deps.saveTimeoutMs, null, (signal) =>
       deps.savePath(token, saveInput, signal),
     )
-  } catch {
+    saveReason = pathId === null ? 'timeout' : 'invalid_id'
+  } catch (error) {
     pathId = null
+    saveReason = errorReason(error)
   }
-  if (typeof pathId !== 'string' || pathId === '') return fail('save_failed')
+  if (typeof pathId !== 'string' || pathId === '') return fail('save_failed', 'path_save', saveReason)
   return { status: 200, body: { tree, model, pathId } }
 }
 

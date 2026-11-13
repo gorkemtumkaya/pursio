@@ -32,3 +32,24 @@ describe('friendlyMessage for the account codes', () => {
     expect(friendlyMessage('save_failed', context)).toBe("We built your tree but couldn't save it. Try again.")
   })
 })
+
+// spec: tree-api-502-on-new-path, Req 2.4
+describe('friendlyMessage for provider codes', () => {
+  it('tells the learner what to do next for provider_auth on the default key', () => {
+    expect(friendlyMessage('provider_auth', { usesOwnKey: false })).toBe(
+      "The AI service isn't available right now. Try again later, or add your own API key in Settings.",
+    )
+  })
+
+  it('keeps the own-key sentence for provider_auth', () => {
+    expect(friendlyMessage('provider_auth', { usesOwnKey: true })).toBe(
+      'Your API key was not accepted. Check it in Settings.',
+    )
+  })
+
+  it.each([{ usesOwnKey: false }, { usesOwnKey: true }])('gives the retry or own-key sentence for provider_error (%o)', (context) => {
+    expect(friendlyMessage('provider_error', context)).toBe(
+      'The AI service had a problem. Try again in a moment, or add your own API key in Settings.',
+    )
+  })
+})

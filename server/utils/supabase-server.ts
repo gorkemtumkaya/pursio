@@ -43,14 +43,26 @@ export async function verifyAccessToken(token: string, _signal?: AbortSignal): P
   return data.user.id
 }
 
+/** A `save_failed` error carrying a fixed, non-secret `reason` label. */
+function saveError(reason: string): Error {
+  return Object.assign(new Error('save_failed'), { reason })
+}
+
+/** 'rpc_error', plus ':<code>' only when the RPC code is a short safe token. */
+function rpcReason(error: unknown): string {
+  const code: unknown = typeof error === 'object' && error !== null ? (error as { code?: unknown }).code : undefined
+  return typeof code === 'string' && /^[A-Za-z0-9_]{1,16}$/.test(code) ? `rpc_error:${code}` : 'rpc_error'
+}
+
 /**
  * Saves a generated path through `save_generated_path` with the user's own
  * token, so Row Level Security applies. Returns the Path_Row id, or throws.
- * The thrown error carries no Supabase message.
+ * The thrown error carries a safe `reason` label and never a Supabase
+ * message, details or hint.
  */
 export async function savePathForUser(token: string, input: PathSaveInput, signal?: AbortSignal): Promise<string> {
   const config = publicSupabaseConfig()
-  if (!config) throw new Error('save_failed')
+  if (!config) throw saveError('config_missing')
   const client = createClient(config.url, config.anonKey, {
     auth: SERVER_AUTH,
     global: { headers: { Authorization: `Bearer ${token}` } },
@@ -58,6 +70,6 @@ export async function savePathForUser(token: string, input: PathSaveInput, signa
   const call = client.rpc('save_generated_path', buildSaveArgs(input))
   const { data, error } = await (signal ? call.abortSignal(signal) : call)
   const id: unknown = data
-  if (error || typeof id !== 'string' || id === '') throw new Error('save_failed')
+  if (error || typeof id !== 'string' || id === '') throw saveError(rpcReason(error))
   return id
 }

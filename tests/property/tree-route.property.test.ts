@@ -1,13 +1,14 @@
 // Property tests for handleTreeRequest (spec: accounts-cloud-save, Properties 12 to 15).
 import fc from 'fast-check'
-import { describe, expect, it } from 'vitest'
+import { describe, expect, it, vi } from 'vitest'
 import type { Provider, StartLevel } from '../../shared/types/llm'
 import type { SkillTree } from '../../shared/types/skill-tree'
 import { loadSkillTree } from '../../shared/utils/skill-tree-load'
 import { handleTreeRequest } from '../../server/utils/llm-handlers'
 import { cacheKey } from '../../server/utils/tree-cache'
 import { arbValidTree } from '../arbitraries'
-import { DEFAULTS, fakeTreeDeps, never, treeOutput } from '../support/tree-deps'
+import { DEFAULTS, fakeTreeDeps, never, treeOutput, type FakeTreeOptions } from '../support/tree-deps'
+import type { AdapterResult } from '../../server/utils/providers/types'
 
 const RUNS = { numRuns: 100 }
 const SHORT_MS = 5
@@ -403,6 +404,402 @@ describe('Property 15: A save failure keeps the tree for a free retry', () => {
           expect(fake.calls.adapter).toHaveLength(1)
           expect(fake.calls.consume).toEqual(consumed)
           expect(fake.calls.save).toHaveLength(2)
+        },
+      ),
+      RUNS,
+    )
+  })
+})
+
+// Bug condition exploration (spec: tree-api-502-on-new-path, task 1, Property 1).
+// Expected to FAIL on unfixed code: error log entries carry no stage or reason.
+describe('handleTreeRequest error log names the failing stage', () => {
+  const SENTINEL_KEY = 'SENTINEL_KEY_9f3a'
+  const SENTINEL_TOKEN = 'SENTINEL_TOKEN_71bc'
+  const SENTINEL_PROMPT = 'SENTINEL_PROMPT_c20d'
+  const SENTINEL_BODY = 'SENTINEL_BODY_5e8a'
+  const SENTINELS = [SENTINEL_KEY, SENTINEL_TOKEN, SENTINEL_PROMPT, SENTINEL_BODY]
+  const EXPLORE_RUNS = { numRuns: 20 }
+
+  type CaseName = 'provider_auth' | 'prompt_missing' | 'invalid_trees' | 'save_throws' | 'save_timeout'
+  const arbCase = fc.constantFrom<CaseName>('provider_auth', 'prompt_missing', 'invalid_trees', 'save_throws', 'save_timeout')
+
+  const EXPECTED: Record<CaseName, { code: string; stage: string; reason?: string }> = {
+    provider_auth: { code: 'provider_auth', stage: 'provider_call', reason: 'auth' },
+    prompt_missing: { code: 'provider_error', stage: 'prompt_load', reason: 'prompt_missing' },
+    invalid_trees: { code: 'generation_failed', stage: 'tree_validation' },
+    save_throws: { code: 'save_failed', stage: 'path_save' },
+    save_timeout: { code: 'save_failed', stage: 'path_save', reason: 'timeout' },
+  }
+
+  function optionsFor(name: CaseName): FakeTreeOptions {
+    const users = { [SENTINEL_TOKEN]: 'user-1' }
+    switch (name) {
+      case 'provider_auth':
+        return { users, adapterResult: (): AdapterResult => ({ ok: false, error: 'provider_auth' }) }
+      case 'invalid_trees':
+        return { users, adapterResult: () => treeOutput({ nodes: SENTINEL_BODY }) }
+      case 'save_throws':
+        return {
+          users,
+          savePath: async () => {
+            throw new Error(`rpc failed ${SENTINEL_BODY}`)
+          },
+        }
+      case 'save_timeout':
+        return { users, saveTimeoutMs: SHORT_MS, savePath: () => never<string>() }
+      default:
+        return { users }
+    }
+  }
+
+  async function run(name: CaseName, hobby: string) {
+    const fake = fakeTreeDeps(optionsFor(name))
+    if (name === 'prompt_missing') {
+      fake.deps.systemPrompt = async () => {
+        throw new Error(`ENOENT ${SENTINEL_PROMPT}`)
+      }
+    }
+    const input = {
+      body: { hobby, provider: 'anthropic', model: 'm-1' },
+      headerKey: SENTINEL_KEY,
+      authorization: `Bearer ${SENTINEL_TOKEN}`,
+    }
+    if (name !== 'save_timeout') return { fake, response: await handleTreeRequest(input, fake.deps) }
+    vi.useFakeTimers()
+    try {
+      const pending = handleTreeRequest(input, fake.deps)
+      await vi.advanceTimersByTimeAsync(SHORT_MS + 1)
+      return { fake, response: await pending }
+    } finally {
+      vi.useRealTimers()
+    }
+  }
+
+  it('logs one entry with stage and reason, keeps status and code, and leaks no secret', async () => {
+    await fc.assert(
+      fc.asyncProperty(arbCase, arbHobby, async (name, hobby) => {
+        const expected = EXPECTED[name]
+        const { fake, response } = await run(name, hobby.raw)
+
+        // Status and error code equal the original mapping.
+        expect(response.status).toBe(502)
+        expect(response.body).toEqual({ error: expected.code })
+
+        // Exactly one log entry, with stage and a reason.
+        expect(fake.calls.log).toHaveLength(1)
+        const entry: Record<string, unknown> = { ...fake.calls.log[0] }
+        expect(entry.code).toBe(expected.code)
+        expect(entry.stage).toBe(expected.stage)
+        if (expected.reason !== undefined) expect(entry.reason).toBe(expected.reason)
+        else expect(typeof entry.reason === 'string' && entry.reason !== '').toBe(true)
+
+        // No sentinel key, token, prompt or response body in the logged JSON.
+        const logged = JSON.stringify(fake.calls.log)
+        for (const sentinel of SENTINELS) expect(logged).not.toContain(sentinel)
+      }),
+      EXPLORE_RUNS,
+    )
+  })
+})
+
+// Preservation (spec: tree-api-502-on-new-path, task 2, Property 3).
+// Observed on unfixed code; asserts status, body, cache writes and limiter calls, never log fields.
+// **Validates: Requirements 3.1, 3.2, 3.3, 3.4, 3.5, 3.6, 3.7, 3.8, 3.9**
+describe('Property 3: Preservation of status, body, cache and limiter effects', () => {
+  type Outcome =
+    | 'tree'
+    | 'not_a_hobby'
+    | 'provider_auth'
+    | 'provider_error'
+    | 'adapter_throws'
+    | 'bad_output_twice'
+    | 'invalid_twice'
+    | 'invalid_then_tree'
+    | 'bad_output_then_tree'
+    | 'hangs'
+
+  const arbOutcome = fc.constantFrom<Outcome>(
+    'tree',
+    'not_a_hobby',
+    'provider_auth',
+    'provider_error',
+    'adapter_throws',
+    'bad_output_twice',
+    'invalid_twice',
+    'invalid_then_tree',
+    'bad_output_then_tree',
+    'hangs',
+  )
+
+  const EXPECTED: Record<Outcome, { status: number; error?: string; adapterCalls: number }> = {
+    tree: { status: 200, adapterCalls: 1 },
+    not_a_hobby: { status: 422, error: 'not_a_hobby', adapterCalls: 1 },
+    provider_auth: { status: 502, error: 'provider_auth', adapterCalls: 1 },
+    provider_error: { status: 502, error: 'provider_error', adapterCalls: 1 },
+    adapter_throws: { status: 502, error: 'provider_error', adapterCalls: 1 },
+    bad_output_twice: { status: 502, error: 'generation_failed', adapterCalls: 2 },
+    invalid_twice: { status: 502, error: 'generation_failed', adapterCalls: 2 },
+    invalid_then_tree: { status: 200, adapterCalls: 2 },
+    bad_output_then_tree: { status: 200, adapterCalls: 2 },
+    hangs: { status: 504, error: 'timeout', adapterCalls: 1 },
+  }
+
+  function adapterFor(outcome: Outcome, tree: unknown): (attempt: number) => AdapterResult | Promise<AdapterResult> {
+    return (attempt) => {
+      switch (outcome) {
+        case 'tree':
+          return treeOutput(tree)
+        case 'not_a_hobby':
+          return { ok: true, value: { result: { error: 'not_a_hobby' } } }
+        case 'provider_auth':
+          return { ok: false, error: 'provider_auth' }
+        case 'provider_error':
+          return { ok: false, error: 'provider_error' }
+        case 'adapter_throws':
+          throw new Error('network down')
+        case 'bad_output_twice':
+          return { ok: false, error: 'bad_output' }
+        case 'invalid_twice':
+          return treeOutput({ nodes: 'not a tree' })
+        case 'invalid_then_tree':
+          return attempt === 1 ? treeOutput({ nodes: 'not a tree' }) : treeOutput(tree)
+        case 'bad_output_then_tree':
+          return attempt === 1 ? { ok: false, error: 'bad_output' } : treeOutput(tree)
+        case 'hangs':
+          return never<AdapterResult>()
+      }
+    }
+  }
+
+  it('maps every adapter outcome to the observed status, body, cache write and limiter use', async () => {
+    await fc.assert(
+      fc.asyncProperty(
+        fc.record({
+          hobby: arbHobby,
+          level: arbOptionalLevel,
+          config: arbConfig,
+          outcome: arbOutcome,
+          tree: arbValidTree,
+          token: arbToken,
+          scheme: arbScheme,
+          userId: fc.uuid(),
+        }),
+        async ({ hobby, level, config, outcome, tree, token, scheme, userId }) => {
+          const expectedTree = loaded(tree)
+          const expected = EXPECTED[outcome]
+          const { provider, model } = effective(config)
+          let attempt = 0
+          const next = adapterFor(outcome, tree)
+          const fake = fakeTreeDeps({
+            users: { [token]: userId },
+            timeoutMs: SHORT_MS,
+            adapterResult: () => next(++attempt),
+          })
+
+          const response = await handleTreeRequest(
+            { body: requestBody(hobby.raw, level, config), headerKey: headerKey(config), authorization: `${scheme} ${token}` },
+            fake.deps,
+          )
+
+          expect(response.status).toBe(expected.status)
+          expect(fake.calls.adapter).toHaveLength(expected.adapterCalls)
+          expect(fake.calls.adapter.every((c) => c.provider === provider && c.model === model)).toBe(true)
+          expect(fake.calls.consume).toEqual(config.kind === 'default' ? [userId] : [])
+          if (expected.error !== undefined) {
+            expect(response.body).toEqual({ error: expected.error })
+            expect(fake.calls.cacheSet).toEqual([])
+            expect(fake.calls.save).toEqual([])
+          } else {
+            expect(response.body).toEqual({ tree: expectedTree, model, pathId: 'path-1' })
+            expect(fake.calls.cacheSet).toEqual([cacheKey(hobby.trimmed, level ?? 'new', provider, model)])
+            // The learner's own token and the trimmed hobby reach the save.
+            expect(fake.calls.save).toEqual([
+              { token, input: { hobby: hobby.trimmed, level: level ?? 'new', tree: expectedTree, model } },
+            ])
+          }
+        },
+      ),
+      RUNS,
+    )
+  })
+
+  it('answers 400 invalid_input for a bad hobby or level without cache, limiter or adapter use', async () => {
+    const arbBadBody = fc.oneof(
+      fc.constantFrom<unknown>(null, 'x', [], {}, { hobby: 5 }, { hobby: '' }, { hobby: '  \t ' }, { hobby: 'x'.repeat(61) }),
+      arbHobby.map((h) => ({ hobby: h.raw, level: 'expert' })),
+      arbHobby.map((h) => ({ hobby: h.raw, level: null })),
+    )
+    await fc.assert(
+      fc.asyncProperty(arbBadBody, arbToken, async (body, token) => {
+        const fake = fakeTreeDeps({ users: { [token]: 'user-1' } })
+        const response = await handleTreeRequest({ body, headerKey: undefined, authorization: `Bearer ${token}` }, fake.deps)
+        expect(response).toEqual({ status: 400, body: { error: 'invalid_input' } })
+        expect(fake.calls.cacheGet).toEqual([])
+        expect(fake.calls.cacheSet).toEqual([])
+        expect(fake.calls.consume).toEqual([])
+        expect(fake.calls.adapter).toEqual([])
+        expect(fake.calls.save).toEqual([])
+      }),
+      RUNS,
+    )
+  })
+
+  it('answers 503 no_key when the default config is incomplete and no user key is sent', async () => {
+    const arbBadDefaults = fc.constantFrom(
+      { provider: 'anthropic', model: '', apiKey: 'k' },
+      { provider: 'anthropic', model: 'm', apiKey: '  ' },
+      { provider: 'nope', model: 'm', apiKey: 'k' },
+      { provider: '', model: '', apiKey: '' },
+    )
+    await fc.assert(
+      fc.asyncProperty(arbBadDefaults, arbHobby, arbOptionalLevel, arbToken, async (defaults, hobby, level, token) => {
+        const fake = fakeTreeDeps({ users: { [token]: 'user-1' }, defaults })
+        const response = await handleTreeRequest(
+          { body: requestBody(hobby.raw, level, { kind: 'default' }), headerKey: undefined, authorization: `Bearer ${token}` },
+          fake.deps,
+        )
+        expect(response).toEqual({ status: 503, body: { error: 'no_key' } })
+        expect(fake.calls.cacheSet).toEqual([])
+        expect(fake.calls.consume).toEqual([])
+        expect(fake.calls.adapter).toEqual([])
+        expect(fake.calls.save).toEqual([])
+      }),
+      RUNS,
+    )
+  })
+
+  it('answers 429 rate_limited on a default-config miss, and never for a user key or a cache hit', async () => {
+    await fc.assert(
+      fc.asyncProperty(
+        fc.record({ hobby: arbHobby, level: arbOptionalLevel, config: arbConfig, tree: arbValidTree, token: arbToken, cachedHit: fc.boolean() }),
+        async ({ hobby, level, config, tree, token, cachedHit }) => {
+          const expectedTree = loaded(tree)
+          const { provider, model } = effective(config)
+          const fake = fakeTreeDeps({
+            users: { [token]: 'user-1' },
+            limiter: { tryConsume: () => false },
+            adapterResult: () => treeOutput(tree),
+          })
+          if (cachedHit) fake.cache.set(cacheKey(hobby.trimmed, level ?? 'new', provider, model), { tree: expectedTree, model })
+
+          const response = await handleTreeRequest(
+            { body: requestBody(hobby.raw, level, config), headerKey: headerKey(config), authorization: `Bearer ${token}` },
+            fake.deps,
+          )
+
+          if (config.kind === 'default' && !cachedHit) {
+            expect(response).toEqual({ status: 429, body: { error: 'rate_limited' } })
+            expect(fake.calls.consume).toEqual(['user-1'])
+            expect(fake.calls.adapter).toEqual([])
+            expect(fake.calls.cacheSet).toEqual([])
+            expect(fake.calls.save).toEqual([])
+          } else {
+            expect(response).toEqual({ status: 200, body: { tree: expectedTree, model, pathId: 'path-1' } })
+            expect(fake.calls.consume).toEqual([])
+          }
+        },
+      ),
+      RUNS,
+    )
+  })
+
+  it('serves a cache hit without the adapter, the limiter or a cache write, and saves with the learner token', async () => {
+    await fc.assert(
+      fc.asyncProperty(
+        fc.record({ hobby: arbHobby, level: arbOptionalLevel, config: arbConfig, tree: arbValidTree, token: arbToken, cachedModel: arbModel }),
+        async ({ hobby, level, config, tree, token, cachedModel }) => {
+          const expectedTree = loaded(tree)
+          const { provider, model } = effective(config)
+          const fake = fakeTreeDeps({ users: { [token]: 'user-1' } })
+          fake.cache.set(cacheKey(hobby.trimmed, level ?? 'new', provider, model), { tree: expectedTree, model: cachedModel })
+
+          const response = await handleTreeRequest(
+            { body: requestBody(hobby.raw, level, config), headerKey: headerKey(config), authorization: `Bearer ${token}` },
+            fake.deps,
+          )
+
+          expect(response).toEqual({ status: 200, body: { tree: expectedTree, model: cachedModel, pathId: 'path-1' } })
+          expect(fake.calls.adapter).toEqual([])
+          expect(fake.calls.consume).toEqual([])
+          expect(fake.calls.cacheSet).toEqual([])
+          expect(fake.calls.save).toEqual([
+            { token, input: { hobby: hobby.trimmed, level: level ?? 'new', tree: expectedTree, model: cachedModel } },
+          ])
+        },
+      ),
+      RUNS,
+    )
+  })
+
+  it('uses the body provider and model for a user key, even when the default config is unusable', async () => {
+    await fc.assert(
+      fc.asyncProperty(
+        fc.record({ hobby: arbHobby, level: arbOptionalLevel, provider: arbProvider, model: arbModel, key: fc.stringMatching(/^[a-z0-9]{1,20}$/), tree: arbValidTree, token: arbToken }),
+        async ({ hobby, level, provider, model, key, tree, token }) => {
+          const fake = fakeTreeDeps({
+            users: { [token]: 'user-1' },
+            defaults: { provider: '', model: '', apiKey: '' },
+            adapterResult: () => treeOutput(tree),
+          })
+          const response = await handleTreeRequest(
+            { body: { hobby: hobby.raw, level, provider, model }, headerKey: key, authorization: `Bearer ${token}` },
+            fake.deps,
+          )
+          expect(response.status).toBe(200)
+          expect(fake.calls.adapter).toEqual([{ provider, hobby: hobby.trimmed, model }])
+          expect(fake.calls.consume).toEqual([])
+        },
+      ),
+      RUNS,
+    )
+  })
+})
+
+// Save-retry exploration (spec: tree-api-502-on-new-path, task 3, Property 2).
+// Pins that the tree is cached before the save, so a retry costs no provider call and no limiter use.
+// **Validates: Requirements 1.3, 2.3**
+describe('Property 2: A failed save keeps the generated tree for a free retry', () => {
+  it('returns 502 save_failed, then a repeat makes no adapter call, no limiter use, and one more save', async () => {
+    await fc.assert(
+      fc.asyncProperty(
+        fc.record({
+          hobby: arbHobby,
+          level: arbOptionalLevel,
+          config: arbConfig,
+          tree: arbValidTree,
+          mode: fc.constantFrom('throws' as const, 'timeout' as const, 'empty' as const),
+        }),
+        async ({ hobby, level, config, tree, mode }) => {
+          const fake = fakeTreeDeps({
+            users: { 'token-1': 'user-1' },
+            adapterResult: () => treeOutput(tree),
+            saveTimeoutMs: SHORT_MS,
+            savePath: async () => {
+              if (mode === 'throws') throw new Error('database down')
+              if (mode === 'timeout') return never<string>()
+              return ''
+            },
+          })
+          const input = {
+            body: requestBody(hobby.raw, level, config),
+            headerKey: headerKey(config),
+            authorization: 'Bearer token-1',
+          }
+
+          const first = await handleTreeRequest(input, fake.deps)
+          expect(first).toEqual({ status: 502, body: { error: 'save_failed' } })
+          const adapterCalls = fake.calls.adapter.length
+          const consumeCalls = [...fake.calls.consume]
+          const savesBefore = fake.calls.save.length
+          expect(adapterCalls).toBe(1)
+          expect(savesBefore).toBe(1)
+
+          const second = await handleTreeRequest(input, fake.deps)
+          expect(second).toEqual({ status: 502, body: { error: 'save_failed' } })
+          expect(fake.calls.adapter).toHaveLength(adapterCalls)
+          expect(fake.calls.consume).toEqual(consumeCalls)
+          expect(fake.calls.save).toHaveLength(savesBefore + 1)
         },
       ),
       RUNS,

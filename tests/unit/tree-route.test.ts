@@ -214,7 +214,7 @@ describe('handleTreeRequest save_failed', () => {
       tree: sampleTree(),
       model: DEFAULTS.model,
     })
-    expect(fake.calls.log).toEqual([{ code: 'save_failed', provider: 'anthropic', model: DEFAULTS.model }])
+    expect(fake.calls.log).toEqual([{ code: 'save_failed', stage: 'path_save', reason: 'unknown', provider: 'anthropic', model: DEFAULTS.model }])
   })
 
   it('answers 502 save_failed when the save passes its time limit, and aborts it', async () => {

@@ -1,0 +1,256 @@
+{
+  "pbtResults": {
+    "3. Write save-retry exploration test": {
+      "status": "unexpected_pass",
+      "failingExample": "Test passed on unfixed code (no counterexample). The handler already calls cache.set before savePath, so the retry makes 0 adapter calls, 0 limiter consumes and 1 more savePath call.",
+      "lastRunTimestamp": 1794563749821
+    }
+  },
+  "executionHistory": {
+    "1. Write bug condition exploration test": [
+      {
+        "executionId": "0680fc1b-1246-4c39-b54c-49d217545c83",
+        "chatSessionId": "sess_11c964dd-24bf-413b-b520-474406acffcc",
+        "timestamp": 1794563569070
+      },
+      {
+        "executionId": "0680fc1b-1246-4c39-b54c-49d217545c83",
+        "chatSessionId": "sess_11c964dd-24bf-413b-b520-474406acffcc",
+        "timestamp": 1794563573829
+      },
+      {
+        "executionId": "0680fc1b-1246-4c39-b54c-49d217545c83",
+        "chatSessionId": "sess_11c964dd-24bf-413b-b520-474406acffcc",
+        "timestamp": 1794563646312
+      }
+    ],
+    "2. Write preservation property tests (BEFORE implementing fix)": [
+      {
+        "executionId": "0680fc1b-1246-4c39-b54c-49d217545c83",
+        "chatSessionId": "sess_11c964dd-24bf-413b-b520-474406acffcc",
+        "timestamp": 1794563569113
+      },
+      {
+        "executionId": "0680fc1b-1246-4c39-b54c-49d217545c83",
+        "chatSessionId": "sess_11c964dd-24bf-413b-b520-474406acffcc",
+        "timestamp": 1794563650474
+      },
+      {
+        "executionId": "0680fc1b-1246-4c39-b54c-49d217545c83",
+        "chatSessionId": "sess_11c964dd-24bf-413b-b520-474406acffcc",
+        "timestamp": 1794563720418
+      }
+    ],
+    "3. Write save-retry exploration test": [
+      {
+        "executionId": "0680fc1b-1246-4c39-b54c-49d217545c83",
+        "chatSessionId": "sess_11c964dd-24bf-413b-b520-474406acffcc",
+        "timestamp": 1794563569136
+      },
+      {
+        "executionId": "0680fc1b-1246-4c39-b54c-49d217545c83",
+        "chatSessionId": "sess_11c964dd-24bf-413b-b520-474406acffcc",
+        "timestamp": 1794563723056
+      },
+      {
+        "executionId": "0680fc1b-1246-4c39-b54c-49d217545c83",
+        "chatSessionId": "sess_11c964dd-24bf-413b-b520-474406acffcc",
+        "timestamp": 1794563757128
+      }
+    ],
+    "4.1 Add stage and reason to the handler log": [
+      {
+        "executionId": "0680fc1b-1246-4c39-b54c-49d217545c83",
+        "chatSessionId": "sess_11c964dd-24bf-413b-b520-474406acffcc",
+        "timestamp": 1794563569209
+      },
+      {
+        "executionId": "0680fc1b-1246-4c39-b54c-49d217545c83",
+        "chatSessionId": "sess_11c964dd-24bf-413b-b520-474406acffcc",
+        "timestamp": 1794563759712
+      },
+      {
+        "executionId": "0680fc1b-1246-4c39-b54c-49d217545c83",
+        "chatSessionId": "sess_11c964dd-24bf-413b-b520-474406acffcc",
+        "timestamp": 1794563866358
+      }
+    ],
+    "4.2 Give save failures a safe reason": [
+      {
+        "executionId": "0680fc1b-1246-4c39-b54c-49d217545c83",
+        "chatSessionId": "sess_11c964dd-24bf-413b-b520-474406acffcc",
+        "timestamp": 1794563569246
+      },
+      {
+        "executionId": "0680fc1b-1246-4c39-b54c-49d217545c83",
+        "chatSessionId": "sess_11c964dd-24bf-413b-b520-474406acffcc",
+        "timestamp": 1794563868945
+      },
+      {
+        "executionId": "0680fc1b-1246-4c39-b54c-49d217545c83",
+        "chatSessionId": "sess_11c964dd-24bf-413b-b520-474406acffcc",
+        "timestamp": 1794563926477
+      }
+    ],
+    "4.3 Expose the provider failure status (optional)": [
+      {
+        "executionId": "0680fc1b-1246-4c39-b54c-49d217545c83",
+        "chatSessionId": "sess_11c964dd-24bf-413b-b520-474406acffcc",
+        "timestamp": 1794563569322
+      },
+      {
+        "executionId": "0680fc1b-1246-4c39-b54c-49d217545c83",
+        "chatSessionId": "sess_11c964dd-24bf-413b-b520-474406acffcc",
+        "timestamp": 1794563929028
+      },
+      {
+        "executionId": "0680fc1b-1246-4c39-b54c-49d217545c83",
+        "chatSessionId": "sess_11c964dd-24bf-413b-b520-474406acffcc",
+        "timestamp": 1794563992264
+      }
+    ],
+    "4.4 Write the log line with explicit fields": [
+      {
+        "executionId": "0680fc1b-1246-4c39-b54c-49d217545c83",
+        "chatSessionId": "sess_11c964dd-24bf-413b-b520-474406acffcc",
+        "timestamp": 1794563569356
+      },
+      {
+        "executionId": "0680fc1b-1246-4c39-b54c-49d217545c83",
+        "chatSessionId": "sess_11c964dd-24bf-413b-b520-474406acffcc",
+        "timestamp": 1794563997528
+      },
+      {
+        "executionId": "0680fc1b-1246-4c39-b54c-49d217545c83",
+        "chatSessionId": "sess_11c964dd-24bf-413b-b520-474406acffcc",
+        "timestamp": 1794564050156
+      }
+    ],
+    "4.5 Make provider error messages actionable": [
+      {
+        "executionId": "0680fc1b-1246-4c39-b54c-49d217545c83",
+        "chatSessionId": "sess_11c964dd-24bf-413b-b520-474406acffcc",
+        "timestamp": 1794563569388
+      },
+      {
+        "executionId": "0680fc1b-1246-4c39-b54c-49d217545c83",
+        "chatSessionId": "sess_11c964dd-24bf-413b-b520-474406acffcc",
+        "timestamp": 1794564052956
+      },
+      {
+        "executionId": "0680fc1b-1246-4c39-b54c-49d217545c83",
+        "chatSessionId": "sess_11c964dd-24bf-413b-b520-474406acffcc",
+        "timestamp": 1794564124138
+      }
+    ],
+    "4.6 Verify bug condition exploration test now passes": [
+      {
+        "executionId": "0680fc1b-1246-4c39-b54c-49d217545c83",
+        "chatSessionId": "sess_11c964dd-24bf-413b-b520-474406acffcc",
+        "timestamp": 1794563569420
+      },
+      {
+        "executionId": "0680fc1b-1246-4c39-b54c-49d217545c83",
+        "chatSessionId": "sess_11c964dd-24bf-413b-b520-474406acffcc",
+        "timestamp": 1794564126970
+      },
+      {
+        "executionId": "0680fc1b-1246-4c39-b54c-49d217545c83",
+        "chatSessionId": "sess_11c964dd-24bf-413b-b520-474406acffcc",
+        "timestamp": 1794564148653
+      }
+    ],
+    "4.7 Verify save-retry test passes": [
+      {
+        "executionId": "0680fc1b-1246-4c39-b54c-49d217545c83",
+        "chatSessionId": "sess_11c964dd-24bf-413b-b520-474406acffcc",
+        "timestamp": 1794563569452
+      },
+      {
+        "executionId": "0680fc1b-1246-4c39-b54c-49d217545c83",
+        "chatSessionId": "sess_11c964dd-24bf-413b-b520-474406acffcc",
+        "timestamp": 1794564151061
+      },
+      {
+        "executionId": "0680fc1b-1246-4c39-b54c-49d217545c83",
+        "chatSessionId": "sess_11c964dd-24bf-413b-b520-474406acffcc",
+        "timestamp": 1794564168117
+      }
+    ],
+    "4.8 Verify preservation tests still pass": [
+      {
+        "executionId": "0680fc1b-1246-4c39-b54c-49d217545c83",
+        "chatSessionId": "sess_11c964dd-24bf-413b-b520-474406acffcc",
+        "timestamp": 1794563569482
+      },
+      {
+        "executionId": "0680fc1b-1246-4c39-b54c-49d217545c83",
+        "chatSessionId": "sess_11c964dd-24bf-413b-b520-474406acffcc",
+        "timestamp": 1794564170855
+      },
+      {
+        "executionId": "0680fc1b-1246-4c39-b54c-49d217545c83",
+        "chatSessionId": "sess_11c964dd-24bf-413b-b520-474406acffcc",
+        "timestamp": 1794564212359
+      }
+    ],
+    "4.9 Add unit tests and run typecheck": [
+      {
+        "executionId": "0680fc1b-1246-4c39-b54c-49d217545c83",
+        "chatSessionId": "sess_11c964dd-24bf-413b-b520-474406acffcc",
+        "timestamp": 1794563569512
+      },
+      {
+        "executionId": "0680fc1b-1246-4c39-b54c-49d217545c83",
+        "chatSessionId": "sess_11c964dd-24bf-413b-b520-474406acffcc",
+        "timestamp": 1794564216092
+      },
+      {
+        "executionId": "0680fc1b-1246-4c39-b54c-49d217545c83",
+        "chatSessionId": "sess_11c964dd-24bf-413b-b520-474406acffcc",
+        "timestamp": 1794564294633
+      }
+    ],
+    "5. Add changelog entry": [
+      {
+        "executionId": "0680fc1b-1246-4c39-b54c-49d217545c83",
+        "chatSessionId": "sess_11c964dd-24bf-413b-b520-474406acffcc",
+        "timestamp": 1794563569535
+      },
+      {
+        "executionId": "0680fc1b-1246-4c39-b54c-49d217545c83",
+        "chatSessionId": "sess_11c964dd-24bf-413b-b520-474406acffcc",
+        "timestamp": 1794564297327
+      },
+      {
+        "executionId": "0680fc1b-1246-4c39-b54c-49d217545c83",
+        "chatSessionId": "sess_11c964dd-24bf-413b-b520-474406acffcc",
+        "timestamp": 1794564314954
+      }
+    ],
+    "6. Checkpoint - Ensure all tests pass": [
+      {
+        "executionId": "0680fc1b-1246-4c39-b54c-49d217545c83",
+        "chatSessionId": "sess_11c964dd-24bf-413b-b520-474406acffcc",
+        "timestamp": 1794563569558
+      },
+      {
+        "executionId": "0680fc1b-1246-4c39-b54c-49d217545c83",
+        "chatSessionId": "sess_11c964dd-24bf-413b-b520-474406acffcc",
+        "timestamp": 1794564319099
+      },
+      {
+        "executionId": "0680fc1b-1246-4c39-b54c-49d217545c83",
+        "chatSessionId": "sess_11c964dd-24bf-413b-b520-474406acffcc",
+        "timestamp": 1794564355209
+      }
+    ],
+    "4. Fix for tree API 502 visibility and provider message": [
+      {
+        "executionId": "0680fc1b-1246-4c39-b54c-49d217545c83",
+        "chatSessionId": "sess_11c964dd-24bf-413b-b520-474406acffcc",
+        "timestamp": 1794564294667
+      }
+    ]
+  }
+}
