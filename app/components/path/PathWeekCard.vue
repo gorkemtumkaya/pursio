@@ -15,8 +15,8 @@ const DOT_CLASS: Record<CardDayStatus, string> = {
 }
 
 const STATUS_TEXT: Record<CardDayStatus, string> = {
-  done: 'skill completed',
-  missed: 'no skill completed',
+  done: 'practiced',
+  missed: 'no practice',
   upcoming: 'still ahead',
   planned: 'session planned',
 }

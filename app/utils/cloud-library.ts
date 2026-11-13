@@ -1,8 +1,8 @@
 // Pure list operations on the learner's cloud paths (spec: accounts-cloud-save).
-import type { CompletedAt } from '#shared/types/cloud'
+import type { CompletedAt, DailyPick, QuestData, QuestTicks } from '#shared/types/cloud'
 import type { StartLevel } from '#shared/types/llm'
 import type { Progress } from '#shared/types/progress'
-import type { SkillTree } from '#shared/types/skill-tree'
+import type { QuestTriple, SkillTree } from '#shared/types/skill-tree'
 import { completionPercent, emptyProgress } from '#shared/utils/progress-engine'
 import { hobbyId, hobbyPath, type HobbyEntry, type HobbyLibrary, type HobbyRecord } from './hobby-store'
 
@@ -15,6 +15,14 @@ export interface CloudPath {
   level: StartLevel
   progress: Progress
   completedAt: CompletedAt
+  questTicks: QuestTicks
+  dailyPick: DailyPick | null
+  dailyBonusCount: number
+}
+
+/** Quest data of a path with no ticks, no pick and no bonus. */
+export function emptyQuestData(): QuestData {
+  return { questTicks: {}, dailyPick: null, dailyBonusCount: 0 }
 }
 
 /** The shape `pickHobby` and `nextHobbyId` work on. An unknown `activeId` is dropped. */
@@ -41,6 +49,36 @@ export function cloudEntries(
 /** Every Completion_Timestamp of every path, archived ones included, once each (Req 6.8). */
 export function completionTimes(paths: readonly CloudPath[]): number[] {
   return paths.flatMap((path) => Object.values(path.completedAt))
+}
+
+/** Every quest tick time of every path, archived ones included. */
+export function questTickTimes(paths: readonly CloudPath[]): number[] {
+  return paths.flatMap((path) =>
+    Object.values(path.questTicks).flatMap((triple) => triple.filter((time): time is number => time !== null)),
+  )
+}
+
+/** Completion times and tick times of every path, archived ones included. Feeds Streak and "This week". */
+export function activityTimes(paths: readonly CloudPath[]): number[] {
+  return [...completionTimes(paths), ...questTickTimes(paths)]
+}
+
+/**
+ * Tick times after a Progress change. A quest that stays ticked keeps its time
+ * (or none, for a legacy tick), a newly ticked one gets `now`, an unticked one
+ * loses its time. Entries with no time are left out.
+ */
+export function stampQuestTicks(prev: QuestTicks, before: Progress, after: Progress, now: number): QuestTicks {
+  const entries = Object.entries(after.quests).map(([id, ticked]): [string, QuestTriple<number | null>] => {
+    const was = before.quests[id]
+    const old = Object.hasOwn(prev, id) ? prev[id] : undefined
+    const time = (i: 0 | 1 | 2): number | null => {
+      if (!ticked[i]) return null
+      return was?.[i] ? (old?.[i] ?? null) : now
+    }
+    return [id, [time(0), time(1), time(2)]]
+  })
+  return Object.fromEntries(entries.filter(([, triple]) => triple.some((time) => time !== null)))
 }
 
 /**
@@ -73,6 +111,7 @@ export function upsertGenerated(paths: readonly CloudPath[], generated: Generate
     level: generated.level,
     progress: emptyProgress(),
     completedAt: {},
+    ...emptyQuestData(),
   })
   if (!paths.some((path) => path.record.id === id)) return [...paths, fresh(now)]
   return paths.map((path) => (path.record.id === id ? fresh(path.record.addedAt) : path))

@@ -1,17 +1,19 @@
 import fc from 'fast-check'
 import { describe, expect, it } from 'vitest'
-import type { CompletedAt, PathInsertRow } from '../../shared/types/cloud'
+import type { CompletedAt, PathInsertRow, QuestData } from '../../shared/types/cloud'
 import type { Progress } from '../../shared/types/progress'
 import type { QuestTriple, SkillTree } from '../../shared/types/skill-tree'
 import { buildSaveArgs } from '../../shared/utils/cloud-path'
 import { normalizeHobby } from '../../shared/utils/llm'
-import { xpFor, XP_PER_NODE } from '../../shared/utils/xp'
+import { xpFor, XP_PER_NODE, XP_PER_QUEST } from '../../shared/utils/xp'
+import { emptyQuestData } from '../../app/utils/cloud-library'
 import { parsePathRow, parseProgressRow, toPathInsertRow, toProgressRow } from '../../app/utils/cloud-rows'
 import {
   allNodes,
   arbCloudPath,
   arbId,
   arbProgress,
+  arbQuestData,
   arbStamp,
   arbStartLevel,
   arbText,
@@ -80,7 +82,12 @@ describe('Property 1: Path_Row round trip', () => {
         const row = toPathInsertRow(userId, path)
         expect(row.user_id).toBe(userId)
         expect(row.hobby_id).toBe(normalizeHobby(path.record.tree.hobby))
-        expect(parsePathRow(viaJson(row))).toEqual({ ...path, progress: { completed: [], quests: {} }, completedAt: {} })
+        expect(parsePathRow(viaJson(row))).toEqual({
+          ...path,
+          progress: { completed: [], quests: {} },
+          completedAt: {},
+          ...emptyQuestData(),
+        })
       }),
       RUNS,
     )
@@ -91,6 +98,7 @@ interface ProgressCase {
   tree: SkillTree
   progress: Progress
   completedAt: CompletedAt
+  quest: QuestData
 }
 
 /** Progress valid for a tree with timestamps for a random subset of its completed Nodes. */
@@ -101,11 +109,13 @@ const arbProgressCase: fc.Arbitrary<ProgressCase> = arbValidTree.chain(tree =>
       .record({
         stamped: fc.subarray(progress.completed),
         stamps: fc.array(arbStamp, { minLength: count, maxLength: count }),
+        quest: arbQuestData(tree, progress),
       })
-      .map(({ stamped, stamps }): ProgressCase => ({
+      .map(({ stamped, stamps, quest }): ProgressCase => ({
         tree,
         progress,
         completedAt: Object.fromEntries(stamped.map((id, index): [string, number] => [id, stamps[index] ?? 0])),
+        quest,
       }))
   }),
 )
@@ -115,8 +125,8 @@ const arbProgressCase: fc.Arbitrary<ProgressCase> = arbValidTree.chain(tree =>
 describe('Property 2: Progress_Row round trip', () => {
   it('toProgressRow then parseProgressRow returns an equal Progress and equal Completion_Timestamps', () => {
     fc.assert(
-      fc.property(arbProgressCase, fc.uuid(), fc.uuid(), fc.boolean(), ({ tree, progress, completedAt }, pathId, userId, json) => {
-        const row = toProgressRow(pathId, userId, progress, completedAt)
+      fc.property(arbProgressCase, fc.uuid(), fc.uuid(), fc.boolean(), ({ tree, progress, completedAt, quest }, pathId, userId, json) => {
+        const row = toProgressRow(pathId, userId, progress, completedAt, quest)
         expect(row.path_id).toBe(pathId)
         expect(row.user_id).toBe(userId)
 
@@ -125,6 +135,9 @@ describe('Property 2: Progress_Row round trip', () => {
         expect(parsed.progress.completed).toEqual(progress.completed)
         expect(parsed.progress.quests).toEqual(progress.quests)
         expect(parsed.completedAt).toEqual(completedAt)
+        expect(parsed.questTicks).toEqual(quest.questTicks)
+        expect(parsed.dailyPick).toEqual(quest.dailyPick)
+        expect(parsed.dailyBonusCount).toBe(quest.dailyBonusCount)
       }),
       RUNS,
     )
@@ -219,7 +232,10 @@ describe('Property 3: Loaded Progress holds only Nodes of the tree', () => {
 
         // The same XP as the row without the foreign ids.
         expect(xpFor(tree, parsed.progress)).toBe(xpFor(tree, fromClean.progress))
-        expect(xpFor(tree, parsed.progress)).toBe(progress.completed.length * XP_PER_NODE)
+        const tickedQuests = Object.values(progress.quests).reduce((sum, triple) => sum + triple.filter(Boolean).length, 0)
+        expect(xpFor(tree, parsed.progress)).toBe(
+          progress.completed.length * XP_PER_NODE + tickedQuests * XP_PER_QUEST,
+        )
         expect(parsed).toEqual(fromClean)
       }),
       RUNS,

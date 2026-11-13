@@ -4,7 +4,7 @@ import { formatValidationError, loadSkillTree } from '#shared/utils/skill-tree-l
 import sample from '~~/data/sample-bouldering.json'
 import PathView from '~/components/path/PathView.vue'
 import { getActiveHobbyId, setActiveHobbyId } from '~/utils/active-hobby'
-import { cloudEntries, completionTimes, toHobbyLibrary, type CloudPath } from '~/utils/cloud-library'
+import { activityTimes, cloudEntries, toHobbyLibrary, type CloudPath } from '~/utils/cloud-library'
 import { DEMO_ACTIVE_ID, demoHobbyEntries } from '~/utils/demo-placeholders'
 import { hobbyPath, NEW_HOBBY_PATH, nextHobbyId, pickHobby, type HobbyLibrary } from '~/utils/hobby-store'
 import { progressStorageKey } from '~/utils/progress-store'
@@ -73,7 +73,7 @@ watch(cloud.status, () => void choose(), { immediate: true })
 
 const hobbies = computed(() => cloudEntries(cloud.paths.value))
 const archived = computed(() => cloudEntries(cloud.paths.value, { archived: true }))
-const times = computed(() => completionTimes(cloud.paths.value))
+const times = computed(() => activityTimes(cloud.paths.value))
 
 /**
  * When the hobby just archived or deleted is the one shown, opens the next one
@@ -127,7 +127,7 @@ async function undoDelete(removed: CloudPath, wasShown: boolean): Promise<void> 
       :progress-key="demoChoice.progressKey"
       demo
       :store="null"
-      :completion-times="[]"
+      :activity-times="[]"
       :hobbies="demoChoice.hobbies"
       :archived="[]"
       :active-id="DEMO_ACTIVE_ID"
@@ -145,7 +145,7 @@ async function undoDelete(removed: CloudPath, wasShown: boolean): Promise<void> 
       :progress-key="shown.pathId"
       :demo="false"
       :store="cloud.progressStore(shown.pathId)"
-      :completion-times="times"
+      :activity-times="times"
       :hobbies="hobbies"
       :archived="archived"
       :active-id="shown.record.id"

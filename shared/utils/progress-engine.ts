@@ -1,4 +1,4 @@
-import type { CompletionResult, NodeState, Progress } from '../types/progress'
+import type { CompletionResult, NodeState, Progress, QuestId } from '../types/progress'
 import type { QuestTriple, SkillNode, SkillTree } from '../types/skill-tree'
 
 export function emptyProgress(): Progress {
@@ -6,7 +6,7 @@ export function emptyProgress(): Progress {
 }
 
 /** First Node with the given id, in Section order then Node order. */
-function findNode(tree: SkillTree, id: string): SkillNode | undefined {
+export function findNode(tree: SkillTree, id: string): SkillNode | undefined {
   for (const section of tree.sections) {
     for (const node of section.nodes) {
       if (node.id === id) return node
@@ -32,6 +32,60 @@ function currentIdFor(tree: SkillTree, done: ReadonlySet<string>): string | null
     }
   }
   return null
+}
+
+/** Open_Nodes in document order: not completed, every prerequisite completed. First node wins on a repeated id. */
+export function openNodes(tree: SkillTree, progress: Progress): SkillNode[] {
+  const done = new Set(progress.completed)
+  const seen = new Set<string>()
+  const open: SkillNode[] = []
+  for (const section of tree.sections) {
+    for (const node of section.nodes) {
+      if (seen.has(node.id)) continue
+      seen.add(node.id)
+      if (isNodeAvailable(node, done)) open.push(node)
+    }
+  }
+  return open
+}
+
+/** Own entries only, so ids such as `__proto__` never read from the prototype. */
+function ownTriple(progress: Progress, id: string): QuestTriple<boolean> | undefined {
+  for (const [key, triple] of Object.entries(progress.quests)) {
+    if (key === id) return triple
+  }
+  return undefined
+}
+
+export function isQuestTicked(progress: Progress, quest: QuestId): boolean {
+  return ownTriple(progress, quest.id)?.[quest.index] === true
+}
+
+export function sameQuest(a: QuestId, b: QuestId): boolean {
+  return a.id === b.id && a.index === b.index
+}
+
+/** Quest_Ids that went false→true (`ticked`) or true→false (`unticked`) between two Progress values. */
+export function diffTicks(
+  before: Progress,
+  after: Progress,
+): { ticked: QuestId[]; unticked: QuestId[] } {
+  const ticked: QuestId[] = []
+  const unticked: QuestId[] = []
+  const beforeMap = new Map(Object.entries(before.quests))
+  const afterMap = new Map(Object.entries(after.quests))
+  const ids = new Set<string>([...beforeMap.keys(), ...afterMap.keys()])
+  for (const id of ids) {
+    const b = beforeMap.get(id)
+    const a = afterMap.get(id)
+    for (const index of [0, 1, 2] as const) {
+      const was = b?.[index] === true
+      const now = a?.[index] === true
+      if (!was && now) ticked.push({ id, index })
+      else if (was && !now) unticked.push({ id, index })
+    }
+  }
+  return { ticked, unticked }
 }
 
 /** First available Main_Node in document order; side quests are never current (Req 4.2, 4.5). */

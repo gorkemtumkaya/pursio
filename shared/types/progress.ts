@@ -7,6 +7,12 @@ export interface Progress {
   quests: Record<string, QuestTriple<boolean>>
 }
 
+/** One quest of one node. */
+export interface QuestId {
+  id: string
+  index: 0 | 1 | 2
+}
+
 export type NodeState = 'locked' | 'current' | 'completed' | 'side_quest' | 'milestone'
 
 export type CompletionResult =

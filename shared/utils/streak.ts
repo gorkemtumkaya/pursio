@@ -63,17 +63,82 @@ export function longestStreak(completions: readonly number[]): number {
   return best
 }
 
+/** Local midnight of the Monday of the week containing `date`. */
+function mondayOf(date: Date): Date {
+  return addDays(date, -((date.getDay() + 6) % 7))
+}
+
 /** Monday to Sunday of the week containing `now`, each done, missed or upcoming (Req 2.1). */
 export function weekDays(completions: readonly number[], now: number): WeekDay[] {
   const days = new Set(completions.map(localDayKey))
   const today = new Date(now)
   const todayKey = dayKeyOf(today)
-  const monday = addDays(today, -((today.getDay() + 6) % 7))
+  const monday = mondayOf(today)
   return DAY_NAMES.map((name, i) => {
     const date = dayKeyOf(addDays(monday, i))
     // Keys compare correctly as strings because they are zero-padded.
     const status: WeekDayStatus = days.has(date) ? 'done' : date > todayKey ? 'upcoming' : 'missed'
     return { date, name, short: name.charAt(0), status }
+  })
+}
+
+/** Week_Key: the Local_Day of the Monday of the week containing `ms`. */
+export function weekKeyOf(ms: number): string {
+  return dayKeyOf(mondayOf(new Date(ms)))
+}
+
+/** The 7 Local_Day keys Monday to Sunday of the week containing `now`. */
+export function weekDayKeys(now: number): string[] {
+  const monday = mondayOf(new Date(now))
+  return DAY_NAMES.map((_, i) => dayKeyOf(addDays(monday, i)))
+}
+
+/** Distinct Local_Days of the current week that hold at least one of `times`. */
+export function activeDaysInWeek(times: readonly number[], now: number): number {
+  const week = new Set(weekDayKeys(now))
+  const active = new Set<string>()
+  for (const time of times) {
+    const key = localDayKey(time)
+    if (week.has(key)) active.add(key)
+  }
+  return active.size
+}
+
+/** Days left in the week after today: 6 on Monday, 0 on Sunday. */
+export function daysLeftInWeek(now: number): number {
+  return 6 - ((new Date(now).getDay() + 6) % 7)
+}
+
+/** Milliseconds from `now` to the next local midnight, built from date parts so DST days are right. */
+export function msUntilNextMidnight(now: number): number {
+  return addDays(new Date(now), 1).getTime() - now
+}
+
+export type QuestLogStatus = 'done' | 'missed' | 'today' | 'upcoming'
+
+export interface QuestLogDay {
+  date: string
+  name: string
+  short: string
+  /** Ticks on that day; 0 for upcoming days (not shown). */
+  count: number
+  status: QuestLogStatus
+}
+
+/** Seven boxes Monday to Sunday with the number of `times` on each Local_Day. */
+export function questLogWeek(times: readonly number[], now: number): QuestLogDay[] {
+  const counts = new Map<string, number>()
+  for (const time of times) {
+    const key = localDayKey(time)
+    counts.set(key, (counts.get(key) ?? 0) + 1)
+  }
+  const todayKey = localDayKey(now)
+  return weekDayKeys(now).map((date, i) => {
+    const name = DAY_NAMES[i] ?? ''
+    // Keys compare correctly as strings because they are zero-padded.
+    const status: QuestLogStatus =
+      date === todayKey ? 'today' : date > todayKey ? 'upcoming' : (counts.get(date) ?? 0) > 0 ? 'done' : 'missed'
+    return { date, name, short: name.charAt(0), count: status === 'upcoming' ? 0 : (counts.get(date) ?? 0), status }
   })
 }
 

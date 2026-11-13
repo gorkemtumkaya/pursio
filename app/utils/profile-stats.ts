@@ -2,8 +2,8 @@
 import type { SkillNode } from '#shared/types/skill-tree'
 import { completionPercent } from '#shared/utils/progress-engine'
 import { longestStreak, streakDays } from '#shared/utils/streak'
-import { LEVEL_THRESHOLDS, levelFor, XP_PER_NODE, type XpLevel } from '#shared/utils/xp'
-import { completionTimes, type CloudPath } from './cloud-library'
+import { LEVEL_THRESHOLDS, levelFor, weeklyRewardXp, xpFor, type XpLevel } from '#shared/utils/xp'
+import { activityTimes, type CloudPath } from './cloud-library'
 import { hobbyPath } from './hobby-store'
 
 /** One row of the "Your hobbies" card. */
@@ -26,7 +26,7 @@ export interface ProfileMilestone {
 }
 
 export interface ProfileStats {
-  /** XP over every path, archived ones included, like the Streak. */
+  /** Hobby_XP over every path (archived included) plus Weekly_Reward_XP. */
   xp: number
   skillsDone: number
   questsDone: number
@@ -53,18 +53,20 @@ function countPath({ record, progress }: CloudPath): PathCount {
   return { done: nodes.filter((node) => completed.has(node.id)), total: nodes.length, quests }
 }
 
-export function profileStats(paths: readonly CloudPath[], now: number): ProfileStats {
+export function profileStats(paths: readonly CloudPath[], now: number, weeklyRewardCount = 0): ProfileStats {
   const counts = paths.map(countPath)
   const done = counts.flatMap((count) => count.done)
   const skillsDone = done.length
   const questsDone = counts.reduce((sum, count) => sum + count.quests, 0)
-  const xp = skillsDone * XP_PER_NODE
-  const times = completionTimes(paths)
+  const hobbyXp = paths.map((path) => xpFor(path.record.tree, path.progress, path.dailyBonusCount))
+  const xp = hobbyXp.reduce((sum, value) => sum + value, 0) + weeklyRewardXp(weeklyRewardCount)
+  const times = activityTimes(paths)
   const bestStreak = longestStreak(times)
 
   const hobbies = paths.flatMap((path, index): ProfileHobby[] => {
     const count = counts[index]
-    if (path.record.archived || !count) return []
+    const pathXp = hobbyXp[index]
+    if (path.record.archived || !count || pathXp === undefined) return []
     return [
       {
         id: path.record.id,
@@ -72,7 +74,7 @@ export function profileStats(paths: readonly CloudPath[], now: number): ProfileS
         to: hobbyPath(path.record.id),
         done: count.done.length,
         total: count.total,
-        level: levelFor(count.done.length * XP_PER_NODE),
+        level: levelFor(pathXp),
         percent: completionPercent(path.record.tree, path.progress),
       },
     ]

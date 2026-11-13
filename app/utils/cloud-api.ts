@@ -1,6 +1,5 @@
 import type { SupabaseClient } from '@supabase/supabase-js'
-import type { PathInsertRow, ProgressWriteRow } from '#shared/types/cloud'
-import type { Theme } from '#shared/types/theme'
+import type { PathInsertRow, ProfilePatch, ProgressWriteRow } from '#shared/types/cloud'
 
 /**
  * Every table call of the browser (spec: accounts-cloud-save). All of them run
@@ -12,7 +11,7 @@ export interface CloudApi {
   listPaths(signal?: AbortSignal): Promise<unknown[]>
   listProgress(signal?: AbortSignal): Promise<unknown[]>
   getProfile(): Promise<unknown | null>
-  updateProfile(patch: { theme?: Theme; display_name?: string | null }): Promise<void>
+  updateProfile(patch: ProfilePatch): Promise<void>
   setArchived(pathId: string, archived: boolean): Promise<void>
   deletePath(pathId: string): Promise<void>
   deletePaths(ids: readonly string[]): Promise<void>
@@ -61,13 +60,16 @@ export function createCloudApi(client: SupabaseClient, userId: string): CloudApi
       return rowsOf(await (signal ? query.abortSignal(signal) : query))
     },
     async listProgress(signal) {
-      const query = client.from('progress').select('path_id, completed, quests, completed_at').eq('user_id', userId)
+      const query = client
+        .from('progress')
+        .select('path_id, completed, quests, completed_at, quest_ticks, daily_pick, daily_bonus_count')
+        .eq('user_id', userId)
       return rowsOf(await (signal ? query.abortSignal(signal) : query))
     },
     async getProfile() {
       const result: Outcome = await client
         .from('profiles')
-        .select('id, display_name, theme, created_at')
+        .select('id, display_name, theme, created_at, weekly_reward_week, weekly_reward_count')
         .eq('id', userId)
         .maybeSingle()
       check(result)

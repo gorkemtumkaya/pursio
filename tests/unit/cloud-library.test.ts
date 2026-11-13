@@ -37,6 +37,9 @@ function cloudPath(pathId: string, tree: SkillTree, addedAt: number, overrides: 
     level: 'new',
     progress: { completed: [], quests: {} },
     completedAt: {},
+    questTicks: {},
+    dailyPick: null,
+    dailyBonusCount: 0,
     ...overrides,
   }
 }
@@ -55,6 +58,9 @@ describe('upsertGenerated', () => {
         level: 'some',
         progress: { completed: [], quests: {} },
         completedAt: {},
+        questTicks: {},
+        dailyPick: null,
+        dailyBonusCount: 0,
       },
     ])
     expect(paths.length).toBe(1)
@@ -66,6 +72,9 @@ describe('upsertGenerated', () => {
         level: 'new',
         progress: { completed: [firstId], quests: { [firstId]: [true, true, true] } },
         completedAt: { [firstId]: 123 },
+        questTicks: { [firstId]: [124, null, null] },
+        dailyPick: { day: '2026-01-14', quests: [{ id: firstId, index: 0 }], bonus: true },
+        dailyBonusCount: 3,
       }),
     )
     const paths = [cloudPath('p1', bouldering, 10), old, cloudPath('p3', chess, 30)]
@@ -82,6 +91,9 @@ describe('upsertGenerated', () => {
       level: 'serious',
       progress: { completed: [], quests: {} },
       completedAt: {},
+      questTicks: {},
+      dailyPick: null,
+      dailyBonusCount: 0,
     })
     // Its old timestamps no longer count.
     expect(completionTimes(next)).toEqual([])

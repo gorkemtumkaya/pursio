@@ -21,6 +21,8 @@ function listFiles(dir: string): string[] {
 const SCANNED = [
   ...listFiles(join(ROOT, 'app/components/path')).filter((file) => /\.(vue|ts)$/.test(file)),
   join(ROOT, 'app/pages/path.vue'),
+  ...listFiles(join(ROOT, 'app/components/quests')).filter((file) => /\.(vue|ts)$/.test(file)),
+  join(ROOT, 'app/pages/quests.vue'),
 ].map((path) => ({ name: relative(ROOT, path), source: readFileSync(path, 'utf8') }))
 
 // CSS named colors (CSS Color Module Level 4), excluding keywords like
@@ -211,6 +213,12 @@ describe('path view styling conventions (Req 13.1, 13.5)', () => {
   it('scans the path components and page', () => {
     expect(SCANNED.length).toBeGreaterThan(10)
     expect(SCANNED.map((file) => file.name)).toContain('app/pages/path.vue')
+  })
+
+  it('scans the quests components and page (Req 15.3)', () => {
+    const names = SCANNED.map((file) => file.name)
+    expect(names).toContain('app/pages/quests.vue')
+    expect(names.filter((name) => name.startsWith('app/components/quests/')).length).toBeGreaterThan(0)
   })
 
   it('takes colors, fonts, radii and shadows only from theme tokens', () => {

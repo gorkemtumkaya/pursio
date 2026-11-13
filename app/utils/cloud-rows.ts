@@ -1,12 +1,20 @@
 // Mapping between database rows and the app's shapes (spec: accounts-cloud-save).
 import { z } from 'zod'
-import type { CompletedAt, PathInsertRow, ProgressWriteRow } from '#shared/types/cloud'
+import type {
+  CompletedAt,
+  DailyPick,
+  PathInsertRow,
+  ProgressWriteRow,
+  QuestData,
+  QuestTicks,
+  WeeklyReward,
+} from '#shared/types/cloud'
 import type { Progress } from '#shared/types/progress'
 import type { QuestTriple, SkillTree } from '#shared/types/skill-tree'
 import { START_LEVELS } from '#shared/utils/llm'
 import { emptyProgress } from '#shared/utils/progress-engine'
 import { loadSkillTree } from '#shared/utils/skill-tree-load'
-import type { CloudPath } from './cloud-library'
+import { emptyQuestData, type CloudPath } from './cloud-library'
 import { hobbyId } from './hobby-store'
 import { storedProgressSchema } from './progress-store'
 
@@ -43,6 +51,7 @@ export function parsePathRow(raw: unknown): CloudPath | null {
     level: row.data.level,
     progress: emptyProgress(),
     completedAt: {},
+    ...emptyQuestData(),
   }
 }
 
@@ -50,18 +59,36 @@ const progressRowSchema = storedProgressSchema.extend({
   completed_at: z.record(z.string(), z.number().finite()),
 })
 
+const dayKeySchema = z.string().regex(/^\d{4}-\d{2}-\d{2}$/)
+const tickTimeSchema = z.number().finite().nullable()
+const questTicksSchema = z.record(z.string(), z.tuple([tickTimeSchema, tickTimeSchema, tickTimeSchema]))
+const dailyPickSchema = z.object({
+  day: dayKeySchema,
+  quests: z
+    .array(z.object({ id: z.string().min(1), index: z.union([z.literal(0), z.literal(1), z.literal(2)]) }))
+    .max(3),
+  bonus: z.boolean(),
+})
+const countSchema = z.number().int().nonnegative()
+
 function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === 'object' && value !== null && !Array.isArray(value)
 }
 
 /**
- * A Progress_Row as Progress and Completion_Timestamps for `tree`. Duplicate
- * completed ids collapse. Completed ids, quest entries and timestamps of Nodes
- * that are not in the tree are dropped, as are timestamps of Nodes that are
- * not completed (Req 6.10). A row with a wrong shape gives empty Progress.
+ * A Progress_Row as Progress, Completion_Timestamps and quest data for `tree`.
+ * Duplicate completed ids collapse. Completed ids, quest entries and timestamps
+ * of Nodes that are not in the tree are dropped, as are timestamps of Nodes
+ * that are not completed (Req 6.10). Tick times are kept only for ticked quests
+ * of Nodes in the tree (Req 2.6). Each quest column is read on its own: a bad
+ * column reads as `{}`, `null` or 0 and never affects another column. A row
+ * with a wrong shape gives empty Progress and empty quest data.
  */
-export function parseProgressRow(raw: unknown, tree: SkillTree): { progress: Progress; completedAt: CompletedAt } {
-  const empty = { progress: emptyProgress(), completedAt: {} }
+export function parseProgressRow(
+  raw: unknown,
+  tree: SkillTree,
+): { progress: Progress; completedAt: CompletedAt } & QuestData {
+  const empty = { progress: emptyProgress(), completedAt: {}, ...emptyQuestData() }
   if (!isRecord(raw) || !progressRowSchema.safeParse(raw).success) return empty
 
   const ids = new Set(tree.sections.flatMap((section) => section.nodes.map((node) => node.id)))
@@ -77,7 +104,62 @@ export function parseProgressRow(raw: unknown, tree: SkillTree): { progress: Pro
   const completedAt = Object.fromEntries(
     Object.entries(raw.completed_at as Record<string, number>).filter(([id]) => done.has(id)),
   )
-  return { progress: { completed, quests }, completedAt }
+  return {
+    progress: { completed, quests },
+    completedAt,
+    questTicks: readQuestTicks(raw.quest_ticks, ids, quests),
+    dailyPick: readDailyPick(raw.daily_pick, ids),
+    dailyBonusCount: readCount(raw.daily_bonus_count),
+  }
+}
+
+function readCount(value: unknown): number {
+  const parsed = countSchema.safeParse(value)
+  return parsed.success ? parsed.data : 0
+}
+
+function readQuestTicks(
+  value: unknown,
+  ids: ReadonlySet<string>,
+  quests: Record<string, QuestTriple<boolean>>,
+): QuestTicks {
+  const parsed = questTicksSchema.safeParse(value)
+  if (!parsed.success) return {}
+  const entries: [string, QuestTriple<number | null>][] = []
+  for (const [id, times] of Object.entries(parsed.data)) {
+    const ticked = Object.hasOwn(quests, id) ? quests[id] : undefined
+    if (!ids.has(id) || !ticked) continue
+    const kept: QuestTriple<number | null> = [
+      ticked[0] ? times[0] : null,
+      ticked[1] ? times[1] : null,
+      ticked[2] ? times[2] : null,
+    ]
+    if (kept.some((time) => time !== null)) entries.push([id, kept])
+  }
+  return Object.fromEntries(entries)
+}
+
+function readDailyPick(value: unknown, ids: ReadonlySet<string>): DailyPick | null {
+  const parsed = dailyPickSchema.safeParse(value)
+  if (!parsed.success) return null
+  const seen = new Set<string>()
+  const quests = parsed.data.quests.filter((quest) => {
+    const key = `${quest.id}:${quest.index}`
+    if (!ids.has(quest.id) || seen.has(key)) return false
+    seen.add(key)
+    return true
+  })
+  return { day: parsed.data.day, quests, bonus: parsed.data.bonus }
+}
+
+/**
+ * The account-wide weekly reward of a Profile_Row. `null` only when `row` is
+ * not an object; a bad week reads as `null` and a bad count as 0.
+ */
+export function parseWeeklyReward(row: unknown): WeeklyReward | null {
+  if (!isRecord(row)) return null
+  const week = dayKeySchema.safeParse(row.weekly_reward_week)
+  return { week: week.success ? week.data : null, count: readCount(row.weekly_reward_count) }
 }
 
 /**
@@ -123,6 +205,7 @@ export function toProgressRow(
   userId: string,
   progress: Progress,
   completedAt: CompletedAt,
+  quest: QuestData,
 ): ProgressWriteRow {
   return {
     path_id: pathId,
@@ -130,5 +213,8 @@ export function toProgressRow(
     completed: [...progress.completed],
     quests: { ...progress.quests },
     completed_at: { ...completedAt },
+    quest_ticks: { ...quest.questTicks },
+    daily_pick: quest.dailyPick,
+    daily_bonus_count: quest.dailyBonusCount,
   }
 }

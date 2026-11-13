@@ -46,7 +46,7 @@ export function useSkillPath(tree: SkillTree, store: ProgressStore): SkillPath {
   const states = computed(() => deriveNodeStates(tree, progress.value))
   const currentId = computed(() => findCurrentNodeId(tree, progress.value))
   const activeSection = computed(() => activeSectionIndex(tree, progress.value))
-  const xp = computed(() => xpSummary(tree, progress.value))
+  const xp = computed(() => xpSummary(tree, progress.value, store.dailyBonusCount?.() ?? 0))
 
   function commit(next: Progress): void {
     progress.value = next

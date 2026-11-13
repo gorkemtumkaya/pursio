@@ -4,6 +4,10 @@ import { describe, expect, it } from 'vitest'
 import type { SkillTree } from '../../shared/types/skill-tree'
 import {
   allNodes,
+  arbCloudPath,
+  arbDailyPick,
+  arbQuestData,
+  arbTickTimes,
   arbLinearMainTree,
   arbPathTree,
   arbProgress,
@@ -192,6 +196,55 @@ describe('arbitraries', () => {
           expect(ids.has(id)).toBe(true)
           expect(triple).toHaveLength(3)
         }
+      }),
+      RUNS,
+    )
+  })
+
+  it('arbQuestData ticks only ticked quests and picks distinct quests of the tree', () => {
+    fc.assert(
+      fc.property(arbValidTree.chain(tree => fc.tuple(fc.constant(tree), arbProgress(tree))).chain(([tree, progress]) =>
+        fc.tuple(fc.constant(tree), fc.constant(progress), arbQuestData(tree, progress))), ([tree, progress, data]) => {
+        for (const [id, triple] of Object.entries(data.questTicks)) {
+          triple.forEach((time, index) => {
+            if (time !== null) expect(progress.quests[id]?.[index]).toBe(true)
+          })
+        }
+        const ids = new Set(allNodes(tree).map(node => node.id))
+        const quests = data.dailyPick?.quests ?? []
+        expect(quests.length).toBeLessThanOrEqual(3)
+        expect(new Set(quests.map(q => `${q.id}:${q.index}`)).size).toBe(quests.length)
+        expect(quests.every(q => ids.has(q.id))).toBe(true)
+        expect(data.dailyPick === null || /^\d{4}-\d{2}-\d{2}$/.test(data.dailyPick.day)).toBe(true)
+        expect(Number.isInteger(data.dailyBonusCount) && data.dailyBonusCount >= 0).toBe(true)
+      }),
+      RUNS,
+    )
+  })
+
+  it('arbDailyPick and arbTickTimes give bounded values', () => {
+    fc.assert(
+      fc.property(arbValidTree.chain(tree => arbDailyPick(tree)), (pick) => {
+        expect(pick.quests.length).toBeLessThanOrEqual(3)
+      }),
+      RUNS,
+    )
+    fc.assert(fc.property(arbTickTimes, (times) => {
+      expect(times.every(Number.isFinite)).toBe(true)
+    }), RUNS)
+  })
+
+  it('arbCloudPath carries consistent quest data', () => {
+    fc.assert(
+      fc.property(arbCloudPath, (path) => {
+        const ids = new Set(allNodes(path.record.tree).map(node => node.id))
+        for (const [id, triple] of Object.entries(path.questTicks)) {
+          expect(ids.has(id)).toBe(true)
+          triple.forEach((time, index) => {
+            if (time !== null) expect(path.progress.quests[id]?.[index]).toBe(true)
+          })
+        }
+        expect(path.dailyBonusCount).toBeGreaterThanOrEqual(0)
       }),
       RUNS,
     )

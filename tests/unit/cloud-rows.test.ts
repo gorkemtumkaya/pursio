@@ -48,6 +48,9 @@ describe('parsePathRow', () => {
       level: 'serious',
       progress: { completed: [], quests: {} },
       completedAt: {},
+      questTicks: {},
+      dailyPick: null,
+      dailyBonusCount: 0,
     })
   })
 
@@ -144,6 +147,9 @@ describe('parseProgressRow', () => {
     expect(parseProgressRow({ completed: [], quests: {}, completed_at: {} }, bouldering)).toEqual({
       progress: { completed: [], quests: {} },
       completedAt: {},
+      questTicks: {},
+      dailyPick: null,
+      dailyBonusCount: 0,
     })
   })
 
@@ -157,7 +163,13 @@ describe('parseProgressRow', () => {
     ['a timestamp that is not a number', { completed: [firstId], quests: {}, completed_at: { [firstId]: 'now' } }],
     ['a missing completed_at column', { completed: [firstId], quests: {} }],
   ])('gives empty Progress for %s', (_, row) => {
-    expect(parseProgressRow(row, bouldering)).toEqual({ progress: { completed: [], quests: {} }, completedAt: {} })
+    expect(parseProgressRow(row, bouldering)).toEqual({
+      progress: { completed: [], quests: {} },
+      completedAt: {},
+      questTicks: {},
+      dailyPick: null,
+      dailyBonusCount: 0,
+    })
   })
 })
 
@@ -182,13 +194,20 @@ describe('row writers', () => {
   it('toProgressRow copies Progress and timestamps', () => {
     const progress = { completed: [firstId], quests: { [firstId]: [true, false, false] as [boolean, boolean, boolean] } }
     const completedAt = { [firstId]: 5 }
-    const row = toProgressRow('p1', 'user-9', progress, completedAt)
+    const row = toProgressRow('p1', 'user-9', progress, completedAt, {
+      questTicks: { [firstId]: [7, null, null] },
+      dailyPick: { day: '2026-01-14', quests: [{ id: firstId, index: 0 }], bonus: false },
+      dailyBonusCount: 2,
+    })
     expect(row).toEqual({
       path_id: 'p1',
       user_id: 'user-9',
       completed: [firstId],
       quests: { [firstId]: [true, false, false] },
       completed_at: { [firstId]: 5 },
+      quest_ticks: { [firstId]: [7, null, null] },
+      daily_pick: { day: '2026-01-14', quests: [{ id: firstId, index: 0 }], bonus: false },
+      daily_bonus_count: 2,
     })
     expect(row.completed).not.toBe(progress.completed)
     expect(row.completed_at).not.toBe(completedAt)

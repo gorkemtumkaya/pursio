@@ -2,9 +2,10 @@
 import { computed } from 'vue'
 
 /**
- * Main navigation (Req 12.7), with the item of the open page marked. "Path" and "Profile" exist; Fresh and Quests
- * stay hidden until those features ship (spec: local-progress-data, Req 5.1).
- * Demo_Mode has no account, so it shows no Profile item (spec: accounts-cloud-save, Req 11.1, 12.6).
+ * Main navigation (Req 12.7), with the item of the open page marked. "Path", "Quests" and "Profile" are shown;
+ * Fresh stays hidden until that feature ships (spec: local-progress-data, Req 5.1).
+ * Demo_Mode has no account, so it shows no Quests or Profile item (spec: accounts-cloud-save, Req 11.1, 12.6;
+ * spec: quests-page, Req 1.2, 1.3, 1.4, 15.4). Three w-28 items fit the 390px bottom bar (3 x 112px = 336px).
  */
 const props = defineProps<{ variant: 'bottom' | 'side' }>()
 
@@ -28,7 +29,8 @@ const onSettings = computed(() => route.path === '/settings')
  * so there Settings marks the Profile item it is opened from.
  */
 const onProfile = computed(() => route.path === '/profile' || (onSettings.value && !isSide.value))
-const onPath = computed(() => !onProfile.value && !onSettings.value)
+const onQuests = computed(() => route.path === '/quests')
+const onPath = computed(() => !onProfile.value && !onSettings.value && !onQuests.value)
 </script>
 
 <template>
@@ -42,6 +44,17 @@ const onPath = computed(() => !onProfile.value && !onSettings.value)
       >
         <PathIcon name="map" :class="iconClass" />
         <span>Path</span>
+      </NuxtLink>
+    </li>
+    <li v-if="!isDemo" :class="isSide ? '' : 'w-28'">
+      <NuxtLink
+        to="/quests"
+        :aria-current="onQuests ? 'page' : undefined"
+        :class="[itemClass, onQuests ? ACTIVE_CLASS : IDLE_CLASS]"
+        class="font-extrabold focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink"
+      >
+        <PathIcon name="target" :class="iconClass" />
+        <span>Quests</span>
       </NuxtLink>
     </li>
     <li v-if="!isDemo" :class="isSide ? '' : 'w-28'">

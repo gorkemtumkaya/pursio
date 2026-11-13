@@ -4,6 +4,18 @@ All notable changes to this project are documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
+## [Unreleased]
+
+### Added
+
+- A Quests page with three small quests a day from your path, a +20 XP bonus for finishing them, a weekly goal of practicing on 4 days, and a log of your week. (spec: quests-page)
+
+### Changed
+
+- Every quest you tick now gives +10 XP, so levels rise faster than before. (spec: quests-page)
+- Your streak and "This week" card now also count days on which you ticked a quest. (spec: quests-page)
+- The main menu now shows Quests between Path and Profile. (spec: quests-page)
+
 ## [Released]
 
 ### Added

@@ -1,5 +1,5 @@
 import { computed, toRaw } from 'vue'
-import type { CompletedAt } from '#shared/types/cloud'
+import type { WeeklyReward } from '#shared/types/cloud'
 import type { Progress } from '#shared/types/progress'
 import type { Theme } from '#shared/types/theme'
 import { isTheme } from '#shared/utils/theme'
@@ -7,7 +7,6 @@ import { setActiveHobbyId } from '~/utils/active-hobby'
 import { normalizeDisplayName } from '~/utils/auth-logic'
 import { createCloudApi, type CloudApi } from '~/utils/cloud-api'
 import {
-  stampCompletions,
   upsertGenerated,
   withArchived,
   withoutPath,
@@ -15,10 +14,11 @@ import {
   type CloudPath,
   type GeneratedPath,
 } from '~/utils/cloud-library'
-import { buildCloudPaths, toPathInsertRow, toProgressRow } from '~/utils/cloud-rows'
+import { buildCloudPaths, parseWeeklyReward, toPathInsertRow, toProgressRow } from '~/utils/cloud-rows'
 import { hobbyId } from '~/utils/hobby-store'
 import { clearLegacyData, planImport, readLegacyData, runLegacyImport } from '~/utils/legacy-import'
 import { browserStorage, type ProgressStore } from '~/utils/progress-store'
+import { applyProgressChange, withDailyPick, type ProgressChange } from '~/utils/quest-rules'
 import { createSaveQueue, type SaveQueue } from '~/utils/save-queue'
 
 export type CloudStatus = 'idle' | 'loading' | 'importing' | 'ready' | 'error'
@@ -28,6 +28,8 @@ export interface CloudProfile {
   theme: Theme | null
   /** ISO 8601 time the Profile_Row was created, or null when unknown. */
   createdAt: string | null
+  /** The account's weekly reward values; null when they are not loaded (decision D4). */
+  weeklyReward: WeeklyReward | null
 }
 
 interface CloudState {
@@ -38,10 +40,9 @@ interface CloudState {
   profile: CloudProfile | null
 }
 
-interface ProgressWrite {
-  progress: Progress
-  completedAt: CompletedAt
-}
+type ProgressWrite = ProgressChange['write']
+
+const REWARD_KEY = 'weekly-reward'
 
 export const CLOUD_MESSAGES = {
   loadFailed: "We couldn't load your paths. Check your connection and try again.",
@@ -51,12 +52,15 @@ export const CLOUD_MESSAGES = {
   profileFailed: "Couldn't save that. Try again.",
 } as const
 
+const emptyProfile = (): CloudProfile => ({ displayName: null, theme: null, createdAt: null, weeklyReward: null })
+
 const emptyState = (): CloudState => ({ status: 'idle', userId: '', paths: [], profile: null })
 
 // Per page load. A newer bootstrap makes the results of an older one stale.
 let generation = 0
 const queues = new Map<string, SaveQueue<ProgressWrite>>()
-/** The sticky "couldn't save" toast per path, so a later success can hide it. */
+let rewardQueue: SaveQueue<WeeklyReward> | null = null
+/** The sticky "couldn't save" toast per queue key, so a later success can hide it. */
 const failureToasts = new Map<string, number>()
 
 /**
@@ -77,6 +81,7 @@ export function useCloudStore() {
   const status = computed(() => state.value.status)
   const paths = computed<readonly CloudPath[]>(() => state.value.paths)
   const profile = computed(() => state.value.profile)
+  const weeklyReward = computed<WeeklyReward | null>(() => state.value.profile?.weeklyReward ?? null)
 
   /** The API for the user the state belongs to, or `null` without a session. */
   function api(): CloudApi | null {
@@ -92,6 +97,7 @@ export function useCloudStore() {
   function clear(): void {
     generation += 1
     queues.clear()
+    rewardQueue = null
     failureToasts.clear()
     state.value = emptyState()
   }
@@ -110,7 +116,7 @@ export function useCloudStore() {
       const stored = isTheme(record.theme) ? record.theme : null
       const displayName = typeof record.display_name === 'string' ? record.display_name : null
       const createdAt = typeof record.created_at === 'string' ? record.created_at : null
-      state.value = { ...state.value, profile: { displayName, theme: stored, createdAt } }
+      state.value = { ...state.value, profile: { displayName, theme: stored, createdAt, weeklyReward: parseWeeklyReward(row) } }
       // A valid, different theme is applied and replaces the one in localStorage (Req 7.1);
       // a bad or missing one changes nothing and is not written back (Req 7.7).
       if (stored !== null && stored !== theme.value) setTheme(stored)
@@ -127,6 +133,7 @@ export function useCloudStore() {
   async function bootstrap(userId: string): Promise<void> {
     const run = ++generation
     queues.clear()
+    rewardQueue = null
     failureToasts.clear()
     state.value = { status: 'loading', userId, paths: [], profile: null }
     const cloud = api()
@@ -220,7 +227,7 @@ export function useCloudStore() {
     try {
       await cloud.insertPaths([toPathInsertRow(userId, removed)])
       try {
-        await cloud.insertProgress([toProgressRow(removed.pathId, userId, removed.progress, removed.completedAt)])
+        await cloud.insertProgress([toProgressRow(removed.pathId, userId, removed.progress, removed.completedAt, removed)])
       } catch (error) {
         // Without its Progress the path must not come back: take the first insert out again.
         await cloud.deletePath(removed.pathId).catch(() => undefined)
@@ -248,35 +255,75 @@ export function useCloudStore() {
     return id
   }
 
-  function queueFor(pathId: string): SaveQueue<ProgressWrite> {
-    const existing = queues.get(pathId)
-    if (existing) return existing
+  /**
+   * A Save_Queue whose failure shows the shared sticky toast with Retry and whose
+   * later success hides it (Req 6.4, 6.5, 13.11). `isCurrent` tells whether the
+   * queue is still the registered one, so a cleared queue stays silent.
+   */
+  function makeQueue<T>(
+    key: string,
+    write: (value: T, cloud: CloudApi) => Promise<void>,
+    isCurrent: (queue: SaveQueue<T>) => boolean,
+  ): SaveQueue<T> {
     const userId = state.value.userId
-    const queue: SaveQueue<ProgressWrite> = createSaveQueue<ProgressWrite>(
+    const queue: SaveQueue<T> = createSaveQueue<T>(
       async (value) => {
         const cloud = api()
         if (!cloud || state.value.userId !== userId) throw new Error('no_session')
-        await cloud.upsertProgress(toProgressRow(pathId, userId, value.progress, value.completedAt))
+        await write(value, cloud)
       },
       {
         // No automatic retry: the toast stays until Retry, Dismiss or a later successful write (Req 6.4, 6.5).
         onFailure: () => {
-          if (queues.get(pathId) !== queue) return
+          if (!isCurrent(queue)) return
           failureToasts.set(
-            pathId,
+            key,
             toast.show(CLOUD_MESSAGES.progressFailed, { label: 'Retry', run: () => queue.retry() }, { sticky: true }),
           )
         },
         onSuccess: () => {
-          const id = failureToasts.get(pathId)
+          const id = failureToasts.get(key)
           if (id === undefined) return
-          failureToasts.delete(pathId)
+          failureToasts.delete(key)
           toast.dismiss(id)
         },
       },
     )
+    return queue
+  }
+
+  function queueFor(pathId: string): SaveQueue<ProgressWrite> {
+    const existing = queues.get(pathId)
+    if (existing) return existing
+    const userId = state.value.userId
+    const queue = makeQueue<ProgressWrite>(
+      pathId,
+      (value, cloud) => cloud.upsertProgress(toProgressRow(pathId, userId, value.progress, value.completedAt, value)),
+      (q) => queues.get(pathId) === q,
+    )
     queues.set(pathId, queue)
     return queue
+  }
+
+  function queueForReward(): SaveQueue<WeeklyReward> {
+    if (rewardQueue) return rewardQueue
+    const queue = makeQueue<WeeklyReward>(
+      REWARD_KEY,
+      (value, cloud) => cloud.updateProfile({ weekly_reward_week: value.week, weekly_reward_count: value.count }),
+      (q) => rewardQueue === q,
+    )
+    rewardQueue = queue
+    return queue
+  }
+
+  /** Stores today's pick for a path that has none yet. A no-op unless the rows are loaded. */
+  function ensureDailyPick(pathId: string, now: number): void {
+    if (state.value.status !== 'ready') return
+    const next = withDailyPick(state.value.paths, pathId, now)
+    if (next === null) return
+    setPaths(next)
+    const path = next.find((p) => p.pathId === pathId)
+    if (path) queueFor(pathId).push({ progress: path.progress, completedAt: path.completedAt, questTicks: path.questTicks, dailyPick: path.dailyPick, dailyBonusCount: path.dailyBonusCount })
   }
 
   /**
@@ -294,11 +341,27 @@ export function useCloudStore() {
         return { completed: [...raw.completed], quests: { ...raw.quests } }
       },
       save(progress: Progress): void {
-        const path = current()
-        if (!path || state.value.status !== 'ready') return
-        const completedAt = stampCompletions(toRaw(path.completedAt), progress, Date.now())
-        setPaths(state.value.paths.map((other) => (other.pathId === pathId ? { ...other, progress, completedAt } : other)))
-        queueFor(pathId).push({ progress, completedAt })
+        if (state.value.status !== 'ready') return
+        const change = applyProgressChange(
+          state.value.paths,
+          state.value.profile?.weeklyReward ?? null,
+          pathId,
+          progress,
+          Date.now(),
+        )
+        if (!change) return
+        // Paths and the weekly values change in one assignment, so every reader sees both at once.
+        const profile = state.value.profile
+        state.value = {
+          ...state.value,
+          paths: change.paths,
+          profile: profile ? { ...profile, weeklyReward: change.weeklyReward } : profile,
+        }
+        queueFor(pathId).push(change.write)
+        if (change.grantedWeeklyReward && change.weeklyReward) queueForReward().push(change.weeklyReward)
+      },
+      dailyBonusCount(): number {
+        return current()?.dailyBonusCount ?? 0
       },
     }
   }
@@ -321,7 +384,7 @@ export function useCloudStore() {
     if (state.value.userId === '') return
     if (!(await updateProfile({ theme: next }))) return
     const current = state.value.profile
-    state.value = { ...state.value, profile: { displayName: current?.displayName ?? null, theme: next, createdAt: current?.createdAt ?? null } }
+    state.value = { ...state.value, profile: { ...(current ?? emptyProfile()), theme: next } }
   }
 
   /** Saves the trimmed display name; empty means no name (Req 7.4). Returns true when it was saved. */
@@ -330,7 +393,7 @@ export function useCloudStore() {
     const displayName = normalizeDisplayName(raw)
     if (!(await updateProfile({ display_name: displayName }))) return false
     const current = state.value.profile
-    state.value = { ...state.value, profile: { displayName, theme: current?.theme ?? null, createdAt: current?.createdAt ?? null } }
+    state.value = { ...state.value, profile: { ...(current ?? emptyProfile()), displayName } }
     return true
   }
 
@@ -347,6 +410,8 @@ export function useCloudStore() {
     undoRemove,
     addGenerated,
     progressStore,
+    ensureDailyPick,
+    weeklyReward,
     saveTheme,
     saveDisplayName,
   }

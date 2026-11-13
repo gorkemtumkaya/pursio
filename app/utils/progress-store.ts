@@ -21,6 +21,8 @@ export interface StorageLike {
 export interface ProgressStore {
   load(): Progress
   save(progress: Progress): void
+  /** Daily_Bonus_Count of this path, read reactively. Absent for localStorage stores (Demo_Mode): XP then counts 0. */
+  dailyBonusCount?(): number
 }
 
 function emptyProgress(): Progress {

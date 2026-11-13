@@ -1,11 +1,12 @@
 // fast-check generators and small helpers shared by the skill-path-ui tests.
 // Explicit relative imports only, so vitest loads this file without Nuxt.
 import fc from 'fast-check'
-import type { CompletedAt } from '../shared/types/cloud'
+import type { CompletedAt, DailyPick, QuestData, QuestTicks } from '../shared/types/cloud'
 import type { StartLevel } from '../shared/types/llm'
-import type { Progress } from '../shared/types/progress'
+import type { Progress, QuestId } from '../shared/types/progress'
 import type { Level, QuestTriple, Section, SkillNode, SkillTree } from '../shared/types/skill-tree'
 import { normalizeHobby } from '../shared/utils/llm'
+import { localDayKey } from '../shared/utils/streak'
 import { ACTIVITY_STORAGE_KEY } from '../app/utils/activity-store'
 import type { CloudPath } from '../app/utils/cloud-library'
 import { GENERATED_PROGRESS_KEY, GENERATED_TREE_KEY } from '../app/utils/generated-tree'
@@ -327,9 +328,63 @@ export const arbModelId: fc.Arbitrary<string> = fc.stringMatching(/^[a-z][a-z0-9
 
 export const arbStartLevel: fc.Arbitrary<StartLevel> = fc.constantFrom<StartLevel>('new', 'some', 'serious')
 
+/** Tick_Times as a flat list: epoch ms in no particular order, repeats allowed. */
+export const arbTickTimes: fc.Arbitrary<number[]> = fc.array(arbStamp, { maxLength: 40 })
+
+/** Every Quest_Id of the tree's Nodes (first occurrence of a repeated Node id only). */
+function questIdsOf(tree: SkillTree): QuestId[] {
+  const ids = [...new Set(allNodes(tree).map(node => node.id))]
+  return ids.flatMap(id => ([0, 1, 2] as const).map((index): QuestId => ({ id, index })))
+}
+
+/**
+ * A Daily_Pick for the tree: a Local_Day, up to 3 distinct Quest_Ids of Nodes
+ * in the tree (in the order shown, possibly none) and the bonus flag.
+ */
+export function arbDailyPick(tree: SkillTree): fc.Arbitrary<DailyPick> {
+  return fc
+    .record({
+      stamp: arbStamp,
+      quests: fc.shuffledSubarray(questIdsOf(tree), { minLength: 0, maxLength: 3 }),
+      bonus: fc.boolean(),
+    })
+    .map(({ stamp, quests, bonus }): DailyPick => ({ day: localDayKey(stamp), quests, bonus }))
+}
+
+/**
+ * Quest data consistent with `progress`: a Tick_Time only for quests that are
+ * ticked in it (some, not all), a pick or null, and a bonus count of 0 or more.
+ */
+export function arbQuestData(tree: SkillTree, progress: Progress): fc.Arbitrary<QuestData> {
+  const ticked: QuestId[] = []
+  for (const [id, triple] of Object.entries(progress.quests)) {
+    ([0, 1, 2] as const).forEach((index) => {
+      if (triple[index]) ticked.push({ id, index })
+    })
+  }
+  return fc
+    .record({
+      stamps: fc.array(fc.option(arbStamp, { nil: null }), { minLength: ticked.length, maxLength: ticked.length }),
+      dailyPick: fc.option(arbDailyPick(tree), { nil: null }),
+      dailyBonusCount: fc.nat({ max: 20 }),
+    })
+    .map(({ stamps, dailyPick, dailyBonusCount }): QuestData => {
+      const questTicks: QuestTicks = {}
+      ticked.forEach((quest, k) => {
+        const stamp = stamps[k]
+        if (stamp === undefined || stamp === null) return
+        const triple = questTicks[quest.id] ?? [null, null, null]
+        triple[quest.index] = stamp
+        questTicks[quest.id] = triple
+      })
+      return { questTicks, dailyPick, dailyBonusCount }
+    })
+}
+
 /**
  * One CloudPath: a valid tree, Progress valid for it and Completion_Timestamps
- * for some (not always all) of its completed Nodes. `record.id` is the Hobby_Id.
+ * for some (not always all) of its completed Nodes, plus quest data consistent
+ * with that Progress. `record.id` is the Hobby_Id.
  */
 export const arbCloudPath: fc.Arbitrary<CloudPath> = arbValidTree.chain(tree =>
   arbProgress(tree).chain((progress) => {
@@ -342,8 +397,9 @@ export const arbCloudPath: fc.Arbitrary<CloudPath> = arbValidTree.chain(tree =>
         archived: fc.boolean(),
         level: arbStartLevel,
         stamps: fc.array(fc.option(arbStamp, { nil: null }), { minLength: count, maxLength: count }),
+        quest: arbQuestData(tree, progress),
       })
-      .map(({ pathId, model, addedAt, archived, level, stamps }): CloudPath => {
+      .map(({ pathId, model, addedAt, archived, level, stamps, quest }): CloudPath => {
         const completedAt: CompletedAt = {}
         progress.completed.forEach((id, index) => {
           const stamp = stamps[index]
@@ -355,6 +411,7 @@ export const arbCloudPath: fc.Arbitrary<CloudPath> = arbValidTree.chain(tree =>
           level,
           progress,
           completedAt,
+          ...quest,
         }
       })
   }),

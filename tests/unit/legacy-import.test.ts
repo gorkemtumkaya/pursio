@@ -237,10 +237,31 @@ describe('planImport', () => {
         completed: [secondId, firstId],
         quests: {},
         completed_at: { [secondId]: 100, [firstId]: 200 },
+        quest_ticks: {},
+        daily_pick: null,
+        daily_bonus_count: 0,
       },
-      { path_id: 'path-2', user_id: 'user-1', completed: [firstId], quests: {}, completed_at: { [firstId]: 300 } },
+      {
+        path_id: 'path-2',
+        user_id: 'user-1',
+        completed: [firstId],
+        quests: {},
+        completed_at: { [firstId]: 300 },
+        quest_ticks: {},
+        daily_pick: null,
+        daily_bonus_count: 0,
+      },
       // The log ends after one more value: the last completed Node gets no timestamp.
-      { path_id: 'path-3', user_id: 'user-1', completed: [thirdId, firstId], quests: {}, completed_at: { [thirdId]: 400 } },
+      {
+        path_id: 'path-3',
+        user_id: 'user-1',
+        completed: [thirdId, firstId],
+        quests: {},
+        completed_at: { [thirdId]: 400 },
+        quest_ticks: {},
+        daily_pick: null,
+        daily_bonus_count: 0,
+      },
     ])
     expect(plan.activeHobbyId).toBe('chess')
   })

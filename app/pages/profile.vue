@@ -20,7 +20,7 @@ const auth = useAuth()
 const cloud = useCloudStore()
 const { theme } = useTheme()
 
-const stats = computed(() => profileStats(cloud.paths.value, Date.now()))
+const stats = computed(() => profileStats(cloud.paths.value, Date.now(), cloud.weeklyReward.value?.count ?? 0))
 const xp = computed(() => xpSummaryOf(stats.value.xp))
 
 /** The path Wick dresses for and the hobby list marks: the Active_Hobby, else the last one added. */

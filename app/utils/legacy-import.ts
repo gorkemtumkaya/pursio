@@ -163,6 +163,9 @@ export function planImport(
       completed: [...entry.progress.completed],
       quests: { ...entry.progress.quests },
       completed_at: completedAt,
+      quest_ticks: {},
+      daily_pick: null,
+      daily_bonus_count: 0,
     })
   }
 

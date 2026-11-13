@@ -15,10 +15,10 @@ export interface Activity {
  * Undo show in the same render (Req 6.9). Demo_Mode shows the demo values and
  * reads nothing.
  */
-export function useActivity(demo: boolean, completionTimes: () => readonly number[]): Activity {
-  const streak = computed(() => (demo ? DEMO_STREAK : streakDays(completionTimes(), Date.now())))
-  const week = computed<readonly CardDay[]>(() => (demo ? DEMO_WEEK : weekDays(completionTimes(), Date.now())))
-  const summary = computed(() => (demo ? DEMO_WEEK_SUMMARY : weekSummary(weekDays(completionTimes(), Date.now()))))
+export function useActivity(demo: boolean, activityTimes: () => readonly number[]): Activity {
+  const streak = computed(() => (demo ? DEMO_STREAK : streakDays(activityTimes(), Date.now())))
+  const week = computed<readonly CardDay[]>(() => (demo ? DEMO_WEEK : weekDays(activityTimes(), Date.now())))
+  const summary = computed(() => (demo ? DEMO_WEEK_SUMMARY : weekSummary(weekDays(activityTimes(), Date.now()))))
 
   return { streak, week, weekSummary: summary }
 }

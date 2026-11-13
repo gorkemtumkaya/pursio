@@ -16,7 +16,14 @@ const nodes: SkillNode[] = bouldering.sections.flatMap(section => section.nodes)
 const day = (offset: number): number => new Date(2026, 10, 10 + offset, 12).getTime()
 const NOW = day(0)
 
-function path(hobby: string, completed: string[], options: Partial<Pick<CloudPath, 'completedAt'>> & { archived?: boolean; quests?: CloudPath['progress']['quests'] } = {}): CloudPath {
+function path(
+  hobby: string,
+  completed: string[],
+  options: Partial<Pick<CloudPath, 'completedAt' | 'questTicks' | 'dailyBonusCount'>> & {
+    archived?: boolean
+    quests?: CloudPath['progress']['quests']
+  } = {},
+): CloudPath {
   const id = hobby.toLowerCase()
   return {
     pathId: `row-${id}`,
@@ -24,11 +31,14 @@ function path(hobby: string, completed: string[], options: Partial<Pick<CloudPat
     level: 'new',
     progress: { completed, quests: options.quests ?? {} },
     completedAt: options.completedAt ?? {},
+    questTicks: options.questTicks ?? {},
+    dailyPick: null,
+    dailyBonusCount: options.dailyBonusCount ?? 0,
   }
 }
 
-const earned = (paths: CloudPath[]): string[] =>
-  profileStats(paths, NOW).milestones.filter(milestone => milestone.earned).map(milestone => milestone.id)
+const earned = (paths: CloudPath[], weeklyRewardCount = 0): string[] =>
+  profileStats(paths, NOW, weeklyRewardCount).milestones.filter(milestone => milestone.earned).map(milestone => milestone.id)
 
 describe('longestStreak', () => {
   it('is the longest run of consecutive days, wherever it lies', () => {
@@ -64,7 +74,8 @@ describe('profileStats', () => {
       NOW,
     )
     expect(stats.skillsDone).toBe(3)
-    expect(stats.xp).toBe(150)
+    // 3 skills x 50 + 3 ticked quests x 10 (the quest of 'gone' is ignored).
+    expect(stats.xp).toBe(180)
     expect(stats.questsDone).toBe(3)
     expect(stats.hobbies).toEqual([
       {
@@ -77,6 +88,33 @@ describe('profileStats', () => {
         percent: Math.round((2 / nodes.length) * 100),
       },
     ])
+  })
+
+  it('totals skill XP, quest XP, daily bonuses and the weekly reward', () => {
+    const [a, b] = nodes.map(node => node.id) as [string, string]
+    const paths = [
+      path('Bouldering', [a], { quests: { [a]: [true, true, true], [b]: [true, false, false] }, dailyBonusCount: 2 }),
+      path('Guitar', [], { dailyBonusCount: 1 }),
+    ]
+    // 50 + 40 + 2 x 20 on the first path, 20 on the second, 3 x 50 weekly reward.
+    expect(profileStats(paths, NOW, 3).xp).toBe(130 + 20 + 150)
+    expect(profileStats(paths, NOW).xp).toBe(150)
+  })
+
+  it('treats bad counts as 0', () => {
+    const paths = [path('Bouldering', [], { dailyBonusCount: -2 })]
+    for (const bad of [-1, 1.5, Number.NaN, Number.POSITIVE_INFINITY]) {
+      expect(profileStats(paths, NOW, bad).xp).toBe(0)
+    }
+    expect(profileStats([path('Bouldering', [], { dailyBonusCount: 1.5 })], NOW).xp).toBe(0)
+  })
+
+  it('leaves the weekly reward out of the hobby level but counts it for level 5', () => {
+    const paths = [path('Bouldering', [])]
+    // 14 x 50 = 700 weekly reward XP reaches level 5 in total; the hobby stays at level 1.
+    expect(profileStats(paths, NOW, 14).hobbies[0]!.level).toBe(1)
+    expect(earned(paths, 14)).toContain('level-5')
+    expect(earned(paths, 13)).not.toContain('level-5')
   })
 
   it('earns each milestone from the matching data', () => {
@@ -100,5 +138,17 @@ describe('profileStats', () => {
     expect(profileStats(paths, NOW).streak).toBe(0)
     expect(earned(paths)).toContain('streak-3')
     expect(earned(paths)).not.toContain('streak-7')
+  })
+
+  it('counts days with a quest tick in the streak', () => {
+    const [a, b] = nodes.map(node => node.id) as [string, string]
+    const paths = [
+      path('Bouldering', [a], {
+        completedAt: { [a]: day(-2) },
+        questTicks: { [b]: [day(-1), null, day(0)] },
+        quests: { [b]: [true, false, true] },
+      }),
+    ]
+    expect(profileStats(paths, NOW).streak).toBe(3)
   })
 })

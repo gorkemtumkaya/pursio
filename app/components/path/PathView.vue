@@ -33,8 +33,8 @@ const props = defineProps<{
   demo: boolean
   /** Where Progress is loaded from and saved to; null means localStorage under `progressKey`. */
   store: ProgressStore | null
-  /** Completion_Timestamps of all the learner's paths, for the Streak and the Week card. */
-  completionTimes: readonly number[]
+  /** Completion and quest tick times of all the learner's paths, for the Streak and the Week card. */
+  activityTimes: readonly number[]
   /** Hobby list for the sidebar and Hobby_Switcher, with stored percents. */
   hobbies: readonly HobbyEntry[]
   /** Archived hobbies, listed under "Archived (N)" with Restore. */
@@ -57,7 +57,7 @@ const { progress, states, currentId, activeSection, xp, toggleQuest, complete } 
   tree,
   props.store ?? createProgressStore(browserStorage, tree, props.progressKey),
 )
-const activity = useActivity(props.demo, () => props.completionTimes)
+const activity = useActivity(props.demo, () => props.activityTimes)
 const viewport = useViewportClass()
 const { status, layout } = usePathLayout(tree, viewport)
 

@@ -40,11 +40,14 @@ function summaryForXp(xp: number) {
 }
 
 describe('Property 26: XP and level math', () => {
-  it('xpFor is 50 × the completed ids that exist in the tree, ignoring foreign ids', () => {
+  it('xpFor is 50 × the completed ids plus 10 × the ticked quests of Nodes in the tree, ignoring foreign ids', () => {
     fc.assert(
       fc.property(arbTreeAndProgress, ({ tree, progress, treeIds }) => {
-        const present = progress.completed.filter(id => treeIds.has(id)).length
-        expect(xpFor(tree, progress)).toBe(50 * present)
+        const present = new Set(progress.completed.filter(id => treeIds.has(id))).size
+        const ticked = Object.entries(progress.quests)
+          .filter(([id]) => treeIds.has(id))
+          .reduce((sum, [, triple]) => sum + triple.filter(Boolean).length, 0)
+        expect(xpFor(tree, progress)).toBe(50 * present + 10 * ticked)
         expect(xpFor(tree, { completed: [], quests: {} })).toBe(0)
       }),
       RUNS,

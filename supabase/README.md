@@ -8,8 +8,11 @@ Apply the files in `supabase/migrations/` in file-name order:
 
 1. `20261108000000_schema.sql`: tables, constraints, triggers and `save_generated_path`.
 2. `20261108000100_rls.sql`: Row Level Security and its policies.
+3. `20261108000200_quests.sql`: quest columns on `progress` (`quest_ticks`, `daily_pick`, `daily_bonus_count`) and `profiles` (`weekly_reward_week`, `weekly_reward_count`), with their check constraints.
 
 Either run `supabase db push` with the Supabase CLI linked to the project, or paste each file into the dashboard SQL editor and run them in that order.
+
+Rollout order: apply the quests migration before deploying the new client. The new client selects the new columns, so a database without them makes every load fail. An old client on the new database keeps working.
 
 ## 2. Dashboard settings
 
@@ -114,9 +117,17 @@ rollback;
 | 25 | As B: `insert into public.progress (path_id, user_id) values ('<id of a path of A that has no progress row>', '<B id>');` | Foreign key error |
 | 26 | In the SQL editor without a role change: `update public.progress set user_id = '<B id>' where user_id = '<A id>';` then `rollback;` | Foreign key error |
 
+### Quest columns
+
+| # | Step | Expected result |
+| --- | --- | --- |
+| 27 | As B: `select quest_ticks from public.progress where user_id = '<A id>';` | 0 rows |
+| 28 | As B: `update public.profiles set weekly_reward_count = 99 where id = '<A id>';` | 0 rows affected |
+| 29 | As A (use A's id in the claims): `update public.profiles set weekly_reward_count = -1 where id = '<A id>';` | Check constraint error (`profiles_weekly_reward_count_nonneg`) |
+
 ### Afterwards
 
 | # | Step | Expected result |
 | --- | --- | --- |
-| 27 | As A (use A's id in the claims): `select count(*) from public.paths;` | The number of A's paths, unchanged |
-| 28 | Delete user B in Authentication → Users, then `select count(*) from public.profiles where id = '<B id>';` | 0 |
+| 30 | As A (use A's id in the claims): `select count(*) from public.paths;` | The number of A's paths, unchanged |
+| 31 | Delete user B in Authentication → Users, then `select count(*) from public.profiles where id = '<B id>';` | 0 |
