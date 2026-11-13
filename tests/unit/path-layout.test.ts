@@ -4,7 +4,7 @@ import ELK from 'elkjs/lib/elk.bundled.js'
 import { describe, expect, it } from 'vitest'
 import type { SkillNode, SkillTree } from '#shared/types/skill-tree'
 import type { ElkNode } from 'elkjs/lib/elk-api'
-import { buildElkGraph, checkPathOrder, computePathLayout, LAYOUT_CONFIG, placePath, trailDots } from '~/utils/path-layout'
+import { bandAwareTrailDots, buildElkGraph, checkPathOrder, computePathLayout, LAYOUT_CONFIG, placePath, trailDots } from '~/utils/path-layout'
 import { loadSkillTree } from '#shared/utils/skill-tree-load'
 
 function node(id: string, prerequisites: string[] = [], flags: Partial<Pick<SkillNode, 'optional' | 'milestone'>> = {}): SkillNode {
@@ -243,5 +243,18 @@ describe('Sample_Tree layout (Req 5.1, 5.5)', () => {
     expect(side.kind).toBe('side')
     expect(side.cx).toBe(110)
     expect(side.cy).toBe((prev.cy + next.cy) / 2)
+  })
+})
+
+describe('bandAwareTrailDots', () => {
+  const a = { id: 'a', kind: 'main' as const, cx: 0, cy: 0, size: 72 }
+  const b = { id: 'b', kind: 'main' as const, cx: -60, cy: 272, size: 72 }
+
+  it('matches trailDots when no band is crossed', () => {
+    expect(bandAwareTrailDots(a, b, [])).toEqual(trailDots({ x: 0, y: 0 }, { x: -60, y: 272 }))
+  })
+
+  it('draws no dots when the segment crosses a header band', () => {
+    expect(bandAwareTrailDots(a, b, [{ top: 76, bottom: 180 }])).toEqual([])
   })
 })

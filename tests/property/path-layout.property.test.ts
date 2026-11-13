@@ -310,12 +310,21 @@ describe('Property 21: Trail segments match prerequisite links', () => {
             expect(b, `${viewport}: no placement for ${seg.toId}`).toBeDefined()
             if (!a || !b) continue
 
-            expect(seg.dots).toHaveLength(3)
-            ;[0.28, 0.5, 0.72].forEach((t, i) => {
-              const dot = seg.dots[i]
-              expect(dot.x).toBeCloseTo(a.cx + (b.cx - a.cx) * t)
-              expect(dot.y).toBeCloseTo(a.cy + (b.cy - a.cy) * t)
-            })
+            const upper = a.cy <= b.cy ? a : b
+            const lower = a.cy <= b.cy ? b : a
+            const crosses = layout.headers.some(h =>
+              h.top < lower.cy - lower.size / 2 && upper.cy + upper.size / 2 < h.top + h.height)
+            if (crosses) {
+              expect(seg.dots, `${viewport}: dots across a header band`).toHaveLength(0)
+            }
+            else {
+              expect(seg.dots).toHaveLength(3)
+              ;[0.28, 0.5, 0.72].forEach((t, i) => {
+                const dot = seg.dots[i]!
+                expect(dot.x).toBeCloseTo(a.cx + (b.cx - a.cx) * t)
+                expect(dot.y).toBeCloseTo(a.cy + (b.cy - a.cy) * t)
+              })
+            }
 
             const bothDone = states.get(seg.fromId) === 'completed' && states.get(seg.toId) === 'completed'
             expect(segmentTone(states, seg)).toBe(bothDone ? 'done' : 'trail')

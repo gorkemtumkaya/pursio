@@ -158,7 +158,7 @@ AI generation, any server route or Supabase access, accounts, multiple hobbies w
 
 #### Acceptance Criteria
 
-1. THE Path_View SHALL draw one Trail_Segment for each pair of a Node and a Node that lists it as a prerequisite, including the branch to each Side_Quest_Node. Each Trail_Segment SHALL be exactly 3 circular dots placed at 28%, 50% and 72% of the straight line from the prerequisite Node's center to the dependent Node's center, with a diameter of 8 px on Mobile_Viewport and 10 px on Desktop_Viewport.
+1. THE Path_View SHALL draw one Trail_Segment for each pair of a Node and a Node that lists it as a prerequisite, including the branch to each Side_Quest_Node. Each Trail_Segment SHALL be exactly 3 circular dots placed at 28%, 50% and 72% of the straight line from the prerequisite Node's center to the dependent Node's center, with a diameter of 8 px on Mobile_Viewport and 10 px on Desktop_Viewport. A Trail_Segment whose line crosses a Section_Header band SHALL have no dots, so the trail stops at the Section_Header.
 2. WHILE both Nodes of a Trail_Segment are in state `completed`, THE Path_View SHALL draw that Trail_Segment's dots in the `done` Theme_Token color.
 3. WHILE at least one Node of a Trail_Segment is not in state `completed`, THE Path_View SHALL draw that Trail_Segment's dots in the `trail` Theme_Token color.
 4. THE Path_View SHALL draw every Node in state `completed`, including completed Side_Quest_Nodes and Milestone_Nodes, with the `done` fill, a solid 6 px `done-deep` bottom shadow and a check icon, at the size Path_Layout assigns to the Node's type.

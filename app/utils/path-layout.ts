@@ -23,7 +23,8 @@ export interface NodePlacement { id: string; kind: NodeKind; cx: number; cy: num
 
 export interface HeaderPlacement { sectionIndex: number; top: number; height: number }
 
-export interface TrailSegment { fromId: string; toId: string; dots: [Point, Point, Point] }
+/** `dots` is empty when the segment crosses a Section_Header band. */
+export interface TrailSegment { fromId: string; toId: string; dots: Point[] }
 
 export interface PathLayout {
   viewport: ViewportClass
@@ -214,11 +215,27 @@ export function trailDots(a: Point, b: Point): [Point, Point, Point] {
   return [at(0.28), at(0.5), at(0.72)]
 }
 
+/**
+ * Trail dots for a segment, or none when the segment crosses a Section_Header
+ * band: the header separates the Sections, so dots there would sit on its text.
+ */
+export function bandAwareTrailDots(
+  a: NodePlacement,
+  b: NodePlacement,
+  bands: readonly Interval[],
+): Point[] {
+  const [upper, lower] = a.cy <= b.cy ? [a, b] : [b, a]
+  const lo = upper.cy + upper.size / 2
+  const hi = lower.cy - lower.size / 2
+  if (bands.some(band => band.top < hi && lo < band.bottom)) return []
+  return trailDots({ x: a.cx, y: a.cy }, { x: b.cx, y: b.cy })
+}
+
 // ---------------------------------------------------------------------------
 // Placement
 // ---------------------------------------------------------------------------
 
-interface Interval { top: number; bottom: number }
+export interface Interval { top: number; bottom: number }
 
 function layoutFailed(message: string): Result<PathLayout, LayoutError> {
   return { ok: false, errors: { kind: 'layout_failed', message } }
@@ -347,6 +364,7 @@ export function placePath(
 
   // Step 5: one Trail_Segment per (prerequisite, dependent) pair.
   const segments: TrailSegment[] = []
+  const bands: Interval[] = headers.map(h => ({ top: h.top, bottom: h.top + h.height }))
   for (const node of nodes) {
     const to = placements[node.id]
     if (!to) return layoutFailed(`no position for node "${node.id}"`)
@@ -358,7 +376,7 @@ export function placePath(
       segments.push({
         fromId: from.id,
         toId: to.id,
-        dots: trailDots({ x: from.cx, y: from.cy }, { x: to.cx, y: to.cy }),
+        dots: bandAwareTrailDots(from, to, bands),
       })
     }
   }
