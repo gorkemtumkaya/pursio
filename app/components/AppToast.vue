@@ -6,7 +6,7 @@ import { TOAST_DURATION_MS, useToast } from '~/composables/useToast'
  * App-wide toast from `useToast`. The live region is always rendered so screen
  * readers announce new messages. A toast hides after TOAST_DURATION_MS; the
  * timer pauses while it is hovered or holds focus, so there is time to reach
- * the action. On mobile it sits above the bottom navigation and the
+ * the action. A sticky toast has no timer and shows a "Dismiss" button. On mobile it sits above the bottom navigation and the
  * Bottom_Sheet; on desktop at the bottom of the sidebar column. Below dialogs.
  */
 const { toast, dismiss } = useToast()
@@ -27,7 +27,7 @@ function stopTimer(): void {
 function startTimer(): void {
   stopTimer()
   const id = toast.value?.id
-  if (id === undefined || hovered || focused) return
+  if (id === undefined || toast.value?.sticky || hovered || focused) return
   startedAt = Date.now()
   timer = setTimeout(() => dismiss(id), remaining)
 }
@@ -86,13 +86,13 @@ function runAction(): void {
       <div
         v-if="toast"
         :key="toast.id"
-        class="pointer-events-auto flex w-full max-w-md items-center justify-between gap-2 rounded-2xl bg-ink py-0.5 pr-1 pl-4 text-bg"
+        class="pointer-events-auto flex w-full max-w-md items-center gap-1 rounded-2xl bg-ink py-0.5 pr-1 pl-4 text-bg"
         @mouseenter="setHovered(true)"
         @mouseleave="setHovered(false)"
         @focusin="setFocused(true)"
         @focusout="setFocused(false)"
       >
-        <span class="min-w-0 py-3 text-sm font-extrabold">{{ toast.message }}</span>
+        <span class="min-w-0 flex-1 py-3 text-sm font-extrabold">{{ toast.message }}</span>
         <button
           v-if="toast.action"
           type="button"
@@ -102,6 +102,14 @@ function runAction(): void {
           <span class="rounded-lg bg-surface px-3 py-1.5 text-xs font-extrabold text-ink group-hover:bg-surface-2">
             {{ toast.action.label }}
           </span>
+        </button>
+        <button
+          v-if="toast.sticky"
+          type="button"
+          class="flex h-11 shrink-0 items-center rounded-xl px-2 text-xs font-extrabold underline underline-offset-2 focus-visible:outline-2 focus-visible:outline-offset-[-2px] focus-visible:outline-bg"
+          @click="dismiss(toast.id)"
+        >
+          Dismiss
         </button>
       </div>
     </Transition>

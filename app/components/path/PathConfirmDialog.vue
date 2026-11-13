@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, ref, useId, watch } from 'vue'
+import { computed, nextTick, ref, useId, watch } from 'vue'
 import { useFocusTrap } from '~/composables/useFocusTrap'
 
 /**
@@ -9,7 +9,9 @@ import { useFocusTrap } from '~/composables/useFocusTrap'
  * element that was focused when it opened, if that element still exists.
  * `tone="danger"` colors the confirm button with the danger tokens. The
  * optional `media` slot sits above the title; `secondaryLabel` adds a text
- * button under the actions (e.g. "Archive instead").
+ * button under the actions (e.g. "Archive instead"). While `busy`, every
+ * button is disabled, the confirm button shows a loading indicator and the
+ * dialog cannot be cancelled; `error` shows a message above the actions.
  */
 const props = withDefaults(
   defineProps<{
@@ -19,8 +21,10 @@ const props = withDefaults(
     confirmLabel: string
     tone?: 'default' | 'danger'
     secondaryLabel?: string
+    busy?: boolean
+    error?: string | null
   }>(),
-  { tone: 'default', secondaryLabel: undefined },
+  { tone: 'default', secondaryLabel: undefined, busy: false, error: null },
 )
 const emit = defineEmits<{ confirm: []; cancel: []; secondary: [] }>()
 
@@ -31,8 +35,19 @@ const titleId = useId()
 const messageId = useId()
 
 function cancel(): void {
+  if (props.busy) return
   emit('cancel')
 }
+
+// Disabling the buttons drops focus; put it back once they are enabled again.
+watch(
+  () => props.busy,
+  async (busy) => {
+    if (busy || !props.open) return
+    await nextTick()
+    cancelButton.value?.focus()
+  },
+)
 
 useFocusTrap(card, { active, initialFocus: cancelButton, onEscape: cancel })
 
@@ -71,19 +86,23 @@ const focusRing = 'focus-visible:outline-2 focus-visible:outline-offset-2 focus-
           <slot name="media" />
           <h2 :id="titleId" class="font-head text-2xl leading-tight font-semibold text-ink">{{ title }}</h2>
           <p :id="messageId" class="text-[15px] leading-normal text-muted">{{ message }}</p>
+          <p v-if="error" role="alert" class="text-[15px] leading-normal font-bold text-danger-text">{{ error }}</p>
           <div class="mt-3 grid w-full grid-cols-2 gap-3">
             <button
               ref="cancelButton"
               type="button"
-              :class="['h-12 rounded-2xl border-2 border-line bg-surface font-head text-base font-semibold text-ink', focusRing]"
+              :disabled="busy"
+              :class="['h-12 rounded-2xl border-2 border-line bg-surface font-head text-base font-semibold text-ink disabled:opacity-60', focusRing]"
               @click="cancel"
             >
               Cancel
             </button>
             <button
               type="button"
+              :disabled="busy"
+              :aria-busy="busy"
               :class="[
-                'h-12 rounded-2xl font-head text-base font-semibold',
+                'flex h-12 items-center justify-center gap-2 rounded-2xl font-head text-base font-semibold disabled:opacity-60',
                 focusRing,
                 tone === 'danger'
                   ? 'bg-danger text-danger-ink shadow-raised-danger'
@@ -91,12 +110,18 @@ const focusRing = 'focus-visible:outline-2 focus-visible:outline-offset-2 focus-
               ]"
               @click="emit('confirm')"
             >
+              <span
+                v-if="busy"
+                aria-hidden="true"
+                class="size-4 shrink-0 rounded-full border-2 border-current border-t-transparent motion-safe:animate-spin"
+              />
               {{ confirmLabel }}
             </button>
           </div>
           <button
             v-if="secondaryLabel"
             type="button"
+            :disabled="busy"
             :class="[
               'mt-1 flex h-11 items-center rounded-xl px-2 text-sm font-extrabold underline underline-offset-2',
               focusRing,

@@ -18,6 +18,10 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 - Your streak now counts the real days in a row on which you completed a skill, and stays alive until the end of the next day. (spec: local-progress-data)
 - The "This week" card shows which days this week you completed a skill. (spec: local-progress-data)
 - Every hobby you build is kept with its own progress: switch between them from the sidebar on desktop or the hobby button on mobile, and use "+ Add a hobby" to build another. (spec: local-progress-data)
+- Your paths and progress now live in your account, so they follow you to any device (spec: accounts-cloud-save).
+- You can start without signing up. Save your progress with Google or an email link whenever you want (spec: accounts-cloud-save).
+- A Profile page lets you set a display name, log in, log out and delete your account with all its data (spec: accounts-cloud-save).
+- Your theme is saved to your account and applied on every device (spec: accounts-cloud-save).
 
 ### Changed
 
@@ -25,3 +29,6 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 - A path you built before this update moves into your hobby list with its progress. Opening `/path` with no hobbies yet takes you to the start page. (spec: local-progress-data)
 - The Fresh, Quests and Profile menu items and the "Fresh this week" cards are hidden until those features exist. The demo at `/path?demo=1` still shows them as samples. (spec: local-progress-data)
 - The start page has a new look: Wick reacts while your path is built, and you can say how far along you are in the hobby so the path starts at the right level. (spec: new-hobby-page)
+- Paths and progress saved in this browser are imported into your account the first time you open Pursio (spec: accounts-cloud-save).
+- Building a new path now needs a session and is limited per user instead of per network address (spec: accounts-cloud-save).
+- Streak and week now count every completion saved in your account (spec: accounts-cloud-save).

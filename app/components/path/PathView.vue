@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, nextTick, onBeforeUnmount, ref, shallowRef, useTemplateRef } from 'vue'
+import { computed, nextTick, onBeforeUnmount, ref, shallowRef, useTemplateRef, watch } from 'vue'
 import type { QuestTriple, SkillNode, SkillTree } from '#shared/types/skill-tree'
 import { toWickOutfit } from '~/components/mascot/wick'
 import MascotWick from '~/components/mascot/wick.vue'
@@ -8,23 +8,33 @@ import { useActivity } from '~/composables/useActivity'
 import { usePathLayout } from '~/composables/usePathLayout'
 import { useSkillPath } from '~/composables/useSkillPath'
 import { useViewportClass } from '~/composables/useViewportClass'
+import { dismissSavePrompt, isSavePromptDismissed } from '~/utils/active-hobby'
+import { shouldShowSavePrompt } from '~/utils/auth-logic'
 import { freshFor } from '~/utils/fresh-samples'
 import type { HobbyEntry } from '~/utils/hobby-store'
 import { detailTitleId } from '~/utils/node-visual'
+import { browserStorage, createProgressStore, type ProgressStore } from '~/utils/progress-store'
 
 /**
  * Path_View orchestration (design "Page orchestration"). The page picks the
  * tree; this view reads it once at setup, so the page keys it by progress key
  * to remount on a tree change. Progress, viewport and layout only change
  * after mount, so SSR and the first client render show the loading state
- * (Req 5.11, 10.8).
+ * (Req 5.11, 10.8). Outside Demo_Mode, Progress is saved through the store the
+ * page passes in and the Streak comes from the account's timestamps
+ * (spec: accounts-cloud-save, Req 6).
  */
 
 const props = defineProps<{
   tree: SkillTree
+  /** localStorage key used when no `store` is given (Demo_Mode). */
   progressKey: string
-  /** Demo_Mode: demo streak, week, hobbies and Fresh samples, no Completion_Log writes. */
+  /** Demo_Mode: demo streak, week, hobbies and Fresh samples, no account. */
   demo: boolean
+  /** Where Progress is loaded from and saved to; null means localStorage under `progressKey`. */
+  store: ProgressStore | null
+  /** Completion_Timestamps of all the learner's paths, for the Streak and the Week card. */
+  completionTimes: readonly number[]
   /** Hobby list for the sidebar and Hobby_Switcher, with stored percents. */
   hobbies: readonly HobbyEntry[]
   /** Archived hobbies, listed under "Archived (N)" with Restore. */
@@ -43,8 +53,11 @@ const emit = defineEmits<{
 
 const tree: SkillTree = props.tree
 
-const { progress, states, currentId, activeSection, xp, toggleQuest, complete } = useSkillPath(tree, props.progressKey)
-const activity = useActivity(props.demo)
+const { progress, states, currentId, activeSection, xp, toggleQuest, complete } = useSkillPath(
+  tree,
+  props.store ?? createProgressStore(browserStorage, tree, props.progressKey),
+)
+const activity = useActivity(props.demo, () => props.completionTimes)
 const viewport = useViewportClass()
 const { status, layout } = usePathLayout(tree, viewport)
 
@@ -205,6 +218,47 @@ function clearAnimationTimer(): void {
 
 onBeforeUnmount(clearAnimationTimer)
 
+/** Demo_Mode has no account, so it never asks for the session (spec: accounts-cloud-save, Req 12). */
+const auth = props.demo ? null : useAuth()
+const authDialog = useAuthDialog()
+
+/** Pause between the completion (or the closed Unlock_Moment card) and the Save_Prompt (Req 10.1). */
+const SAVE_PROMPT_DELAY_MS = 250
+/** A completion asked for the Save_Prompt and the Unlock_Moment card is still open. */
+let savePromptDue = false
+let savePromptTimer: ReturnType<typeof setTimeout> | null = null
+
+function clearSavePromptTimer(): void {
+  if (savePromptTimer !== null) {
+    clearTimeout(savePromptTimer)
+    savePromptTimer = null
+  }
+}
+
+onBeforeUnmount(clearSavePromptTimer)
+
+/** Opens the Save_Prompt shortly after, unless the learner signed in or dismissed it meanwhile. */
+function scheduleSavePrompt(): void {
+  savePromptDue = false
+  clearSavePromptTimer()
+  savePromptTimer = setTimeout(() => {
+    savePromptTimer = null
+    if (shouldShowSavePrompt(auth?.isAnonymous.value ?? false, props.demo, isSavePromptDismissed(), true)) {
+      authDialog.show('save', 'prompt')
+    }
+  }, SAVE_PROMPT_DELAY_MS)
+}
+
+// A prompt that opened from here and was closed without signing in counts as dismissed,
+// also when storage cannot be written (Req 10.3, 10.8).
+watch(
+  () => authDialog.state.value.open,
+  (isOpen, wasOpen) => {
+    const { variant } = authDialog.state.value
+    if (wasOpen && !isOpen && variant === 'prompt' && auth?.isAnonymous.value) dismissSavePrompt()
+  },
+)
+
 function prefersReducedMotion(): boolean {
   return typeof window !== 'undefined'
     && typeof window.matchMedia === 'function'
@@ -220,7 +274,7 @@ function prefersReducedMotion(): boolean {
 function onComplete(id: string): void {
   const outcome = complete(id)
   if (outcome === null) return
-  activity.record()
+  savePromptDue = shouldShowSavePrompt(auth?.isAnonymous.value ?? false, props.demo, isSavePromptDismissed(), true)
 
   clearAnimationTimer()
   if (prefersReducedMotion() || outcome.unlocked.length === 0) {
@@ -244,7 +298,8 @@ function onComplete(id: string): void {
     return
   }
 
-  // Side quest: no card (Req 9.9).
+  // Side quest: no card (Req 9.9), so the Save_Prompt follows the completion itself.
+  if (savePromptDue) scheduleSavePrompt()
   selectedId.value = id
   if (viewport.value === 'mobile') {
     openerId.value = id
@@ -259,6 +314,7 @@ function onContinue(): void {
   if (viewport.value === 'mobile' && sheetOpen.value) closeSheet()
   const next = currentId.value
   selectedId.value = next ?? card?.completedId ?? selectedId.value
+  if (savePromptDue) scheduleSavePrompt()
 }
 </script>
 

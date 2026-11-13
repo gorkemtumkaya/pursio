@@ -1,24 +1,35 @@
 <script setup lang="ts">
-import { onMounted } from 'vue'
-import { lastActivePath, loadHobbyLibrary, NEW_HOBBY_PATH } from '~/utils/hobby-store'
-import { browserStorage } from '~/utils/progress-store'
+import { watch } from 'vue'
+import { getActiveHobbyId } from '~/utils/active-hobby'
+import { toHobbyLibrary } from '~/utils/cloud-library'
+import { lastActivePath, NEW_HOBBY_PATH } from '~/utils/hobby-store'
 
 /**
- * App start. Opens the last active path, or the new hobby page when the
- * Hobby_Library is empty. The library lives in localStorage, so the choice is
- * made after mount; SSR and the first client render show the loading state, so
+ * App start. Once the account's paths are loaded it opens the Active_Hobby's
+ * path, or the new hobby page when the account has none (spec:
+ * accounts-cloud-save, Req 4.7). Until then it shows the loading state, so
  * neither page flashes before the redirect.
  */
 useHead({ title: 'Pursio' })
 
-onMounted(async () => {
-  const to = lastActivePath(loadHobbyLibrary(browserStorage)) ?? NEW_HOBBY_PATH
-  await navigateTo(to, { replace: true })
-})
+const cloud = useCloudStore()
+
+watch(
+  cloud.status,
+  async (status) => {
+    if (status !== 'ready' || !import.meta.client) return
+    const to = lastActivePath(toHobbyLibrary(cloud.paths.value, getActiveHobbyId())) ?? NEW_HOBBY_PATH
+    await navigateTo(to, { replace: true })
+  },
+  { immediate: true },
+)
 </script>
 
 <template>
-  <main class="mx-auto w-full max-w-160">
-    <PathStatus state="loading" />
-  </main>
+  <AuthSessionGate>
+    <main class="mx-auto w-full max-w-160">
+      <AuthRetryNotice v-if="cloud.status.value === 'error'" :message="CLOUD_MESSAGES.loadFailed" @retry="cloud.reload" />
+      <PathStatus v-else state="loading" />
+    </main>
+  </AuthSessionGate>
 </template>

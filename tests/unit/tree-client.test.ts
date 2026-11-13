@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import { emptySettings, type LlmSettings } from '../../app/utils/llm-settings'
-import { buildTreeRequest } from '../../app/utils/tree-client'
+import { buildTreeRequest, friendlyMessage } from '../../app/utils/tree-client'
 
 const withKey: LlmSettings = { ...emptySettings(), apiKey: 'test-key-placeholder' }
 
@@ -19,5 +19,16 @@ describe('buildTreeRequest level', () => {
     expect(request.body.provider).toBe(withKey.provider)
     expect(request.body.model).toBeTruthy()
     expect(request.usesOwnKey).toBe(true)
+  })
+})
+
+// spec: accounts-cloud-save, Req 9.11
+describe('friendlyMessage for the account codes', () => {
+  it.each([{ usesOwnKey: false }, { usesOwnKey: true }])('gives the session sentence for unauthorized (%o)', (context) => {
+    expect(friendlyMessage('unauthorized', context)).toBe('Your session ended. Reload the page and try again.')
+  })
+
+  it.each([{ usesOwnKey: false }, { usesOwnKey: true }])('gives the save sentence for save_failed (%o)', (context) => {
+    expect(friendlyMessage('save_failed', context)).toBe("We built your tree but couldn't save it. Try again.")
   })
 })

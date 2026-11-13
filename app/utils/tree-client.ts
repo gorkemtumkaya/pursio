@@ -1,5 +1,6 @@
 import type { ErrorCode, Provider, StartLevel } from '#shared/types/llm'
 import { KEY_HEADER, isErrorCode } from '#shared/utils/llm'
+import { AUTH_MESSAGES } from './auth-logic'
 import { effectiveModel, type LlmSettings } from './llm-settings'
 
 export interface TreeRequest {
@@ -37,6 +38,8 @@ const MESSAGES: Record<ErrorCode, string> = {
   provider_error: 'The AI service had a problem. Please try again.',
   no_key: "Tree building isn't set up yet. Add your own API key in Settings.",
   invalid_input: 'Type a hobby of up to 60 characters.',
+  unauthorized: AUTH_MESSAGES.sessionEnded,
+  save_failed: AUTH_MESSAGES.saveFailed,
 }
 
 /** One plain sentence per Error_Code, no technical detail (Req 5.3, 7.4, 8.6). */

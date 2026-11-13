@@ -286,17 +286,30 @@ describe('package.json dependencies (Req 14.1, 14.2)', () => {
   const EXACT = /^\d+\.\d+\.\d+(?:-[0-9A-Za-z.-]+)?$/
 
   it('lists the new packages in the right sections with exact versions', () => {
-    for (const name of ['zod', 'elkjs']) expect(deps[name], name).toMatch(EXACT)
+    for (const name of ['zod', 'elkjs', '@supabase/supabase-js']) expect(deps[name], name).toMatch(EXACT)
     for (const name of ['fast-check', 'vitest']) expect(devDeps[name], name).toMatch(EXACT)
   })
 
   it('adds no dependency beyond the known set', () => {
-    expect(Object.keys(deps).sort()).toEqual(['elkjs', 'nuxt', 'vue', 'vue-router', 'zod'])
+    expect(Object.keys(deps).sort()).toEqual(['@supabase/supabase-js', 'elkjs', 'nuxt', 'vue', 'vue-router', 'zod'])
     expect(Object.keys(devDeps).sort()).toEqual(['@tailwindcss/vite', 'fast-check', 'tailwindcss', 'typescript', 'vitest', 'vue-tsc'])
   })
 
   it('pins every dependency exactly', () => {
     const loose = Object.entries({ ...deps, ...devDeps }).filter(([, version]) => !EXACT.test(version))
     expect(loose).toEqual([])
+  })
+})
+
+describe('service role key location (spec: accounts-cloud-save, Req 1.5, 9.13)', () => {
+  it('is named only in nuxt.config.ts and server/utils/account-runtime.ts', () => {
+    const KEY_NAME = ['supabase', 'ServiceRoleKey'].join('')
+    const scanned = ['app', 'server', 'shared'].flatMap((dir) => listFiles(join(ROOT, dir)))
+    const hits = scanned
+      .filter((path) => /\.(vue|ts|js|mjs|json|md)$/.test(path))
+      .filter((path) => readFileSync(path, 'utf8').includes(KEY_NAME))
+      .map((path) => relative(ROOT, path))
+    expect(hits).toEqual(['server/utils/account-runtime.ts'])
+    expect(readFileSync(join(ROOT, 'nuxt.config.ts'), 'utf8')).toContain(`${KEY_NAME}: ''`)
   })
 })

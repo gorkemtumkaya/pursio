@@ -15,6 +15,8 @@ export const ERROR_CODES = [
   'provider_auth',
   'provider_error',
   'no_key',
+  'unauthorized',
+  'save_failed',
 ] as const satisfies readonly ErrorCode[]
 /** Request header carrying a User_Config API key. */
 export const KEY_HEADER = 'x-llm-api-key'

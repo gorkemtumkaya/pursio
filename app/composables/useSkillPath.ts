@@ -11,7 +11,7 @@ import {
   toggleQuest as toggleQuestPure,
 } from '#shared/utils/progress-engine'
 import { xpSummary, type XpSummary } from '#shared/utils/xp'
-import { createProgressStore, type StorageLike } from '~/utils/progress-store'
+import type { ProgressStore } from '~/utils/progress-store'
 
 /** A successful completion plus the ids it unlocked (Req 9.5). */
 export interface CompletionOutcome {
@@ -29,24 +29,15 @@ export interface SkillPath {
   complete(id: string): CompletionOutcome | null
 }
 
-/** Reading `window.localStorage` can throw (privacy modes, sandboxed frames). */
-function browserStorage(): StorageLike | null {
-  try {
-    return window.localStorage
-  } catch {
-    return null
-  }
-}
-
 /**
  * Reactive Progress for one tree. Starts empty on server and client so hydration
  * matches, then loads saved Progress after mount (Req 10.2, 10.3). Every action
- * saves in the same tick (Req 10.1, 10.8); storage failures stay silent (Req 10.6).
- * `storageKey` overrides the default hobby key, e.g. for a Generated_Tree.
+ * saves in the same tick (Req 10.1, 10.8). The caller chooses where Progress
+ * lives: the Cloud_Store's store for an account path, or a localStorage store in
+ * Demo_Mode (spec: accounts-cloud-save, Req 6.1, 12.2).
  */
-export function useSkillPath(tree: SkillTree, storageKey?: string): SkillPath {
+export function useSkillPath(tree: SkillTree, store: ProgressStore): SkillPath {
   const progress = shallowRef<Progress>(emptyProgress())
-  const store = createProgressStore(browserStorage, tree, storageKey)
 
   onMounted(() => {
     progress.value = store.load()

@@ -15,6 +15,13 @@ import { errorCodeFrom, friendlyMessage } from '~/utils/tree-client'
 useHead({ title: 'Settings · Pursio' })
 
 const { theme, themes, setTheme } = useTheme()
+const cloud = useCloudStore()
+
+/** Applies the theme at once, keeps it in this browser and saves it to the account (spec: accounts-cloud-save, Req 7.2, 7.3). */
+function chooseTheme(next: Theme): void {
+  setTheme(next)
+  void cloud.saveTheme(next)
+}
 
 const THEME_LABELS: Record<Theme, string> = { boulder: 'Boulder', trail: 'Trail', halloween: 'Halloween' }
 
@@ -129,7 +136,7 @@ async function testConnection(): Promise<void> {
               :value="name"
               :checked="theme === name"
               class="sr-only"
-              @change="setTheme(name)"
+              @change="chooseTheme(name)"
             >
             <span aria-hidden="true" class="flex items-center gap-1.5">
               <span class="size-5 rounded-node bg-primary" />

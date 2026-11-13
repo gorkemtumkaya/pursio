@@ -10,6 +10,8 @@ export interface Toast {
   id: number
   message: string
   action: ToastAction | null
+  /** A sticky toast has no timer; it stays until its action runs or it is dismissed. */
+  sticky: boolean
 }
 
 /** How long a toast stays before it hides itself (paused while hovered or focused). */
@@ -25,9 +27,11 @@ let nextId = 0
 export function useToast() {
   const toast = useState<Toast | null>('pursio-toast', () => null)
 
-  function show(message: string, action: ToastAction | null = null): void {
+  /** Shows a toast in place of the current one and returns its id. */
+  function show(message: string, action: ToastAction | null = null, options: { sticky?: boolean } = {}): number {
     nextId += 1
-    toast.value = { id: nextId, message, action }
+    toast.value = { id: nextId, message, action, sticky: options.sticky === true }
+    return nextId
   }
 
   /** Hides the toast; with an id, only if that toast is still the one shown. */

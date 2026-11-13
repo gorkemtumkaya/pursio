@@ -1,4 +1,7 @@
+import type { PathSaveInput } from '../../shared/types/cloud'
 import type { ErrorCode, Provider, ProviderConfig, StartLevel, TestResponse, TreeResponse } from '../../shared/types/llm'
+import type { SkillTree } from '../../shared/types/skill-tree'
+import { parseBearer } from '../../shared/utils/auth'
 import { DEFAULT_LEVEL, HOBBY_MAX_LENGTH, MODEL_MAX_LENGTH, isProvider, isStartLevel } from '../../shared/utils/llm'
 import { generateSkillTree, type GenerationResult } from './generator'
 import type { ProviderAdapter } from './providers/types'
@@ -25,6 +28,8 @@ export const ERROR_STATUS: Record<ErrorCode, number> = {
   provider_auth: 502,
   provider_error: 502,
   no_key: 503,
+  unauthorized: 401,
+  save_failed: 502,
 }
 
 export type ResolvedConfig =
@@ -73,7 +78,7 @@ export function resolveProviderConfig(input: {
  * Runs `task` with an abort signal that fires after `ms`. The task is raced against the abort,
  * so a call that ignores the signal still ends on time. The timer is always cleared.
  */
-async function withTimeout<T>(ms: number, onTimeout: T, task: (signal: AbortSignal) => Promise<T>): Promise<T> {
+export async function withTimeout<T>(ms: number, onTimeout: T, task: (signal: AbortSignal) => Promise<T>): Promise<T> {
   const controller = new AbortController()
   let timer: ReturnType<typeof setTimeout> | undefined
   const timedOut = new Promise<T>((resolve) => {
@@ -95,9 +100,17 @@ export interface TreeDeps {
   defaults: DefaultConfigInput
   cache: TreeCache
   limiter: RateLimiter
-  /** 40_000 at runtime (Req 8.1). */
+  /** Generation limit (Req 8.1). */
   timeoutMs: number
-  /** Receives only the code, provider and model, never the key or bodies (Req 2.6). */
+  /** The user id of a valid Access_Token, else null (spec: accounts-cloud-save, Req 9.1). */
+  verifyToken: (token: string, signal: AbortSignal) => Promise<string | null>
+  /** Saves the path with the user's own token and returns the Path_Row id; throws on failure. */
+  savePath: (token: string, input: PathSaveInput, signal: AbortSignal) => Promise<string>
+  /** 5_000 at runtime (spec: accounts-cloud-save, Req 9.2). */
+  verifyTimeoutMs: number
+  /** 10_000 at runtime (spec: accounts-cloud-save, Req 9.10). */
+  saveTimeoutMs: number
+  /** Receives only the code, provider and model, never keys, tokens or bodies (Req 2.6). */
   log?: (entry: { code: ErrorCode; provider: Provider; model: string }) => void
 }
 
@@ -106,9 +119,21 @@ function treeError(code: ErrorCode): HandlerResponse<TreeResponse> {
 }
 
 export async function handleTreeRequest(
-  input: { body: unknown; headerKey: string | undefined; ip: string },
+  input: { body: unknown; headerKey: string | undefined; authorization: string | undefined },
   deps: TreeDeps,
 ): Promise<HandlerResponse<TreeResponse>> {
+  // 0. Access_Token before anything else (spec: accounts-cloud-save, Req 9.1, 9.2).
+  // The user id comes from the verified token only, never from the request.
+  const token = parseBearer(input.authorization)
+  if (token === null) return treeError('unauthorized')
+  let userId: string | null
+  try {
+    userId = await withTimeout<string | null>(deps.verifyTimeoutMs, null, (signal) => deps.verifyToken(token, signal))
+  } catch {
+    userId = null
+  }
+  if (typeof userId !== 'string' || userId === '') return treeError('unauthorized')
+
   // 1. Hobby check (Req 1.1, 1.2).
   const body = isRecord(input.body) ? input.body : {}
   if (typeof body.hobby !== 'string') return treeError('invalid_input')
@@ -132,34 +157,51 @@ export async function handleTreeRequest(
   // 3. Cache lookup; a hit is not counted (Req 6.2, 7.3).
   const key = cacheKey(hobby, level, config.provider, config.model)
   const cached = deps.cache.get(key)
-  if (cached) return { status: 200, body: { tree: cached.tree, model: cached.model } }
+  let tree: SkillTree
+  let model: string
+  if (cached) {
+    tree = cached.tree
+    model = cached.model
+  } else {
+    // 4. Billable_Generation: Default_Config only, counted per user (Req 7.2, 7.3).
+    if (source === 'default' && !deps.limiter.tryConsume(userId)) return fail('rate_limited')
 
-  // 4. Billable_Generation: Default_Config only (Req 7.2, 7.3).
-  if (source === 'default' && !deps.limiter.tryConsume(input.ip)) return fail('rate_limited')
+    // 5. Generator under the abort (Req 8.1).
+    let systemPrompt: string
+    try {
+      systemPrompt = await deps.systemPrompt()
+    } catch {
+      return fail('provider_error')
+    }
+    const timeout: GenerationResult = { kind: 'error', code: 'timeout' }
+    let result: GenerationResult
+    try {
+      result = await withTimeout(deps.timeoutMs, timeout, (signal) =>
+        generateSkillTree(hobby, level, config, { adapters: deps.adapters, systemPrompt, signal }),
+      )
+    } catch {
+      result = { kind: 'error', code: 'provider_error' }
+    }
+    if (result.kind !== 'tree') return fail(result.kind === 'not_a_hobby' ? 'not_a_hobby' : result.code)
 
-  // 5. Generator under the 40 s abort (Req 8.1).
-  let systemPrompt: string
-  try {
-    systemPrompt = await deps.systemPrompt()
-  } catch {
-    return fail('provider_error')
+    // 6. Cached before saving, so a retry after a failed save is free (Req 9.10).
+    deps.cache.set(key, { tree: result.tree, model: result.model })
+    tree = result.tree
+    model = result.model
   }
-  const timeout: GenerationResult = { kind: 'error', code: 'timeout' }
-  let result: GenerationResult
+
+  // 7. Save as the user's Path_Row with the user's own token (Req 9.7 to 9.10).
+  const saveInput: PathSaveInput = { hobby, level, tree, model }
+  let pathId: string | null
   try {
-    result = await withTimeout(deps.timeoutMs, timeout, (signal) =>
-      generateSkillTree(hobby, level, config, { adapters: deps.adapters, systemPrompt, signal }),
+    pathId = await withTimeout<string | null>(deps.saveTimeoutMs, null, (signal) =>
+      deps.savePath(token, saveInput, signal),
     )
   } catch {
-    result = { kind: 'error', code: 'provider_error' }
+    pathId = null
   }
-
-  // 6. Cache trees only, then map to a status (Req 4.5, 5.2, 5.4, 6.1, 8.3).
-  if (result.kind === 'tree') {
-    deps.cache.set(key, { tree: result.tree, model: result.model })
-    return { status: 200, body: { tree: result.tree, model: result.model } }
-  }
-  return fail(result.kind === 'not_a_hobby' ? 'not_a_hobby' : result.code)
+  if (typeof pathId !== 'string' || pathId === '') return fail('save_failed')
+  return { status: 200, body: { tree, model, pathId } }
 }
 
 export interface TestDeps {

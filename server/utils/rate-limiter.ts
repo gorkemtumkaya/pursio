@@ -1,6 +1,6 @@
 export interface RateLimiter {
-  /** Returns true and records the request when the IP is under its limit. */
-  tryConsume(ip: string): boolean
+  /** Returns true and records the request when the key is under its limit. */
+  tryConsume(key: string): boolean
 }
 
 export interface RateLimiterOptions {
@@ -11,25 +11,25 @@ export interface RateLimiterOptions {
 }
 
 /**
- * Sliding-window limiter keyed by client IP (Req 7.1, 7.6). Only allowed
- * requests are recorded. IPs whose window empties are dropped from the map.
+ * Sliding-window limiter keyed by a caller-chosen string, the verified user id
+ * (spec: accounts-cloud-save, Req 9.4). Only allowed requests are recorded. Keys whose window empties are dropped from the map.
  */
 export function createRateLimiter({ limit, windowMs, now }: RateLimiterOptions): RateLimiter {
   const allowed = new Map<string, number[]>()
 
   return {
-    tryConsume(ip) {
+    tryConsume(key) {
       const t = now()
-      const recent = (allowed.get(ip) ?? []).filter((stamp) => stamp > t - windowMs)
+      const recent = (allowed.get(key) ?? []).filter((stamp) => stamp > t - windowMs)
 
       if (recent.length < limit) {
         recent.push(t)
-        allowed.set(ip, recent)
+        allowed.set(key, recent)
         return true
       }
 
-      if (recent.length === 0) allowed.delete(ip)
-      else allowed.set(ip, recent)
+      if (recent.length === 0) allowed.delete(key)
+      else allowed.set(key, recent)
       return false
     },
   }

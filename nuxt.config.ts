@@ -47,6 +47,8 @@ export default defineNuxtConfig({
     llmProvider: '',
     llmModel: '',
     llmApiKey: '',
+    // Read only by server/utils/account-runtime.ts (DELETE /api/account).
+    supabaseServiceRoleKey: '',
     public: {
       supabaseUrl: '',
       supabaseAnonKey: '',

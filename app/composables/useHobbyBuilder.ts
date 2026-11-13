@@ -3,7 +3,8 @@ import type { ErrorCode, StartLevel } from '#shared/types/llm'
 import { loadSkillTree } from '#shared/utils/skill-tree-load'
 import { DEFAULT_LEVEL } from '#shared/utils/llm'
 import { toWickOutfit, type WickOutfit } from '~/components/mascot/wick'
-import { addHobby, hobbyPath } from '~/utils/hobby-store'
+import { bearerHeader } from '#shared/utils/auth'
+import { hobbyPath } from '~/utils/hobby-store'
 import { loadSettings } from '~/utils/llm-settings'
 import type { StorageLike } from '~/utils/progress-store'
 import { buildTreeRequest, errorCodeFrom, friendlyMessage } from '~/utils/tree-client'
@@ -56,8 +57,12 @@ export function useHobbyBuilder() {
   const errorMessage = ref<string | null>(null)
   const summary = ref<TreeSummary | null>(null)
   const outfit = ref<WickOutfit>('none')
+  const auth = useAuth()
+  const cloud = useCloudStore()
 
   let hobbyId: string | null = null
+  /** True while the token is read, so a second submit does not start a second request. */
+  let preparing = false
   let timer: ReturnType<typeof setInterval> | null = null
   let controller: AbortController | null = null
 
@@ -78,8 +83,20 @@ export function useHobbyBuilder() {
 
   async function build(): Promise<void> {
     const value = hobby.value.trim()
-    if (value.length === 0 || state.value === 'generating') return
+    if (value.length === 0 || state.value === 'generating' || preparing) return
     const request = buildTreeRequest(value, level.value, loadSettings(browserStorage))
+    const requestLevel = level.value
+    // The token as held right now; without one nothing is sent (spec: accounts-cloud-save, Req 9.12, 9.14).
+    preparing = true
+    const token = await auth.accessToken().finally(() => {
+      preparing = false
+    })
+    if (token === null) {
+      errorCode.value = 'unauthorized'
+      errorMessage.value = friendlyMessage('unauthorized', { usesOwnKey: request.usesOwnKey })
+      state.value = 'error'
+      return
+    }
     state.value = 'generating'
     stepIndex.value = 0
     outfit.value = 'none'
@@ -97,16 +114,17 @@ export function useHobbyBuilder() {
       const response = await $fetch<unknown>('/api/tree', {
         method: 'POST',
         body: request.body,
-        headers: request.headers,
+        headers: { ...request.headers, ...bearerHeader(token) },
         signal: current.signal,
         retry: 0,
       })
       const record = typeof response === 'object' && response !== null ? (response as Record<string, unknown>) : {}
       const loaded = loadSkillTree(record.tree)
       const model = record.model
-      if (loaded.ok && typeof model === 'string' && model.length > 0) {
-        // Kept in the Hobby_Library next to earlier hobbies (spec: local-progress-data, Req 3.1).
-        hobbyId = addHobby(browserStorage, { tree: loaded.value, model })
+      const pathId = record.pathId
+      if (loaded.ok && typeof model === 'string' && model.length > 0 && typeof pathId === 'string' && pathId !== '') {
+        // The route already saved it to the account; nothing is written to localStorage (spec: accounts-cloud-save, Req 5.8).
+        hobbyId = cloud.addGenerated({ pathId, tree: loaded.value, model, level: requestLevel })
         summary.value = summarizeTree(loaded.value)
         outfit.value = toWickOutfit(loaded.value.mascot.set)
         stopTimer()

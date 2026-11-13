@@ -4,11 +4,15 @@ import { createAnthropicAdapter } from './providers/anthropic'
 import { createOpenAIAdapter } from './providers/openai'
 import type { Fetcher, ProviderAdapter } from './providers/types'
 import { createRateLimiter } from './rate-limiter'
+import { savePathForUser, verifyAccessToken } from './supabase-server'
 import { createTreeCache } from './tree-cache'
 
 /** Request timeouts in milliseconds (Req 8.1, 12.3). */
 const TREE_TIMEOUT_MS = 90_000
 const TEST_TIMEOUT_MS = 15_000
+/** Token check and path save limits (spec: accounts-cloud-save, Req 9.2, 9.10). */
+const VERIFY_TIMEOUT_MS = 5_000
+const SAVE_TIMEOUT_MS = 10_000
 
 /** Narrows ofetch's generic $fetch to the subset the adapters use. */
 const llmFetcher: Fetcher = (url, options) => $fetch<unknown>(url, options)
@@ -69,6 +73,10 @@ export function llmTreeDeps(): TreeDeps {
     cache: llmTreeCache,
     limiter: llmRateLimiter,
     timeoutMs: TREE_TIMEOUT_MS,
+    verifyToken: verifyAccessToken,
+    savePath: savePathForUser,
+    verifyTimeoutMs: VERIFY_TIMEOUT_MS,
+    saveTimeoutMs: SAVE_TIMEOUT_MS,
     log: logLlmError,
   }
 }

@@ -1,15 +1,17 @@
 <script setup lang="ts">
-import { computed, nextTick, onMounted, ref, shallowRef, watch } from 'vue'
+import { computed, nextTick, ref, watch } from 'vue'
 import MascotWick from '~/components/mascot/wick.vue'
 import type { WickMood } from '~/components/mascot/wick'
-import { hobbyEntries, hobbyPath, lastActivePath, loadHobbyLibrary, type HobbyEntry } from '~/utils/hobby-store'
-import { browserStorage } from '~/utils/progress-store'
+import { getActiveHobbyId } from '~/utils/active-hobby'
+import { cloudEntries, toHobbyLibrary } from '~/utils/cloud-library'
+import { hobbyPath, lastActivePath } from '~/utils/hobby-store'
 
 /**
  * New hobby page (spec: new-hobby-page). Four states: input, generating,
  * ready and error. Wick reacts to the state. When the learner already has
  * paths, the top bar links back to the last active one and a "Continue a
- * hobby" row lists them under the card.
+ * hobby" row lists them under the card. The paths come from the account
+ * (spec: accounts-cloud-save); an anonymous learner also gets a "Log in" link.
  */
 useHead({ title: 'Pursio' })
 
@@ -35,22 +37,18 @@ const {
 
 const retryInput = ref<HTMLInputElement | null>(null)
 
-/** Saved hobbies, read after mount (localStorage) so SSR and hydration agree. */
-const savedHobbies = shallowRef<HobbyEntry[]>([])
-const backTo = shallowRef<string | null>(null)
+const auth = useAuth()
+const cloud = useCloudStore()
+const authDialog = useAuthDialog()
+
+/** Saved hobbies from the account; empty until its rows are loaded. */
+const savedHobbies = computed(() => (cloud.status.value === 'ready' ? cloudEntries(cloud.paths.value) : []))
+const backTo = computed(() =>
+  cloud.status.value === 'ready' ? lastActivePath(toHobbyLibrary(cloud.paths.value, getActiveHobbyId())) : null,
+)
 const showContinue = computed(
   () => savedHobbies.value.length > 0 && (state.value === 'input' || state.value === 'error'),
 )
-
-function loadSaved(): void {
-  const library = loadHobbyLibrary(browserStorage)
-  savedHobbies.value = hobbyEntries(browserStorage, library)
-  backTo.value = lastActivePath(library)
-}
-
-onMounted(loadSaved)
-// An Undo from the toast can bring a hobby back while this page is open.
-watch(useLibraryRevision().revision, loadSaved)
 
 const labelClass = 'text-[13px] font-extrabold uppercase tracking-[0.06em] text-muted'
 const inputClass = computed(() => [
@@ -133,6 +131,14 @@ watch(state, async (next) => {
           <span class="max-[700px]:hidden">Back to my path</span>
           <span class="min-[701px]:hidden">My path</span>
         </NuxtLink>
+        <button
+          v-if="auth.isAnonymous.value"
+          type="button"
+          class="flex h-11 items-center rounded-[14px] px-3 text-[15px] font-extrabold text-accent-text hover:bg-surface-2 focus-visible:outline-3 focus-visible:outline-offset-2 focus-visible:outline-primary"
+          @click="authDialog.show('login')"
+        >
+          Log in
+        </button>
         <NuxtLink
           to="/settings"
           aria-label="Settings"
@@ -144,6 +150,7 @@ watch(state, async (next) => {
       </div>
     </header>
 
+    <AuthSessionGate>
     <main class="mx-auto flex w-full max-w-[1048px] flex-col gap-8 px-4 pb-12">
       <div class="flex flex-wrap items-center gap-6 max-[700px]:gap-2">
         <div class="flex flex-[1_1_340px] flex-col items-center gap-1.5">
@@ -234,5 +241,6 @@ watch(state, async (next) => {
 
       <HobbyBenefits />
     </main>
+    </AuthSessionGate>
   </div>
 </template>

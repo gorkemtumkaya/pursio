@@ -1,50 +1,30 @@
 <script setup lang="ts">
-import { onMounted, shallowRef, watch } from 'vue'
-import type { SkillTree } from '#shared/types/skill-tree'
+import { computed, shallowRef, toRaw, watch } from 'vue'
 import { formatValidationError, loadSkillTree } from '#shared/utils/skill-tree-load'
 import sample from '~~/data/sample-bouldering.json'
 import PathView from '~/components/path/PathView.vue'
+import { getActiveHobbyId, setActiveHobbyId } from '~/utils/active-hobby'
+import { cloudEntries, completionTimes, toHobbyLibrary, type CloudPath } from '~/utils/cloud-library'
 import { DEMO_ACTIVE_ID, demoHobbyEntries } from '~/utils/demo-placeholders'
-import {
-  archiveHobby,
-  hobbyEntries,
-  hobbyPath,
-  hobbyProgressKey,
-  loadHobbyLibrary,
-  NEW_HOBBY_PATH,
-  nextHobbyId,
-  pickHobby,
-  removeHobby,
-  restoreHobby,
-  setActiveHobby,
-  undoRemoveHobby,
-  type HobbyEntry,
-  type HobbyLibrary,
-  type RemovedHobby,
-} from '~/utils/hobby-store'
-import { browserStorage, progressStorageKey } from '~/utils/progress-store'
+import { hobbyPath, NEW_HOBBY_PATH, nextHobbyId, pickHobby, type HobbyLibrary } from '~/utils/hobby-store'
+import { progressStorageKey } from '~/utils/progress-store'
 
 /**
- * Chooses which tree `PathView` shows. `?demo=1` renders the Sample_Tree during
- * SSR. Otherwise the Hobby_Library lives in localStorage, so SSR and the first
- * client render show the loading state and the choice happens after mount:
- * `?hobby=<id>`, else the Active_Hobby, else the last added hobby (archived
- * hobbies are skipped); an empty library opens the new hobby page (spec: local-progress-data, Req 3.6, 3.7).
+ * Chooses which tree `PathView` shows.
+ *
+ * `?demo=1` renders the Sample_Tree during SSR, with Progress in localStorage
+ * and no account or cloud request (spec: accounts-cloud-save, Req 12).
+ *
+ * Otherwise the learner's paths come from the Cloud_Store. The page waits for
+ * a session and for the rows, then picks `?hobby=<id>`, else the Active_Hobby,
+ * else the last added hobby (archived hobbies are skipped); an account without
+ * paths opens the new hobby page (Req 5.2, 5.11).
  */
 
 // Remount when only the query changes, so switching hobby or to and from ?demo=1 re-chooses.
 definePageMeta({ key: route => route.fullPath })
 
 useHead({ title: 'Your path · Pursio' })
-
-interface TreeChoice {
-  tree: SkillTree
-  progressKey: string
-  demo: boolean
-  hobbies: HobbyEntry[]
-  archived: HobbyEntry[]
-  activeId: string
-}
 
 const route = useRoute()
 const isDemo = route.query.demo === '1'
@@ -54,59 +34,46 @@ const sampleLoaded = isDemo ? loadSkillTree(sample) : null
 /** First Validation_Error of the Sample_Tree as text, or null. */
 const loadError = sampleLoaded && !sampleLoaded.ok ? formatValidationError(sampleLoaded.errors[0]!) : null
 
-/** The Sample_Tree keeps its hobby Progress key, separate from every library entry. */
-const demoChoice: TreeChoice | null = sampleLoaded?.ok
+/** The Sample_Tree keeps its hobby Progress key in localStorage. */
+const demoChoice = sampleLoaded?.ok
   ? {
       tree: sampleLoaded.value,
       progressKey: progressStorageKey(sampleLoaded.value.hobby),
-      demo: true,
       hobbies: demoHobbyEntries(sampleLoaded.value.hobby),
-      archived: [],
-      activeId: DEMO_ACTIVE_ID,
     }
   : null
 
-const choice = shallowRef<TreeChoice | null>(demoChoice)
+const cloud = useCloudStore()
+const router = useRouter()
+const toast = useToast()
 
-/** True once the choice is made: at setup for `?demo=1`, after mount otherwise. */
-const chosen = shallowRef(isDemo)
+/** Hobby_Id of the path shown here, chosen once the rows are loaded. */
+const chosenId = shallowRef<string | null>(null)
 
-onMounted(async () => {
-  if (isDemo) return
-  const library = loadHobbyLibrary(browserStorage)
-  const picked = pickHobby(library, route.query.hobby)
+const shown = computed<CloudPath | null>(
+  () => cloud.paths.value.find((path) => path.record.id === chosenId.value) ?? null,
+)
+
+function library(): HobbyLibrary {
+  return toHobbyLibrary(cloud.paths.value, getActiveHobbyId())
+}
+
+async function choose(): Promise<void> {
+  if (isDemo || !import.meta.client || cloud.status.value !== 'ready' || shown.value) return
+  const picked = pickHobby(library(), route.query.hobby)
   if (!picked) {
     await navigateTo(NEW_HOBBY_PATH, { replace: true })
     return
   }
-  setActiveHobby(browserStorage, picked.id)
-  choice.value = {
-    tree: picked.tree,
-    progressKey: hobbyProgressKey(picked.id),
-    demo: false,
-    hobbies: hobbyEntries(browserStorage, library),
-    archived: hobbyEntries(browserStorage, library, { archived: true }),
-    activeId: picked.id,
-  }
-  chosen.value = true
-})
-
-const router = useRouter()
-const toast = useToast()
-const { revision, bump } = useLibraryRevision()
-
-/** Reloads both hobby lists, e.g. after an Undo from the toast. */
-function refreshLists(library: HobbyLibrary = loadHobbyLibrary(browserStorage)): void {
-  const current = choice.value
-  if (!current || current.demo) return
-  choice.value = {
-    ...current,
-    hobbies: hobbyEntries(browserStorage, library),
-    archived: hobbyEntries(browserStorage, library, { archived: true }),
-  }
+  setActiveHobbyId(picked.id)
+  chosenId.value = picked.id
 }
 
-watch(revision, () => refreshLists())
+watch(cloud.status, () => void choose(), { immediate: true })
+
+const hobbies = computed(() => cloudEntries(cloud.paths.value))
+const archived = computed(() => cloudEntries(cloud.paths.value, { archived: true }))
+const times = computed(() => completionTimes(cloud.paths.value))
 
 /**
  * When the hobby just archived or deleted is the one shown, opens the next one
@@ -114,66 +81,81 @@ watch(revision, () => refreshLists())
  * `before` is the library before the change. Returns true when it navigated.
  */
 async function leaveIfShown(id: string, before: HobbyLibrary): Promise<boolean> {
-  if (id !== choice.value?.activeId) return false
+  if (id !== chosenId.value) return false
   const next = nextHobbyId(before, id)
   await navigateTo(next ? hobbyPath(next) : NEW_HOBBY_PATH, { replace: true })
   return true
 }
 
-/** Archive: hidden from the lists, tree and Progress kept. */
+/** Archive: hidden from the lists, tree and Progress kept. A failed save changes nothing (Req 5.12). */
 async function onArchiveHobby(id: string): Promise<void> {
-  if (choice.value?.demo !== false) return
-  const before = loadHobbyLibrary(browserStorage)
-  const library = archiveHobby(browserStorage, id)
-  // Not archived: storage could not be written, so nothing changed.
-  if (!library.hobbies.find((h) => h.id === id)?.archived) return
-  if (await leaveIfShown(id, before)) return
-  refreshLists(library)
+  const before = library()
+  if (!(await cloud.archive(id))) return
+  await leaveIfShown(id, before)
 }
 
-function onRestoreHobby(id: string): void {
-  if (choice.value?.demo !== false) return
-  refreshLists(restoreHobby(browserStorage, id))
+async function onRestoreHobby(id: string): Promise<void> {
+  await cloud.restore(id)
 }
 
-/** Delete (already confirmed): removes tree and Progress, then offers Undo for a few seconds. */
+/** Delete (already confirmed): removes the path and its Progress, then offers Undo for a few seconds (Req 5.6). */
 async function onDeleteHobby(id: string): Promise<void> {
-  if (choice.value?.demo !== false) return
-  const before = loadHobbyLibrary(browserStorage)
-  const { library, removed } = removeHobby(browserStorage, id)
+  const before = library()
+  const wasShown = id === chosenId.value
+  const removed = await cloud.remove(id)
   if (!removed) return
-  toast.show(`${removed.record.tree.hobby} deleted`, { label: 'Undo', run: () => undoDelete(removed) })
-  if (await leaveIfShown(id, before)) return
-  refreshLists(library)
+  toast.show(`${removed.record.tree.hobby} deleted`, { label: 'Undo', run: () => void undoDelete(removed, wasShown) })
+  await leaveIfShown(id, before)
 }
 
 /**
  * Runs from the app-wide toast, possibly after this page was left: it only
- * uses the router and the revision signal, never this page's state.
+ * uses the Cloud_Store and the router, never this page's state.
  */
-function undoDelete(removed: RemovedHobby): void {
-  undoRemoveHobby(browserStorage, removed)
-  bump()
-  if (removed.wasActive) void router.push(hobbyPath(removed.record.id))
+async function undoDelete(removed: CloudPath, wasShown: boolean): Promise<void> {
+  if (!(await cloud.undoRemove(removed))) return
+  if (wasShown) await router.push(hobbyPath(removed.record.id))
 }
 </script>
 
 <template>
-  <PathView
-    v-if="choice"
-    :key="choice.progressKey"
-    :tree="choice.tree"
-    :progress-key="choice.progressKey"
-    :demo="choice.demo"
-    :hobbies="choice.hobbies"
-    :archived="choice.archived"
-    :active-id="choice.activeId"
-    @archive-hobby="onArchiveHobby"
-    @delete-hobby="onDeleteHobby"
-    @restore-hobby="onRestoreHobby"
-  />
-  <main v-else class="mx-auto w-full max-w-160">
-    <PathStatus v-if="chosen && loadError !== null" state="error" :message="loadError" />
-    <PathStatus v-else state="loading" />
-  </main>
+  <template v-if="isDemo">
+    <PathView
+      v-if="demoChoice"
+      :key="demoChoice.progressKey"
+      :tree="demoChoice.tree"
+      :progress-key="demoChoice.progressKey"
+      demo
+      :store="null"
+      :completion-times="[]"
+      :hobbies="demoChoice.hobbies"
+      :archived="[]"
+      :active-id="DEMO_ACTIVE_ID"
+    />
+    <main v-else class="mx-auto w-full max-w-160">
+      <PathStatus state="error" :message="loadError ?? undefined" />
+    </main>
+  </template>
+
+  <AuthSessionGate v-else>
+    <PathView
+      v-if="shown && cloud.status.value === 'ready'"
+      :key="shown.pathId"
+      :tree="toRaw(shown.record.tree)"
+      :progress-key="shown.pathId"
+      :demo="false"
+      :store="cloud.progressStore(shown.pathId)"
+      :completion-times="times"
+      :hobbies="hobbies"
+      :archived="archived"
+      :active-id="shown.record.id"
+      @archive-hobby="onArchiveHobby"
+      @delete-hobby="onDeleteHobby"
+      @restore-hobby="onRestoreHobby"
+    />
+    <main v-else class="mx-auto w-full max-w-160">
+      <AuthRetryNotice v-if="cloud.status.value === 'error'" :message="CLOUD_MESSAGES.loadFailed" @retry="cloud.reload" />
+      <PathStatus v-else state="loading" />
+    </main>
+  </AuthSessionGate>
 </template>

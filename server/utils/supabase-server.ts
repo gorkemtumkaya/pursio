@@ -1,0 +1,63 @@
+import { createClient, type SupabaseClient } from '@supabase/supabase-js'
+import type { PathSaveInput } from '../../shared/types/cloud'
+import { buildSaveArgs } from '../../shared/utils/cloud-path'
+
+// Server-side Supabase calls that act for a user (spec: accounts-cloud-save, Req 9).
+// Only the public URL and anon key are used here; the service role key is not.
+
+/** No session is stored or refreshed on the server. */
+const SERVER_AUTH = { persistSession: false, autoRefreshToken: false, detectSessionInUrl: false } as const
+
+interface PublicSupabaseConfig {
+  url: string
+  anonKey: string
+}
+
+function publicSupabaseConfig(): PublicSupabaseConfig | null {
+  const { supabaseUrl, supabaseAnonKey } = useRuntimeConfig().public
+  const url = typeof supabaseUrl === 'string' ? supabaseUrl.trim() : ''
+  const anonKey = typeof supabaseAnonKey === 'string' ? supabaseAnonKey.trim() : ''
+  return url === '' || anonKey === '' ? null : { url, anonKey }
+}
+
+let shared: { url: string; anonKey: string; client: SupabaseClient } | null = null
+
+/** One client for token checks, rebuilt only when the config changes. */
+function sharedClient(config: PublicSupabaseConfig): SupabaseClient {
+  if (!shared || shared.url !== config.url || shared.anonKey !== config.anonKey) {
+    shared = { ...config, client: createClient(config.url, config.anonKey, { auth: SERVER_AUTH }) }
+  }
+  return shared.client
+}
+
+/**
+ * Asks Supabase Auth whether the Access_Token is valid and returns its user id,
+ * else `null`. This also rejects the token of a user deleted a moment ago. An
+ * empty URL or anon key gives `null`.
+ */
+export async function verifyAccessToken(token: string, _signal?: AbortSignal): Promise<string | null> {
+  const config = publicSupabaseConfig()
+  if (!config) return null
+  const { data, error } = await sharedClient(config).auth.getUser(token)
+  if (error || !data.user) return null
+  return data.user.id
+}
+
+/**
+ * Saves a generated path through `save_generated_path` with the user's own
+ * token, so Row Level Security applies. Returns the Path_Row id, or throws.
+ * The thrown error carries no Supabase message.
+ */
+export async function savePathForUser(token: string, input: PathSaveInput, signal?: AbortSignal): Promise<string> {
+  const config = publicSupabaseConfig()
+  if (!config) throw new Error('save_failed')
+  const client = createClient(config.url, config.anonKey, {
+    auth: SERVER_AUTH,
+    global: { headers: { Authorization: `Bearer ${token}` } },
+  })
+  const call = client.rpc('save_generated_path', buildSaveArgs(input))
+  const { data, error } = await (signal ? call.abortSignal(signal) : call)
+  const id: unknown = data
+  if (error || typeof id !== 'string' || id === '') throw new Error('save_failed')
+  return id
+}
