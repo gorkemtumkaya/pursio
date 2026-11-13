@@ -42,6 +42,13 @@ export const LEVEL_LABELS: Record<StartLevel, string> = {
 export function isStartLevel(value: unknown): value is StartLevel {
   return typeof value === 'string' && (START_LEVELS as readonly string[]).includes(value)
 }
+/** What each starting level means for the tree, sent to the model with the hobby. */
+const LEVEL_GUIDANCE: Record<StartLevel, string> = {
+  new: 'They have never done it. Sections: beginner, intermediate, (optional) advanced. Start from first contact: setup, safety and the very first basics.',
+  some: 'They have tried it a few times and know the basic vocabulary, setup and safety. Sections: intermediate, then advanced (beginner only as one short refresher section if the hobby truly needs it). Do not teach first steps; start at the skills that turn a dabbler into a regular.',
+  serious: 'They practice regularly and are past the fundamentals. Sections: advanced only (2 or 3 sections, all level "advanced"). No basics, setup or safety-intro nodes; start at refining technique, harder goals and performance.',
+}
+
 export function levelInstruction(level: StartLevel): string {
-  return `The learner's starting level is: ${LEVEL_LABELS[level].toLowerCase()}. Start the tree at that level.`
+  return `Starting level: ${LEVEL_LABELS[level].toLowerCase()}. ${LEVEL_GUIDANCE[level]}`
 }
