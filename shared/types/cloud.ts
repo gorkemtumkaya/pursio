@@ -94,6 +94,21 @@ export interface ProfilePatch {
   weekly_reward_count?: number
 }
 
+export type ResetScope = 'path' | 'all'
+export type ResetMode = 'wipe' | 'keep_history'
+
+/** One overwritten Progress_Row as `reset_progress` returns it. Other columns are kept as read. */
+export interface ResetSnapshotRow {
+  path_id: string
+  [column: string]: unknown
+}
+
+/** What Undo needs. `reward` is the Weekly_Reward before the reset, or null when the reset did not touch it. */
+export interface ResetSnapshot {
+  rows: ResetSnapshotRow[]
+  reward: WeeklyReward | null
+}
+
 export type DeleteErrorCode = 'unauthorized' | 'no_key' | 'delete_failed'
 
 /** Body of `DELETE /api/account`. */

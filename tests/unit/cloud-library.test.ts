@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import sampleJson from '../../data/sample-bouldering.json'
+import type { Progress } from '../../shared/types/progress'
 import type { SkillTree } from '../../shared/types/skill-tree'
 import { completionPercent } from '../../shared/utils/progress-engine'
 import { loadSkillTree } from '../../shared/utils/skill-tree-load'
@@ -8,6 +9,7 @@ import {
   cloudEntries,
   completionTimes,
   stampCompletions,
+  stampQuestTicks,
   toHobbyLibrary,
   upsertGenerated,
   withArchived,
@@ -139,13 +141,56 @@ describe('Streak and Week from Completion_Timestamps', () => {
 })
 
 describe('stampCompletions', () => {
+  const empty: Progress = { completed: [], quests: {} }
+
+  it('keeps retained history of ids completed in neither Progress', () => {
+    expect(stampCompletions({ [firstId]: 100 }, empty, empty, 500)).toEqual({ [firstId]: 100 })
+    expect(stampCompletions({ [firstId]: 100 }, empty, { completed: [secondId], quests: {} }, 500)).toEqual({
+      [firstId]: 100,
+      [secondId]: 500,
+    })
+  })
+
+  it('stamps an id completed again over its retained timestamp', () => {
+    expect(stampCompletions({ [firstId]: 100 }, empty, { completed: [firstId], quests: {} }, 500)).toEqual({
+      [firstId]: 500,
+    })
+  })
+
   it('keeps a set timestamp, stamps a new id and drops ids that are no longer completed', () => {
-    const first = stampCompletions({}, { completed: [firstId], quests: {} }, 100)
+    const first = stampCompletions({}, { completed: [], quests: {} }, { completed: [firstId], quests: {} }, 100)
     expect(first).toEqual({ [firstId]: 100 })
-    const second = stampCompletions(first, { completed: [firstId, secondId], quests: {} }, 200)
+    const second = stampCompletions(
+      first,
+      { completed: [firstId], quests: {} },
+      { completed: [firstId, secondId], quests: {} },
+      200,
+    )
     expect(second).toEqual({ [firstId]: 100, [secondId]: 200 })
-    expect(stampCompletions(second, { completed: [secondId], quests: {} }, 300)).toEqual({ [secondId]: 200 })
+    expect(
+      stampCompletions(
+        second,
+        { completed: [firstId, secondId], quests: {} },
+        { completed: [secondId], quests: {} },
+        300,
+      ),
+    ).toEqual({ [secondId]: 200 })
     expect(first).toEqual({ [firstId]: 100 })
+  })
+})
+
+describe('stampQuestTicks', () => {
+  const ticked = (a: boolean, b: boolean, c: boolean): Progress => ({ completed: [], quests: { [firstId]: [a, b, c] } })
+
+  it('keeps a time, stamps a new tick, drops an unticked one and keeps retained history', () => {
+    const prev = { [firstId]: [10, 20, null] as [number | null, number | null, number | null] }
+    expect(stampQuestTicks(prev, ticked(true, true, false), ticked(true, false, true), 99)).toEqual({
+      [firstId]: [10, null, 99],
+    })
+    // Not ticked before or after: history from a keep-history reset stays.
+    expect(stampQuestTicks(prev, ticked(false, false, false), ticked(false, false, false), 99)).toEqual(prev)
+    expect(stampQuestTicks(prev, { completed: [], quests: {} }, { completed: [], quests: {} }, 99)).toEqual(prev)
+    expect(stampQuestTicks(prev, ticked(true, true, false), ticked(false, false, false), 99)).toEqual({})
   })
 })
 

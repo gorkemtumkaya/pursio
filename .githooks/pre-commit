@@ -1,0 +1,21 @@
+#!/bin/sh
+# Releases the [Unreleased] changelog entries with the commit that adds them:
+# bumps package.json and moves the entries under "## [x.y.z] - date".
+# Skip once with: SKIP_RELEASE=1 git commit ...
+# Force a level with: RELEASE_BUMP=major|minor|patch git commit ...
+
+[ -n "$SKIP_RELEASE" ] && exit 0
+
+# Only act when CHANGELOG.md is part of this commit.
+git diff --cached --quiet -- CHANGELOG.md && exit 0
+
+# The script edits the working-tree files, so they must match what is staged.
+for f in CHANGELOG.md package.json; do
+  if ! git diff --quiet -- "$f"; then
+    echo "pre-commit: $f has unstaged changes; stage them or run with SKIP_RELEASE=1." >&2
+    exit 1
+  fi
+done
+
+node scripts/release.mjs || exit 1
+git add CHANGELOG.md package.json

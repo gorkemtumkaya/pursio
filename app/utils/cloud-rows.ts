@@ -7,6 +7,7 @@ import type {
   ProgressWriteRow,
   QuestData,
   QuestTicks,
+  ResetSnapshot,
   WeeklyReward,
 } from '#shared/types/cloud'
 import type { Progress } from '#shared/types/progress'
@@ -77,10 +78,11 @@ function isRecord(value: unknown): value is Record<string, unknown> {
 
 /**
  * A Progress_Row as Progress, Completion_Timestamps and quest data for `tree`.
- * Duplicate completed ids collapse. Completed ids, quest entries and timestamps
- * of Nodes that are not in the tree are dropped, as are timestamps of Nodes
- * that are not completed (Req 6.10). Tick times are kept only for ticked quests
- * of Nodes in the tree (Req 2.6). Each quest column is read on its own: a bad
+ * Duplicate completed ids collapse. Completed ids, quest entries, timestamps
+ * and tick times of Nodes that are not in the tree are dropped. Timestamps and
+ * tick times of Nodes in the tree are kept even when the Node is no longer
+ * completed or ticked, because a keep-history reset leaves them (reset-progress
+ * Req 3.6). All-null tick entries are dropped. Each quest column is read on its own: a bad
  * column reads as `{}`, `null` or 0 and never affects another column. A row
  * with a wrong shape gives empty Progress and empty quest data.
  */
@@ -93,7 +95,6 @@ export function parseProgressRow(
 
   const ids = new Set(tree.sections.flatMap((section) => section.nodes.map((node) => node.id)))
   const completed = [...new Set(raw.completed as string[])].filter((id) => ids.has(id))
-  const done = new Set(completed)
   // Rebuilt from the validated raw entries with Object.fromEntries, so keys such
   // as "__proto__" stay own properties.
   const quests = Object.fromEntries(
@@ -102,12 +103,12 @@ export function parseProgressRow(
       .map(([id, [a, b, c]]): [string, QuestTriple<boolean>] => [id, [a, b, c]]),
   )
   const completedAt = Object.fromEntries(
-    Object.entries(raw.completed_at as Record<string, number>).filter(([id]) => done.has(id)),
+    Object.entries(raw.completed_at as Record<string, number>).filter(([id]) => ids.has(id)),
   )
   return {
     progress: { completed, quests },
     completedAt,
-    questTicks: readQuestTicks(raw.quest_ticks, ids, quests),
+    questTicks: readQuestTicks(raw.quest_ticks, ids),
     dailyPick: readDailyPick(raw.daily_pick, ids),
     dailyBonusCount: readCount(raw.daily_bonus_count),
   }
@@ -118,25 +119,26 @@ function readCount(value: unknown): number {
   return parsed.success ? parsed.data : 0
 }
 
-function readQuestTicks(
-  value: unknown,
-  ids: ReadonlySet<string>,
-  quests: Record<string, QuestTriple<boolean>>,
-): QuestTicks {
+function readQuestTicks(value: unknown, ids: ReadonlySet<string>): QuestTicks {
   const parsed = questTicksSchema.safeParse(value)
   if (!parsed.success) return {}
   const entries: [string, QuestTriple<number | null>][] = []
-  for (const [id, times] of Object.entries(parsed.data)) {
-    const ticked = Object.hasOwn(quests, id) ? quests[id] : undefined
-    if (!ids.has(id) || !ticked) continue
-    const kept: QuestTriple<number | null> = [
-      ticked[0] ? times[0] : null,
-      ticked[1] ? times[1] : null,
-      ticked[2] ? times[2] : null,
-    ]
-    if (kept.some((time) => time !== null)) entries.push([id, kept])
+  for (const [id, [a, b, c]] of Object.entries(parsed.data)) {
+    if (!ids.has(id)) continue
+    if (a !== null || b !== null || c !== null) entries.push([id, [a, b, c]])
   }
   return Object.fromEntries(entries)
+}
+
+const snapshotSchema = z.object({
+  rows: z.array(z.object({ path_id: z.string().min(1) }).passthrough()),
+  reward: z.object({ week: dayKeySchema.nullable(), count: countSchema }).nullable(),
+})
+
+/** The `reset_progress` result as a ResetSnapshot, or `null` when its shape is wrong. */
+export function parseResetSnapshot(raw: unknown): ResetSnapshot | null {
+  const parsed = snapshotSchema.safeParse(raw)
+  return parsed.success ? parsed.data : null
 }
 
 function readDailyPick(value: unknown, ids: ReadonlySet<string>): DailyPick | null {

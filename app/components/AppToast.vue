@@ -4,7 +4,7 @@ import { TOAST_DURATION_MS, useToast } from '~/composables/useToast'
 
 /**
  * App-wide toast from `useToast`. The live region is always rendered so screen
- * readers announce new messages. A toast hides after TOAST_DURATION_MS; the
+ * readers announce new messages. A toast hides after its durationMs (default TOAST_DURATION_MS); the
  * timer pauses while it is hovered or holds focus, so there is time to reach
  * the action. A sticky toast has no timer and shows a "Dismiss" button. On mobile it sits above the bottom navigation and the
  * Bottom_Sheet; on desktop at the bottom of the sidebar column. Below dialogs.
@@ -54,7 +54,7 @@ watch(
   () => toast.value?.id,
   (id) => {
     stopTimer()
-    remaining = TOAST_DURATION_MS
+    remaining = toast.value?.durationMs ?? TOAST_DURATION_MS
     hovered = false
     focused = false
     if (id !== undefined) startTimer()

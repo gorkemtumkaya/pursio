@@ -24,6 +24,7 @@ const emit = defineEmits<{
   /** An entry or "+ Add a hobby" was activated, so the sheet can close. */
   navigate: []
   archive: [entry: HobbyEntry]
+  reset: [entry: HobbyEntry]
   delete: [entry: HobbyEntry]
   restore: [entry: HobbyEntry]
 }>()
@@ -73,7 +74,9 @@ const focusRing = 'focus-visible:outline-2 focus-visible:outline-offset-2 focus-
             class="absolute top-0.5 right-1"
             :hobby="entry.hobby"
             :always-visible="layout === 'sheet'"
+            :can-reset="entry.id === activeId"
             @archive="emit('archive', entry)"
+            @reset="emit('reset', entry)"
             @delete="emit('delete', entry)"
           />
         </template>

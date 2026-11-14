@@ -8,7 +8,9 @@ import { useFocusTrap } from '~/composables/useFocusTrap'
  * Cancel; Escape and a backdrop tap cancel. On close, focus returns to the
  * element that was focused when it opened, if that element still exists.
  * `tone="danger"` colors the confirm button with the danger tokens. The
- * optional `media` slot sits above the title; `secondaryLabel` adds a text
+ * optional `media` slot sits above the title; the default slot sits between
+ * the message and the error (e.g. a mode choice); `role` is `alertdialog`
+ * by default, or `dialog` when the content is a choice; `secondaryLabel` adds a text
  * button under the actions (e.g. "Archive instead"). While `busy`, every
  * button is disabled, the confirm button shows a loading indicator and the
  * dialog cannot be cancelled; `error` shows a message above the actions.
@@ -23,8 +25,9 @@ const props = withDefaults(
     secondaryLabel?: string
     busy?: boolean
     error?: string | null
+    role?: 'alertdialog' | 'dialog'
   }>(),
-  { tone: 'default', secondaryLabel: undefined, busy: false, error: null },
+  { tone: 'default', secondaryLabel: undefined, busy: false, error: null, role: 'alertdialog' },
 )
 const emit = defineEmits<{ confirm: []; cancel: []; secondary: [] }>()
 
@@ -77,7 +80,7 @@ const focusRing = 'focus-visible:outline-2 focus-visible:outline-offset-2 focus-
       <div v-if="open" class="fixed inset-0 z-60 flex items-center justify-center bg-overlay p-5" @click.self="cancel">
         <div
           ref="card"
-          role="alertdialog"
+          :role="role"
           aria-modal="true"
           :aria-labelledby="titleId"
           :aria-describedby="messageId"
@@ -86,6 +89,7 @@ const focusRing = 'focus-visible:outline-2 focus-visible:outline-offset-2 focus-
           <slot name="media" />
           <h2 :id="titleId" class="font-head text-2xl leading-tight font-semibold text-ink">{{ title }}</h2>
           <p :id="messageId" class="text-[15px] leading-normal text-muted">{{ message }}</p>
+          <slot />
           <p v-if="error" role="alert" class="text-[15px] leading-normal font-bold text-danger-text">{{ error }}</p>
           <div class="mt-3 grid w-full grid-cols-2 gap-3">
             <button

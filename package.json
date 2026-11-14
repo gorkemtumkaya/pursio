@@ -1,6 +1,6 @@
 {
   "name": "pursio",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "private": true,
   "type": "module",
   "license": "AGPL-3.0-only",
@@ -10,6 +10,8 @@
     "generate": "nuxt generate",
     "preview": "nuxt preview",
     "postinstall": "nuxt prepare",
+    "prepare": "git config core.hooksPath .githooks || true",
+    "release": "node scripts/release.mjs",
     "typecheck": "nuxt typecheck",
     "test": "vitest run"
   },

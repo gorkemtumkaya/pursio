@@ -1,5 +1,13 @@
 import type { SupabaseClient } from '@supabase/supabase-js'
-import type { PathInsertRow, ProfilePatch, ProgressWriteRow } from '#shared/types/cloud'
+import type {
+  PathInsertRow,
+  ProfilePatch,
+  ProgressWriteRow,
+  ResetMode,
+  ResetScope,
+  ResetSnapshotRow,
+  WeeklyReward,
+} from '#shared/types/cloud'
 
 /**
  * Every table call of the browser (spec: accounts-cloud-save). All of them run
@@ -19,6 +27,10 @@ export interface CloudApi {
   insertProgress(rows: readonly ProgressWriteRow[], signal?: AbortSignal): Promise<void>
   /** Creates the row when absent (conflict on `path_id`). */
   upsertProgress(row: ProgressWriteRow): Promise<void>
+  /** Resets progress in one transaction. Returns the raw `{ rows, reward }` snapshot. */
+  resetProgress(scope: ResetScope, mode: ResetMode, pathId: string | null): Promise<unknown>
+  /** Writes a snapshot back in one transaction. */
+  restoreProgress(rows: readonly ResetSnapshotRow[], reward: WeeklyReward | null): Promise<void>
 }
 
 /** A failed call. It carries no Supabase message, so none can reach the screen. */
@@ -102,6 +114,18 @@ export function createCloudApi(client: SupabaseClient, userId: string): CloudApi
     },
     async upsertProgress(row) {
       check(await client.from('progress').upsert(row, { onConflict: 'path_id' }))
+    },
+    async resetProgress(scope, mode, pathId) {
+      const result: Outcome = await client.rpc('reset_progress', {
+        p_scope: scope,
+        p_mode: mode,
+        p_path_id: pathId,
+      })
+      check(result)
+      return result.data ?? null
+    },
+    async restoreProgress(rows, reward) {
+      check(await client.rpc('restore_progress', { p_rows: [...rows], p_reward: reward }))
     },
   }
 }

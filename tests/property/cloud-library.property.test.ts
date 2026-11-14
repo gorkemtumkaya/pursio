@@ -107,12 +107,14 @@ describe('Property 5: Completion_Timestamps are stable', () => {
         (ids, steps: StampStep[]) => {
           let previous: CompletedAt = {}
           let count = 0
+          let prevProgress: Progress = { completed: [], quests: {} }
           for (const step of steps) {
             count = Math.min(ids.length, count + step.added)
             const progress: Progress = { completed: ids.slice(0, count), quests: {} }
             const before = Object.entries(previous)
 
-            const next = stampCompletions(previous, progress, step.time)
+            const next = stampCompletions(previous, prevProgress, progress, step.time)
+            prevProgress = progress
 
             // Exactly the completed ids have a timestamp.
             expect(Object.keys(next).sort()).toEqual([...progress.completed].sort())
@@ -128,6 +130,47 @@ describe('Property 5: Completion_Timestamps are stable', () => {
             expect(Object.entries(previous)).toEqual(before)
             previous = next
           }
+        },
+      ),
+      RUNS,
+    )
+  })
+})
+
+// Feature: reset-progress, Property 5 (extended): stampCompletions with a `before` argument
+// **Validates: Requirements 3.6**
+describe('stampCompletions with retained history', () => {
+  it('keeps timestamps of ids completed in neither Progress, stamps new ids and drops uncompleted ones', () => {
+    fc.assert(
+      fc.property(
+        fc.uniqueArray(arbNodeId, { minLength: 1, maxLength: 10 }),
+        fc.array(fc.tuple(fc.boolean(), fc.boolean(), fc.boolean()), { minLength: 10, maxLength: 10 }),
+        arbStamp,
+        arbStamp,
+        (ids, flags, oldStamp, now) => {
+          const inBefore = ids.filter((_, i) => flags[i]?.[0])
+          const inAfter = ids.filter((_, i) => flags[i]?.[1])
+          const hasPrev = ids.filter((_, i) => flags[i]?.[2])
+          const prev: CompletedAt = Object.fromEntries(hasPrev.map(id => [id, oldStamp]))
+          const snapshot = { ...prev }
+
+          const next = stampCompletions(
+            prev,
+            { completed: inBefore, quests: {} },
+            { completed: inAfter, quests: {} },
+            now,
+          )
+          const out = new Map(Object.entries(next))
+
+          for (const id of ids) {
+            const was = inBefore.includes(id)
+            const is = inAfter.includes(id)
+            if (is && !was) expect(out.get(id)).toBe(now)
+            else if (is && was) expect(out.get(id)).toBe(hasPrev.includes(id) ? oldStamp : now)
+            else if (!is && was) expect(out.has(id)).toBe(false)
+            else expect(out.get(id)).toBe(hasPrev.includes(id) ? oldStamp : undefined)
+          }
+          expect(prev).toEqual(snapshot)
         },
       ),
       RUNS,

@@ -219,12 +219,9 @@ describe('Property 3: Loaded Progress holds only Nodes of the tree', () => {
         expect(Object.keys(parsed.progress.quests).every(id => known.has(id))).toBe(true)
         expect(Object.getPrototypeOf(parsed.progress.quests)).toBe(Object.prototype)
 
-        // Timestamps only for completed Nodes of the tree.
-        const done = new Set(parsed.progress.completed)
-        expect(Object.keys(parsed.completedAt).every(id => done.has(id))).toBe(true)
-        expect(Object.entries(parsed.completedAt).sort()).toEqual(
-          treeStamps.filter(([id]) => progress.completed.includes(id)).sort(),
-        )
+        // Timestamps of Nodes of the tree are kept, completed or not (reset-progress Req 3.6); foreign ones are dropped.
+        expect(Object.keys(parsed.completedAt).every(id => known.has(id))).toBe(true)
+        expect(Object.entries(parsed.completedAt).sort()).toEqual([...treeStamps].sort())
 
         // Nothing of the tree is lost.
         expect(parsed.progress.completed).toEqual(progress.completed)

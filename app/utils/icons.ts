@@ -26,6 +26,7 @@ export const ICON_NAMES = [
   'more',
   'archive',
   'trash',
+  'reset',
 ] as const
 
 export type IconName = (typeof ICON_NAMES)[number]
@@ -144,6 +145,10 @@ export const ICONS: Readonly<Record<IconName, IconDefinition>> = {
   trash: {
     filled: false,
     shapes: [{ tag: 'path', d: 'M4.5 7h15M9.5 7V4.5h5V7M6.5 7l1 12.5h9l1-12.5M10.5 11v5M13.5 11v5' }],
+  },
+  reset: {
+    filled: false,
+    shapes: [{ tag: 'path', d: 'M4.5 12a7.5 7.5 0 1 0 2.2-5.3L4.5 8.8M4.5 4v4.8h4.8' }],
   },
 }
 

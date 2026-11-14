@@ -142,6 +142,15 @@ describe('weekly reward', () => {
     expect(weeklyRewardDue(nextWeek, { week: weekKeyOf(at(2025, 6, 12)), count: 2 }, at(2025, 6, 12))).toBe(false)
   })
 
+  it('keeps retained history and stamps only the new tick (reset-progress Req 3.6)', () => {
+    const kept: QuestTicks = { a: [at(2025, 6, 2), null, null], b: [at(2025, 6, 3), null, null] }
+    const paths = [pathOf({ progress: none, questTicks: kept, completedAt: { a: at(2025, 6, 2) } })]
+    const result = applyProgressChange(paths, null, 'p1', { completed: [], quests: { a: [false, true, false] } }, thu)
+    const path = result?.paths[0]
+    expect(path?.questTicks).toEqual({ a: [at(2025, 6, 2), thu, null], b: [at(2025, 6, 3), null, null] })
+    expect(path?.completedAt).toEqual({ a: at(2025, 6, 2) })
+  })
+
   it('is not granted when weekly is null', () => {
     const paths = [pathOf({ progress: before, questTicks: ticks })]
     const result = applyProgressChange(paths, null, 'p1', after, thu)

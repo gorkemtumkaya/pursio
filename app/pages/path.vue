@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, shallowRef, toRaw, watch } from 'vue'
+import { computed, nextTick, shallowRef, toRaw, watch } from 'vue'
 import { formatValidationError, loadSkillTree } from '#shared/utils/skill-tree-load'
 import sample from '~~/data/sample-bouldering.json'
 import PathView from '~/components/path/PathView.vue'
@@ -46,6 +46,7 @@ const demoChoice = sampleLoaded?.ok
 const cloud = useCloudStore()
 const router = useRouter()
 const toast = useToast()
+const reset = useProgressReset()
 
 /** Hobby_Id of the path shown here, chosen once the rows are loaded. */
 const chosenId = shallowRef<string | null>(null)
@@ -116,6 +117,21 @@ async function undoDelete(removed: CloudPath, wasShown: boolean): Promise<void> 
   if (!(await cloud.undoRemove(removed))) return
   if (wasShown) await router.push(hobbyPath(removed.record.id))
 }
+
+/** Opens the reset dialog for a hobby of the list; the shown path stays selected (Req 6.2). */
+function onResetHobby(id: string): void {
+  const hobby = cloud.paths.value.find((path) => path.record.id === id)?.record.tree.hobby
+  if (hobby) reset.askReset({ scope: 'path', id, hobby })
+}
+
+/** After a reset the dialog returns focus to its opener; if that is gone, focus the hobby list heading (Req 12.3). */
+async function onConfirmReset(): Promise<void> {
+  if (!(await reset.confirmReset())) return
+  await nextTick()
+  if (!document.activeElement || document.activeElement === document.body) {
+    document.getElementById('sidebar-hobbies')?.focus()
+  }
+}
 </script>
 
 <template>
@@ -151,11 +167,27 @@ async function undoDelete(removed: CloudPath, wasShown: boolean): Promise<void> 
       :active-id="shown.record.id"
       @archive-hobby="onArchiveHobby"
       @delete-hobby="onDeleteHobby"
+      :reset-epoch="cloud.resetEpoch.value"
       @restore-hobby="onRestoreHobby"
+      @reset-hobby="onResetHobby"
     />
     <main v-else class="mx-auto w-full max-w-160">
       <AuthRetryNotice v-if="cloud.status.value === 'error'" :message="CLOUD_MESSAGES.loadFailed" @retry="cloud.reload" />
       <PathStatus v-else state="loading" />
     </main>
   </AuthSessionGate>
+
+  <ResetProgressDialog
+    v-if="!isDemo"
+    :open="reset.open.value"
+    :scope="reset.target.value.scope"
+    :hobby="reset.target.value.scope === 'path' ? reset.target.value.hobby : null"
+    :path-count="reset.pathCount.value"
+    :mode="reset.mode.value"
+    :busy="reset.busy.value"
+    :error="reset.error.value"
+    @update:mode="reset.setMode"
+    @confirm="onConfirmReset"
+    @cancel="reset.cancelReset"
+  />
 </template>

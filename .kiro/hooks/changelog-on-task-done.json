@@ -9,7 +9,8 @@
       "action": {
         "type": "agent",
         "prompt": "A spec tasks.md file under .kiro/specs/<spec-name>/ was just saved. Update CHANGELOG.md for newly completed tasks:\n\n1. Read the saved tasks.md. Collect every task marked done (`- [x]`), using its task number (e.g. \"2.1\") as its ID.\n2. Read .kiro/specs/<spec-name>/.changelog-logged (one task ID per line; treat as empty if missing). Newly done = checked tasks whose ID is not in that file.\n3. If there are no newly done tasks, stop. Change nothing and say nothing beyond \"No new completed tasks.\"\n4. For each newly done task, decide if it changes behavior a user would notice. Skip pure refactors, tests, tooling and typo fixes. Tasks that only together form one user-visible change get one combined entry.\n5. Add entries to CHANGELOG.md in the project root under \"## [Unreleased]\" in the right group (Added, Changed, Fixed, Removed), creating the file, section or group if missing, in Keep a Changelog format. One line per change, written for a user: what changed and why it matters, ending with \"(spec: <spec-name>)\". Never edit or reword existing entries, and don't add an entry that duplicates one already there.\n6. Append all newly done task IDs (including skipped ones) to .kiro/specs/<spec-name>/.changelog-logged so they are not processed again.\n\nFollow the changelog steering rule in .kiro/steering/changelog.md."
-      }
+      },
+      "enabled": true
     }
   ]
 }

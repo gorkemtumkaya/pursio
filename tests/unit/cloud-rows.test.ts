@@ -127,7 +127,22 @@ describe('buildCloudPaths', () => {
 })
 
 describe('parseProgressRow', () => {
-  it('prunes unknown ids, repeated ids and timestamps of Nodes that are not completed (Req 6.10)', () => {
+  it('keeps timestamps and tick times of tree Nodes that are not completed or ticked (reset-progress Req 3.6)', () => {
+    const parsed = parseProgressRow(
+      {
+        completed: [],
+        quests: {},
+        completed_at: { [firstId]: 100, ghost: 400 },
+        quest_ticks: { [secondId]: [5, null, 7], ghost: [1, 2, 3], [thirdId]: [null, null, null] },
+      },
+      bouldering,
+    )
+    expect(parsed.progress).toEqual({ completed: [], quests: {} })
+    expect(parsed.completedAt).toEqual({ [firstId]: 100 })
+    expect(parsed.questTicks).toEqual({ [secondId]: [5, null, 7] })
+  })
+
+  it('prunes unknown ids and repeated ids, and keeps timestamps of tree Nodes (Req 6.10)', () => {
     const parsed = parseProgressRow(
       {
         path_id: 'p1',
@@ -139,8 +154,8 @@ describe('parseProgressRow', () => {
       bouldering,
     )
     expect(parsed.progress).toEqual({ completed: [firstId, secondId], quests: { [firstId]: [true, true, false] } })
-    // `secondId` is completed without a timestamp; `thirdId` has one but is not completed.
-    expect(parsed.completedAt).toEqual({ [firstId]: 100 })
+    // `secondId` is completed without a timestamp; `thirdId` is not completed but its timestamp is kept.
+    expect(parsed.completedAt).toEqual({ [firstId]: 100, [thirdId]: 300 })
   })
 
   it('gives empty Progress for an empty row', () => {

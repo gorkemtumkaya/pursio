@@ -1,0 +1,415 @@
+{
+  "pbtResults": {},
+  "executionHistory": {
+    "1.1 Create `supabase/migrations/20261109000000_reset_progress.sql`": [
+      {
+        "executionId": "c15c3e03-4a6f-4370-ae0c-343b19dbf5a0",
+        "chatSessionId": "sess_ffd3ad56-696b-4030-8f43-b15d5c9e703c",
+        "timestamp": 1794645924599
+      },
+      {
+        "executionId": "c15c3e03-4a6f-4370-ae0c-343b19dbf5a0",
+        "chatSessionId": "sess_ffd3ad56-696b-4030-8f43-b15d5c9e703c",
+        "timestamp": 1794645930251
+      },
+      {
+        "executionId": "c15c3e03-4a6f-4370-ae0c-343b19dbf5a0",
+        "chatSessionId": "sess_ffd3ad56-696b-4030-8f43-b15d5c9e703c",
+        "timestamp": 1794645995922
+      }
+    ],
+    "1.2 Update `supabase/README.md`": [
+      {
+        "executionId": "c15c3e03-4a6f-4370-ae0c-343b19dbf5a0",
+        "chatSessionId": "sess_ffd3ad56-696b-4030-8f43-b15d5c9e703c",
+        "timestamp": 1794645924636
+      },
+      {
+        "executionId": "c15c3e03-4a6f-4370-ae0c-343b19dbf5a0",
+        "chatSessionId": "sess_ffd3ad56-696b-4030-8f43-b15d5c9e703c",
+        "timestamp": 1794646056800
+      },
+      {
+        "executionId": "c15c3e03-4a6f-4370-ae0c-343b19dbf5a0",
+        "chatSessionId": "sess_ffd3ad56-696b-4030-8f43-b15d5c9e703c",
+        "timestamp": 1794646113110
+      }
+    ],
+    "2.1 Add types to `shared/types/cloud.ts`": [
+      {
+        "executionId": "c15c3e03-4a6f-4370-ae0c-343b19dbf5a0",
+        "chatSessionId": "sess_ffd3ad56-696b-4030-8f43-b15d5c9e703c",
+        "timestamp": 1794645924668
+      },
+      {
+        "executionId": "c15c3e03-4a6f-4370-ae0c-343b19dbf5a0",
+        "chatSessionId": "sess_ffd3ad56-696b-4030-8f43-b15d5c9e703c",
+        "timestamp": 1794645931046
+      },
+      {
+        "executionId": "c15c3e03-4a6f-4370-ae0c-343b19dbf5a0",
+        "chatSessionId": "sess_ffd3ad56-696b-4030-8f43-b15d5c9e703c",
+        "timestamp": 1794645997530
+      }
+    ],
+    "2.2 Update `app/utils/cloud-rows.ts`": [
+      {
+        "executionId": "c15c3e03-4a6f-4370-ae0c-343b19dbf5a0",
+        "chatSessionId": "sess_ffd3ad56-696b-4030-8f43-b15d5c9e703c",
+        "timestamp": 1794645924702
+      },
+      {
+        "executionId": "c15c3e03-4a6f-4370-ae0c-343b19dbf5a0",
+        "chatSessionId": "sess_ffd3ad56-696b-4030-8f43-b15d5c9e703c",
+        "timestamp": 1794646057056
+      },
+      {
+        "executionId": "c15c3e03-4a6f-4370-ae0c-343b19dbf5a0",
+        "chatSessionId": "sess_ffd3ad56-696b-4030-8f43-b15d5c9e703c",
+        "timestamp": 1794646113566
+      }
+    ],
+    "2.3 Update `app/utils/cloud-library.ts` and `quest-rules.ts`": [
+      {
+        "executionId": "c15c3e03-4a6f-4370-ae0c-343b19dbf5a0",
+        "chatSessionId": "sess_ffd3ad56-696b-4030-8f43-b15d5c9e703c",
+        "timestamp": 1794645924774
+      },
+      {
+        "executionId": "c15c3e03-4a6f-4370-ae0c-343b19dbf5a0",
+        "chatSessionId": "sess_ffd3ad56-696b-4030-8f43-b15d5c9e703c",
+        "timestamp": 1794646057870
+      },
+      {
+        "executionId": "c15c3e03-4a6f-4370-ae0c-343b19dbf5a0",
+        "chatSessionId": "sess_ffd3ad56-696b-4030-8f43-b15d5c9e703c",
+        "timestamp": 1794646114386
+      }
+    ],
+    "2.4 Create `app/utils/progress-reset.ts`": [
+      {
+        "executionId": "c15c3e03-4a6f-4370-ae0c-343b19dbf5a0",
+        "chatSessionId": "sess_ffd3ad56-696b-4030-8f43-b15d5c9e703c",
+        "timestamp": 1794645924808
+      },
+      {
+        "executionId": "c15c3e03-4a6f-4370-ae0c-343b19dbf5a0",
+        "chatSessionId": "sess_ffd3ad56-696b-4030-8f43-b15d5c9e703c",
+        "timestamp": 1794646118789
+      },
+      {
+        "executionId": "c15c3e03-4a6f-4370-ae0c-343b19dbf5a0",
+        "chatSessionId": "sess_ffd3ad56-696b-4030-8f43-b15d5c9e703c",
+        "timestamp": 1794646191703
+      }
+    ],
+    "2.5 Update existing tests for the relaxed timestamp rules": [
+      {
+        "executionId": "c15c3e03-4a6f-4370-ae0c-343b19dbf5a0",
+        "chatSessionId": "sess_ffd3ad56-696b-4030-8f43-b15d5c9e703c",
+        "timestamp": 1794645924840
+      },
+      {
+        "executionId": "c15c3e03-4a6f-4370-ae0c-343b19dbf5a0",
+        "chatSessionId": "sess_ffd3ad56-696b-4030-8f43-b15d5c9e703c",
+        "timestamp": 1794646119329
+      },
+      {
+        "executionId": "c15c3e03-4a6f-4370-ae0c-343b19dbf5a0",
+        "chatSessionId": "sess_ffd3ad56-696b-4030-8f43-b15d5c9e703c",
+        "timestamp": 1794646192085
+      }
+    ],
+    "3.1 Add `settled()` and `cancel()` to `app/utils/save-queue.ts`": [
+      {
+        "executionId": "c15c3e03-4a6f-4370-ae0c-343b19dbf5a0",
+        "chatSessionId": "sess_ffd3ad56-696b-4030-8f43-b15d5c9e703c",
+        "timestamp": 1794645924873
+      },
+      {
+        "executionId": "c15c3e03-4a6f-4370-ae0c-343b19dbf5a0",
+        "chatSessionId": "sess_ffd3ad56-696b-4030-8f43-b15d5c9e703c",
+        "timestamp": 1794645931630
+      },
+      {
+        "executionId": "c15c3e03-4a6f-4370-ae0c-343b19dbf5a0",
+        "chatSessionId": "sess_ffd3ad56-696b-4030-8f43-b15d5c9e703c",
+        "timestamp": 1794645997070
+      }
+    ],
+    "4.1 Update `useToast.ts` and `AppToast.vue`": [
+      {
+        "executionId": "c15c3e03-4a6f-4370-ae0c-343b19dbf5a0",
+        "chatSessionId": "sess_ffd3ad56-696b-4030-8f43-b15d5c9e703c",
+        "timestamp": 1794645924906
+      },
+      {
+        "executionId": "c15c3e03-4a6f-4370-ae0c-343b19dbf5a0",
+        "chatSessionId": "sess_ffd3ad56-696b-4030-8f43-b15d5c9e703c",
+        "timestamp": 1794645932347
+      },
+      {
+        "executionId": "c15c3e03-4a6f-4370-ae0c-343b19dbf5a0",
+        "chatSessionId": "sess_ffd3ad56-696b-4030-8f43-b15d5c9e703c",
+        "timestamp": 1794645999413
+      }
+    ],
+    "5.1 Add `resetProgress` and `restoreProgress` to `app/utils/cloud-api.ts`": [
+      {
+        "executionId": "c15c3e03-4a6f-4370-ae0c-343b19dbf5a0",
+        "chatSessionId": "sess_ffd3ad56-696b-4030-8f43-b15d5c9e703c",
+        "timestamp": 1794645924933
+      },
+      {
+        "executionId": "c15c3e03-4a6f-4370-ae0c-343b19dbf5a0",
+        "chatSessionId": "sess_ffd3ad56-696b-4030-8f43-b15d5c9e703c",
+        "timestamp": 1794646058718
+      },
+      {
+        "executionId": "c15c3e03-4a6f-4370-ae0c-343b19dbf5a0",
+        "chatSessionId": "sess_ffd3ad56-696b-4030-8f43-b15d5c9e703c",
+        "timestamp": 1794646115234
+      }
+    ],
+    "5.2 Update `app/composables/useCloudStore.ts`": [
+      {
+        "executionId": "c15c3e03-4a6f-4370-ae0c-343b19dbf5a0",
+        "chatSessionId": "sess_ffd3ad56-696b-4030-8f43-b15d5c9e703c",
+        "timestamp": 1794645924964
+      },
+      {
+        "executionId": "c15c3e03-4a6f-4370-ae0c-343b19dbf5a0",
+        "chatSessionId": "sess_ffd3ad56-696b-4030-8f43-b15d5c9e703c",
+        "timestamp": 1794646195302
+      },
+      {
+        "executionId": "c15c3e03-4a6f-4370-ae0c-343b19dbf5a0",
+        "chatSessionId": "sess_ffd3ad56-696b-4030-8f43-b15d5c9e703c",
+        "timestamp": 1794646244454
+      }
+    ],
+    "6. Checkpoint - Ensure all tests pass": [
+      {
+        "executionId": "c15c3e03-4a6f-4370-ae0c-343b19dbf5a0",
+        "chatSessionId": "sess_ffd3ad56-696b-4030-8f43-b15d5c9e703c",
+        "timestamp": 1794645924995
+      },
+      {
+        "executionId": "c15c3e03-4a6f-4370-ae0c-343b19dbf5a0",
+        "chatSessionId": "sess_ffd3ad56-696b-4030-8f43-b15d5c9e703c",
+        "timestamp": 1794646385535
+      }
+    ],
+    "7.1 Update `app/components/PathConfirmDialog.vue` (or its existing location under `app/components/`)": [
+      {
+        "executionId": "c15c3e03-4a6f-4370-ae0c-343b19dbf5a0",
+        "chatSessionId": "sess_ffd3ad56-696b-4030-8f43-b15d5c9e703c",
+        "timestamp": 1794645925025
+      },
+      {
+        "executionId": "c15c3e03-4a6f-4370-ae0c-343b19dbf5a0",
+        "chatSessionId": "sess_ffd3ad56-696b-4030-8f43-b15d5c9e703c",
+        "timestamp": 1794645932852
+      },
+      {
+        "executionId": "c15c3e03-4a6f-4370-ae0c-343b19dbf5a0",
+        "chatSessionId": "sess_ffd3ad56-696b-4030-8f43-b15d5c9e703c",
+        "timestamp": 1794645998708
+      }
+    ],
+    "7.2 Create `app/components/ResetProgressDialog.vue`": [
+      {
+        "executionId": "c15c3e03-4a6f-4370-ae0c-343b19dbf5a0",
+        "chatSessionId": "sess_ffd3ad56-696b-4030-8f43-b15d5c9e703c",
+        "timestamp": 1794645925067
+      },
+      {
+        "executionId": "c15c3e03-4a6f-4370-ae0c-343b19dbf5a0",
+        "chatSessionId": "sess_ffd3ad56-696b-4030-8f43-b15d5c9e703c",
+        "timestamp": 1794646195351
+      },
+      {
+        "executionId": "c15c3e03-4a6f-4370-ae0c-343b19dbf5a0",
+        "chatSessionId": "sess_ffd3ad56-696b-4030-8f43-b15d5c9e703c",
+        "timestamp": 1794646244005
+      }
+    ],
+    "7.3 Create `app/composables/useProgressReset.ts`": [
+      {
+        "executionId": "c15c3e03-4a6f-4370-ae0c-343b19dbf5a0",
+        "chatSessionId": "sess_ffd3ad56-696b-4030-8f43-b15d5c9e703c",
+        "timestamp": 1794645925100
+      },
+      {
+        "executionId": "c15c3e03-4a6f-4370-ae0c-343b19dbf5a0",
+        "chatSessionId": "sess_ffd3ad56-696b-4030-8f43-b15d5c9e703c",
+        "timestamp": 1794646250836
+      },
+      {
+        "executionId": "c15c3e03-4a6f-4370-ae0c-343b19dbf5a0",
+        "chatSessionId": "sess_ffd3ad56-696b-4030-8f43-b15d5c9e703c",
+        "timestamp": 1794646296503
+      }
+    ],
+    "8.1 Add the \"Reset this path…\" menu item": [
+      {
+        "executionId": "c15c3e03-4a6f-4370-ae0c-343b19dbf5a0",
+        "chatSessionId": "sess_ffd3ad56-696b-4030-8f43-b15d5c9e703c",
+        "timestamp": 1794645925132
+      },
+      {
+        "executionId": "c15c3e03-4a6f-4370-ae0c-343b19dbf5a0",
+        "chatSessionId": "sess_ffd3ad56-696b-4030-8f43-b15d5c9e703c",
+        "timestamp": 1794646007448
+      },
+      {
+        "executionId": "c15c3e03-4a6f-4370-ae0c-343b19dbf5a0",
+        "chatSessionId": "sess_ffd3ad56-696b-4030-8f43-b15d5c9e703c",
+        "timestamp": 1794646052483
+      }
+    ],
+    "8.2 Update `useSkillPath.ts` and `PathView.vue`": [
+      {
+        "executionId": "c15c3e03-4a6f-4370-ae0c-343b19dbf5a0",
+        "chatSessionId": "sess_ffd3ad56-696b-4030-8f43-b15d5c9e703c",
+        "timestamp": 1794645925165
+      },
+      {
+        "executionId": "c15c3e03-4a6f-4370-ae0c-343b19dbf5a0",
+        "chatSessionId": "sess_ffd3ad56-696b-4030-8f43-b15d5c9e703c",
+        "timestamp": 1794646059534
+      },
+      {
+        "executionId": "c15c3e03-4a6f-4370-ae0c-343b19dbf5a0",
+        "chatSessionId": "sess_ffd3ad56-696b-4030-8f43-b15d5c9e703c",
+        "timestamp": 1794646115864
+      }
+    ],
+    "8.3 Update `app/pages/path.vue`": [
+      {
+        "executionId": "c15c3e03-4a6f-4370-ae0c-343b19dbf5a0",
+        "chatSessionId": "sess_ffd3ad56-696b-4030-8f43-b15d5c9e703c",
+        "timestamp": 1794645925224
+      },
+      {
+        "executionId": "c15c3e03-4a6f-4370-ae0c-343b19dbf5a0",
+        "chatSessionId": "sess_ffd3ad56-696b-4030-8f43-b15d5c9e703c",
+        "timestamp": 1794646299674
+      },
+      {
+        "executionId": "c15c3e03-4a6f-4370-ae0c-343b19dbf5a0",
+        "chatSessionId": "sess_ffd3ad56-696b-4030-8f43-b15d5c9e703c",
+        "timestamp": 1794646337950
+      }
+    ],
+    "9.1 Update `app/pages/settings.vue`": [
+      {
+        "executionId": "c15c3e03-4a6f-4370-ae0c-343b19dbf5a0",
+        "chatSessionId": "sess_ffd3ad56-696b-4030-8f43-b15d5c9e703c",
+        "timestamp": 1794645925255
+      },
+      {
+        "executionId": "c15c3e03-4a6f-4370-ae0c-343b19dbf5a0",
+        "chatSessionId": "sess_ffd3ad56-696b-4030-8f43-b15d5c9e703c",
+        "timestamp": 1794646300137
+      },
+      {
+        "executionId": "c15c3e03-4a6f-4370-ae0c-343b19dbf5a0",
+        "chatSessionId": "sess_ffd3ad56-696b-4030-8f43-b15d5c9e703c",
+        "timestamp": 1794646337092
+      }
+    ],
+    "10. Checkpoint - Ensure all tests pass": [
+      {
+        "executionId": "c15c3e03-4a6f-4370-ae0c-343b19dbf5a0",
+        "chatSessionId": "sess_ffd3ad56-696b-4030-8f43-b15d5c9e703c",
+        "timestamp": 1794645925283
+      },
+      {
+        "executionId": "c15c3e03-4a6f-4370-ae0c-343b19dbf5a0",
+        "chatSessionId": "sess_ffd3ad56-696b-4030-8f43-b15d5c9e703c",
+        "timestamp": 1794646385681
+      }
+    ],
+    "11.1 Add the entry to `CHANGELOG.md`": [
+      {
+        "executionId": "c15c3e03-4a6f-4370-ae0c-343b19dbf5a0",
+        "chatSessionId": "sess_ffd3ad56-696b-4030-8f43-b15d5c9e703c",
+        "timestamp": 1794645925321
+      },
+      {
+        "executionId": "c15c3e03-4a6f-4370-ae0c-343b19dbf5a0",
+        "chatSessionId": "sess_ffd3ad56-696b-4030-8f43-b15d5c9e703c",
+        "timestamp": 1794646340987
+      },
+      {
+        "executionId": "c15c3e03-4a6f-4370-ae0c-343b19dbf5a0",
+        "chatSessionId": "sess_ffd3ad56-696b-4030-8f43-b15d5c9e703c",
+        "timestamp": 1794646381838
+      }
+    ],
+    "3. Extend `SaveQueue`": [
+      {
+        "executionId": "c15c3e03-4a6f-4370-ae0c-343b19dbf5a0",
+        "chatSessionId": "sess_ffd3ad56-696b-4030-8f43-b15d5c9e703c",
+        "timestamp": 1794645997101
+      }
+    ],
+    "4. Add a toast duration option": [
+      {
+        "executionId": "c15c3e03-4a6f-4370-ae0c-343b19dbf5a0",
+        "chatSessionId": "sess_ffd3ad56-696b-4030-8f43-b15d5c9e703c",
+        "timestamp": 1794645999448
+      }
+    ],
+    "1. Add the database migration": [
+      {
+        "executionId": "c15c3e03-4a6f-4370-ae0c-343b19dbf5a0",
+        "chatSessionId": "sess_ffd3ad56-696b-4030-8f43-b15d5c9e703c",
+        "timestamp": 1794646113145
+      }
+    ],
+    "2. Add shared types and pure reset logic": [
+      {
+        "executionId": "c15c3e03-4a6f-4370-ae0c-343b19dbf5a0",
+        "chatSessionId": "sess_ffd3ad56-696b-4030-8f43-b15d5c9e703c",
+        "timestamp": 1794646192122
+      }
+    ],
+    "5. Add the cloud API methods and store actions": [
+      {
+        "executionId": "c15c3e03-4a6f-4370-ae0c-343b19dbf5a0",
+        "chatSessionId": "sess_ffd3ad56-696b-4030-8f43-b15d5c9e703c",
+        "timestamp": 1794646244499
+      }
+    ],
+    "7. Build the dialog and composable": [
+      {
+        "executionId": "c15c3e03-4a6f-4370-ae0c-343b19dbf5a0",
+        "chatSessionId": "sess_ffd3ad56-696b-4030-8f43-b15d5c9e703c",
+        "timestamp": 1794646296558
+      }
+    ],
+    "9. Add the Settings entry point": [
+      {
+        "executionId": "c15c3e03-4a6f-4370-ae0c-343b19dbf5a0",
+        "chatSessionId": "sess_ffd3ad56-696b-4030-8f43-b15d5c9e703c",
+        "timestamp": 1794646337135
+      }
+    ],
+    "8. Wire the path page": [
+      {
+        "executionId": "c15c3e03-4a6f-4370-ae0c-343b19dbf5a0",
+        "chatSessionId": "sess_ffd3ad56-696b-4030-8f43-b15d5c9e703c",
+        "timestamp": 1794646337985
+      }
+    ],
+    "11. Update the changelog": [
+      {
+        "executionId": "c15c3e03-4a6f-4370-ae0c-343b19dbf5a0",
+        "chatSessionId": "sess_ffd3ad56-696b-4030-8f43-b15d5c9e703c",
+        "timestamp": 1794646381872
+      }
+    ]
+  }
+}

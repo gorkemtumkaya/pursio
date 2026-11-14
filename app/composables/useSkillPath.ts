@@ -27,6 +27,8 @@ export interface SkillPath {
   xp: ComputedRef<XpSummary>
   toggleQuest(id: string, index: 0 | 1 | 2): void
   complete(id: string): CompletionOutcome | null
+  /** Re-reads Progress from the store, after a reset or restore changed it behind this view. */
+  reload(): void
 }
 
 /**
@@ -39,9 +41,11 @@ export interface SkillPath {
 export function useSkillPath(tree: SkillTree, store: ProgressStore): SkillPath {
   const progress = shallowRef<Progress>(emptyProgress())
 
-  onMounted(() => {
+  function reload(): void {
     progress.value = store.load()
-  })
+  }
+
+  onMounted(reload)
 
   const states = computed(() => deriveNodeStates(tree, progress.value))
   const currentId = computed(() => findCurrentNodeId(tree, progress.value))
@@ -74,5 +78,6 @@ export function useSkillPath(tree: SkillTree, store: ProgressStore): SkillPath {
     xp,
     toggleQuest,
     complete,
+    reload,
   }
 }

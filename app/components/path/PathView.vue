@@ -41,6 +41,8 @@ const props = defineProps<{
   archived: readonly HobbyEntry[]
   /** Entry shown here; its percent follows live Progress. */
   activeId: string
+  /** Increases when the store reset or restored Progress (spec: reset-progress, Req 4.4, 6.3). */
+  resetEpoch?: number
 }>()
 
 /** The page does the storage work and re-chooses the shown hobby when needed. */
@@ -49,11 +51,13 @@ const emit = defineEmits<{
   /** Emitted after the learner confirmed. */
   'delete-hobby': [id: string]
   'restore-hobby': [id: string]
+  /** The learner chose "Reset this path…"; the page opens the dialog. */
+  'reset-hobby': [id: string]
 }>()
 
 const tree: SkillTree = props.tree
 
-const { progress, states, currentId, activeSection, xp, toggleQuest, complete } = useSkillPath(
+const { progress, states, currentId, activeSection, xp, toggleQuest, complete, reload } = useSkillPath(
   tree,
   props.store ?? createProgressStore(browserStorage, tree, props.progressKey),
 )
@@ -162,6 +166,21 @@ function onRestore(entry: HobbyEntry): void {
   emit('restore-hobby', entry.id)
   void focusHobbyList()
 }
+
+function onReset(entry: HobbyEntry): void {
+  emit('reset-hobby', entry.id)
+}
+
+// After a reset or restore the store holds new Progress: re-read it, show the
+// Current_Node again and close the node sheet, which described the old Progress.
+watch(
+  () => props.resetEpoch,
+  () => {
+    reload()
+    selectedId.value = null
+    sheetOpen.value = false
+  },
+)
 
 interface MobileHeaderHandle {
   focusSwitcher(): void
@@ -326,6 +345,7 @@ function onContinue(): void {
         :archived="archived"
         :active-id="activeId"
         @archive="onArchive"
+        @reset="onReset"
         @delete="askDelete"
         @restore="onRestore"
       />
@@ -432,6 +452,7 @@ function onContinue(): void {
       layout="sheet"
       @navigate="closeHobbySheet"
       @archive="onArchive"
+      @reset="onReset"
       @delete="askDelete"
       @restore="onRestore"
     />

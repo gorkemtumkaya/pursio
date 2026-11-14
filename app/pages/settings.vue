@@ -27,6 +27,7 @@ const cloud = useCloudStore()
 const dialog = useAuthDialog()
 const account = useAccountActions()
 const { logoutBusy, logoutError, logOut, askDelete } = account
+const reset = useProgressReset()
 
 const hasSession = computed(() => auth.status.value === 'anonymous' || auth.status.value === 'signed_in')
 /** The save option is shown only to an anonymous learner who has something to keep (Req 10.4, 10.5). */
@@ -437,6 +438,23 @@ const fieldLabelClass = 'font-head text-[15px] font-semibold text-ink'
       <template v-if="hasSession">
         <h2 id="settings-danger" :class="[groupLabelClass, 'mt-3']">Danger zone</h2>
         <section aria-labelledby="settings-danger" :class="cardClass">
+          <div :class="[rowClass, dividerClass]">
+            <span :class="rowTextClass">
+              <b :class="rowTitleClass">Reset all progress</b>
+              <span :class="rowHintClass">Starts every path over. Your paths stay</span>
+            </span>
+            <button
+              type="button"
+              :disabled="cloud.paths.value.length === 0"
+              :class="[
+                'flex h-11 shrink-0 items-center justify-center rounded-2xl border-2 border-danger bg-surface px-4 font-head text-[15px] font-semibold text-danger-text disabled:opacity-60',
+                focusRing,
+              ]"
+              @click="reset.askReset({ scope: 'all' })"
+            >
+              Reset all progress
+            </button>
+          </div>
           <div :class="rowClass">
             <span :class="rowTextClass">
               <b :class="rowTitleClass">Delete account</b>
@@ -464,5 +482,18 @@ const fieldLabelClass = 'font-head text-[15px] font-semibold text-ink'
     :error="account.deleteError.value"
     @confirm="account.confirmDelete"
     @cancel="account.cancelDelete"
+  />
+
+  <ResetProgressDialog
+    :open="reset.open.value"
+    scope="all"
+    :hobby="null"
+    :path-count="reset.pathCount.value"
+    :mode="reset.mode.value"
+    :busy="reset.busy.value"
+    :error="reset.error.value"
+    @update:mode="reset.setMode"
+    @confirm="reset.confirmReset"
+    @cancel="reset.cancelReset"
   />
 </template>

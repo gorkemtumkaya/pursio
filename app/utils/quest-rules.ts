@@ -51,7 +51,7 @@ export function applyProgressChange(
   const path = paths.find((p) => p.pathId === pathId)
   if (!path) return null
 
-  const completedAt = stampCompletions(path.completedAt, next, now)
+  const completedAt = stampCompletions(path.completedAt, path.progress, next, now)
   const questTicks = stampQuestTicks(path.questTicks, path.progress, next, now)
 
   let dailyPick = path.dailyPick

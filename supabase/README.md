@@ -9,6 +9,7 @@ Apply the files in `supabase/migrations/` in file-name order:
 1. `20261108000000_schema.sql`: tables, constraints, triggers and `save_generated_path`.
 2. `20261108000100_rls.sql`: Row Level Security and its policies.
 3. `20261108000200_quests.sql`: quest columns on `progress` (`quest_ticks`, `daily_pick`, `daily_bonus_count`) and `profiles` (`weekly_reward_week`, `weekly_reward_count`), with their check constraints.
+4. `20261109000000_reset_progress.sql`: the functions `reset_progress` and `restore_progress` (security invoker, one transaction each), executable by signed-in users only.
 
 Either run `supabase db push` with the Supabase CLI linked to the project, or paste each file into the dashboard SQL editor and run them in that order.
 
@@ -124,6 +125,23 @@ rollback;
 | 27 | As B: `select quest_ticks from public.progress where user_id = '<A id>';` | 0 rows |
 | 28 | As B: `update public.profiles set weekly_reward_count = 99 where id = '<A id>';` | 0 rows affected |
 | 29 | As A (use A's id in the claims): `update public.profiles set weekly_reward_count = -1 where id = '<A id>';` | Check constraint error (`profiles_weekly_reward_count_nonneg`) |
+
+### Reset progress
+
+Setup: give A at least two paths, one of them archived, each with completed nodes, quest ticks, a daily pick and a bonus count, and set A's `weekly_reward_week` and `weekly_reward_count` to non-empty values. Note A's progress rows and profile reward before each step, and `rollback;` after each step (except R8, which runs R3 and the restore in one transaction).
+
+| # | Step | Expected result |
+| --- | --- | --- |
+| R1 | As A: `select public.reset_progress('path', 'wipe', '<A path id>');` | Returns A's old row for that path. That row is empty (no `completed`, `quests`, `completed_at`, `quest_ticks`, `daily_pick`, bonus 0). A's other paths and the profile reward are unchanged |
+| R2 | As A: `select public.reset_progress('all', 'keep_history');` | All of A's progress rows, archived paths included, have empty `completed` and `quests`, null `daily_pick` and bonus 0. `completed_at` and `quest_ticks` are unchanged. The profile reward is unchanged and the result's `reward` is null |
+| R3 | As A: `select public.reset_progress('all', 'wipe');` | Same as R2, but `completed_at` and `quest_ticks` are empty too. The profile reward week is null and the count is 0. The result's `reward` holds the old values |
+| R4 | As B: `select public.reset_progress('path', 'wipe', '<A path id>');` | Error `path_not_found`. A's rows and A's profile are unchanged |
+| R5 | As B: `select public.reset_progress('all', 'wipe');` | Only B's rows change. A's rows and A's profile are unchanged |
+| R6 | No session (`anon`): `select public.reset_progress('all', 'wipe');` | Permission denied. Nothing changed |
+| R7 | As A: `select public.reset_progress('path', 'wipe');` (no path id), then with a bad scope, then with a bad mode | Error `path_not_found` for the first, `bad_arguments` for the others. Nothing changed, so a failed call leaves no half-reset state |
+| R8 | As A: run R3 and keep its result, then in the same transaction `select public.restore_progress('<rows>'::jsonb, '<reward>'::jsonb);` with the returned `rows` and `reward` | A's rows and profile reward equal their values before R3 |
+| R9 | As A: `select public.restore_progress('[{"path_id":"<B path id>","completed":[],"quests":{},"completed_at":{},"quest_ticks":{},"daily_pick":null,"daily_bonus_count":0}]'::jsonb);`. Also as no session | For A: B's rows and A's rows are unchanged. For no session: permission denied |
+| R10 | As A: a path with no progress row, then R1 on it | An empty progress row exists afterwards |
 
 ### Afterwards
 

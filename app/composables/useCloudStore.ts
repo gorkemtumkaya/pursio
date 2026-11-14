@@ -1,5 +1,5 @@
 import { computed, toRaw } from 'vue'
-import type { WeeklyReward } from '#shared/types/cloud'
+import type { ResetMode, ResetScope, ResetSnapshot, WeeklyReward } from '#shared/types/cloud'
 import type { Progress } from '#shared/types/progress'
 import type { Theme } from '#shared/types/theme'
 import { isTheme } from '#shared/utils/theme'
@@ -14,10 +14,11 @@ import {
   type CloudPath,
   type GeneratedPath,
 } from '~/utils/cloud-library'
-import { buildCloudPaths, parseWeeklyReward, toPathInsertRow, toProgressRow } from '~/utils/cloud-rows'
+import { buildCloudPaths, parseResetSnapshot, parseWeeklyReward, toPathInsertRow, toProgressRow } from '~/utils/cloud-rows'
 import { hobbyId } from '~/utils/hobby-store'
 import { clearLegacyData, planImport, readLegacyData, runLegacyImport } from '~/utils/legacy-import'
 import { browserStorage, type ProgressStore } from '~/utils/progress-store'
+import { resetPlan, rewardAfterReset, withProgressReset, withRestoredProgress } from '~/utils/progress-reset'
 import { applyProgressChange, withDailyPick, type ProgressChange } from '~/utils/quest-rules'
 import { createSaveQueue, type SaveQueue } from '~/utils/save-queue'
 
@@ -38,6 +39,13 @@ interface CloudState {
   userId: string
   paths: CloudPath[]
   profile: CloudProfile | null
+  /** Increases on every successful reset and Undo, so views reload their progress. */
+  resetEpoch: number
+}
+
+export interface ResetResult {
+  /** null only when the database call worked but its answer could not be read; there is then no Undo. */
+  snapshot: ResetSnapshot | null
 }
 
 type ProgressWrite = ProgressChange['write']
@@ -50,11 +58,13 @@ export const CLOUD_MESSAGES = {
   changeFailed: "Couldn't save that change. Try again.",
   progressFailed: "Couldn't save your last change.",
   profileFailed: "Couldn't save that. Try again.",
+  resetFailed: "Couldn't reset your progress. Nothing was changed. Try again.",
+  undoFailed: "Couldn't undo the reset. Your progress stays reset.",
 } as const
 
 const emptyProfile = (): CloudProfile => ({ displayName: null, theme: null, createdAt: null, weeklyReward: null })
 
-const emptyState = (): CloudState => ({ status: 'idle', userId: '', paths: [], profile: null })
+const emptyState = (): CloudState => ({ status: 'idle', userId: '', paths: [], profile: null, resetEpoch: 0 })
 
 // Per page load. A newer bootstrap makes the results of an older one stale.
 let generation = 0
@@ -81,6 +91,7 @@ export function useCloudStore() {
   const status = computed(() => state.value.status)
   const paths = computed<readonly CloudPath[]>(() => state.value.paths)
   const profile = computed(() => state.value.profile)
+  const resetEpoch = computed(() => state.value.resetEpoch)
   const weeklyReward = computed<WeeklyReward | null>(() => state.value.profile?.weeklyReward ?? null)
 
   /** The API for the user the state belongs to, or `null` without a session. */
@@ -135,7 +146,7 @@ export function useCloudStore() {
     queues.clear()
     rewardQueue = null
     failureToasts.clear()
-    state.value = { status: 'loading', userId, paths: [], profile: null }
+    state.value = { status: 'loading', userId, paths: [], profile: null, resetEpoch: 0 }
     const cloud = api()
     if (!cloud) {
       state.value = { ...state.value, status: 'error' }
@@ -366,6 +377,84 @@ export function useCloudStore() {
     }
   }
 
+  /** Waits for pending progress writes of these paths (and the reward) to land. */
+  async function settleQueues(keys: readonly string[], withReward: boolean): Promise<void> {
+    await Promise.all([...keys.map((key) => queues.get(key)?.settled()), withReward ? rewardQueue?.settled() : undefined])
+  }
+
+  /** Drops unsent writes and hides their "couldn't save" toasts, so Retry cannot write old progress back. */
+  function cancelQueues(keys: readonly string[], withReward: boolean): void {
+    const all = withReward ? [...keys, REWARD_KEY] : [...keys]
+    for (const key of all) {
+      if (key === REWARD_KEY && withReward) rewardQueue?.cancel()
+      else queues.get(key)?.cancel()
+      const id = failureToasts.get(key)
+      if (id === undefined) continue
+      failureToasts.delete(key)
+      toast.dismiss(id)
+    }
+  }
+
+  /**
+   * Resets progress of one path or all paths in one transaction (spec: reset-progress).
+   * Returns null without a session, when the rows are not loaded, for an unknown path
+   * or when the request fails; then nothing changes.
+   */
+  async function resetProgress(scope: ResetScope, mode: ResetMode, id?: string): Promise<ResetResult | null> {
+    const cloud = api()
+    if (!cloud || state.value.status !== 'ready') return null
+    const target = scope === 'path' ? find(id ?? '') : undefined
+    if (scope === 'path' && !target) return null
+    const plan = resetPlan(scope, mode)
+    const keys = target ? [target.pathId] : state.value.paths.map((p) => p.pathId)
+
+    await settleQueues(keys, plan.resetsReward)
+    let raw: unknown
+    try {
+      raw = await cloud.resetProgress(scope, mode, target?.pathId ?? null)
+    } catch {
+      return null
+    }
+    cancelQueues(keys, plan.resetsReward)
+
+    // Paths, reward and epoch change in one assignment, so every reader sees them together.
+    const profile = state.value.profile
+    state.value = {
+      ...state.value,
+      paths: withProgressReset(state.value.paths, scope, target?.pathId ?? null, mode),
+      profile: profile ? { ...profile, weeklyReward: rewardAfterReset(profile.weeklyReward, plan) } : profile,
+      resetEpoch: state.value.resetEpoch + 1,
+    }
+    return { snapshot: parseResetSnapshot(raw) }
+  }
+
+  /** Writes a reset snapshot back. A failure keeps the reset data and shows a toast. */
+  async function undoReset(snapshot: ResetSnapshot): Promise<boolean> {
+    const cloud = api()
+    if (!cloud) {
+      toast.show(CLOUD_MESSAGES.undoFailed)
+      return false
+    }
+    const keys = snapshot.rows.map((row) => row.path_id)
+    const withReward = snapshot.reward !== null
+    await settleQueues(keys, withReward)
+    try {
+      await cloud.restoreProgress(snapshot.rows, snapshot.reward)
+    } catch {
+      toast.show(CLOUD_MESSAGES.undoFailed)
+      return false
+    }
+    cancelQueues(keys, withReward)
+    const profile = state.value.profile
+    state.value = {
+      ...state.value,
+      paths: withRestoredProgress(state.value.paths, snapshot),
+      profile: profile && snapshot.reward ? { ...profile, weeklyReward: snapshot.reward } : profile,
+      resetEpoch: state.value.resetEpoch + 1,
+    }
+    return true
+  }
+
   async function updateProfile(patch: { theme?: Theme; display_name?: string | null }): Promise<boolean> {
     const cloud = api()
     if (!cloud) return false
@@ -412,6 +501,9 @@ export function useCloudStore() {
     progressStore,
     ensureDailyPick,
     weeklyReward,
+    resetEpoch,
+    resetProgress,
+    undoReset,
     saveTheme,
     saveDisplayName,
   }

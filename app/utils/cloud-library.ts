@@ -69,12 +69,15 @@ export function activityTimes(paths: readonly CloudPath[]): number[] {
  * loses its time. Entries with no time are left out.
  */
 export function stampQuestTicks(prev: QuestTicks, before: Progress, after: Progress, now: number): QuestTicks {
-  const entries = Object.entries(after.quests).map(([id, ticked]): [string, QuestTriple<number | null>] => {
-    const was = before.quests[id]
+  const ids = new Set([...Object.keys(prev), ...Object.keys(after.quests)])
+  const entries = [...ids].map((id): [string, QuestTriple<number | null>] => {
+    const ticked = Object.hasOwn(after.quests, id) ? after.quests[id] : undefined
+    const was = Object.hasOwn(before.quests, id) ? before.quests[id] : undefined
     const old = Object.hasOwn(prev, id) ? prev[id] : undefined
     const time = (i: 0 | 1 | 2): number | null => {
-      if (!ticked[i]) return null
-      return was?.[i] ? (old?.[i] ?? null) : now
+      if (ticked?.[i]) return was?.[i] ? (old?.[i] ?? null) : now
+      // Unticked now: a tick that existed before loses its time; retained history stays.
+      return was?.[i] ? null : (old?.[i] ?? null)
     }
     return [id, [time(0), time(1), time(2)]]
   })
@@ -82,13 +85,21 @@ export function stampQuestTicks(prev: QuestTicks, before: Progress, after: Progr
 }
 
 /**
- * Timestamps after a Progress change: an existing one is kept, a newly
- * completed Node gets `now`, and Nodes no longer completed are dropped (Req 6.6).
+ * Timestamps after a Progress change. A Node completed in `after` keeps its
+ * time if it was completed in `before`, else gets `now`. A Node completed in
+ * `before` but not in `after` is dropped (Req 6.6). A Node completed in neither
+ * keeps its time, which is history retained by a keep-history reset.
  */
-export function stampCompletions(prev: CompletedAt, progress: Progress, now: number): CompletedAt {
-  return Object.fromEntries(
-    progress.completed.map((id): [string, number] => [id, Object.hasOwn(prev, id) ? (prev[id] ?? now) : now]),
-  )
+export function stampCompletions(prev: CompletedAt, before: Progress, after: Progress, now: number): CompletedAt {
+  const was = new Set(before.completed)
+  const is = new Set(after.completed)
+  const entries: [string, number][] = []
+  for (const id of new Set([...Object.keys(prev), ...after.completed])) {
+    const old = Object.hasOwn(prev, id) ? prev[id] : undefined
+    if (is.has(id)) entries.push([id, was.has(id) ? (old ?? now) : now])
+    else if (!was.has(id) && old !== undefined) entries.push([id, old])
+  }
+  return Object.fromEntries(entries)
 }
 
 export interface GeneratedPath {

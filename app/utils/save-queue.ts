@@ -3,6 +3,10 @@ export interface SaveQueue<T> {
   push(value: T): void
   /** Sends the value kept after a failed write. A no-op when there is none or a write is running. */
   retry(): void
+  /** Resolves when nothing is in flight or waiting. Never rejects; a failed write only leaves its value for `retry`. */
+  settled(): Promise<void>
+  /** Forgets the waiting value and the value kept after a failure. A write already in flight is not aborted. */
+  cancel(): void
 }
 
 export interface SaveQueueHooks {
@@ -20,6 +24,13 @@ export function createSaveQueue<T>(write: (value: T) => Promise<void>, hooks: Sa
   let inFlight = false
   let waiting: { value: T } | null = null
   let failed: { value: T } | null = null
+  let resolvers: Array<() => void> = []
+
+  function release(): void {
+    const done = resolvers
+    resolvers = []
+    for (const resolve of done) resolve()
+  }
 
   function start(value: T): void {
     inFlight = true
@@ -36,12 +47,14 @@ export function createSaveQueue<T>(write: (value: T) => Promise<void>, hooks: Sa
         const next = waiting
         waiting = null
         if (next) start(next.value)
+        else release()
       },
       () => {
         inFlight = false
         failed = waiting ?? { value }
         waiting = null
         hooks.onFailure?.()
+        release()
       },
     )
   }
@@ -60,6 +73,16 @@ export function createSaveQueue<T>(write: (value: T) => Promise<void>, hooks: Sa
       const { value } = failed
       failed = null
       start(value)
+    },
+    settled() {
+      if (!inFlight) return Promise.resolve()
+      return new Promise<void>((resolve) => {
+        resolvers.push(resolve)
+      })
+    },
+    cancel() {
+      waiting = null
+      failed = null
     },
   }
 }

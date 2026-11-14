@@ -6,9 +6,12 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+## [0.2.0] - 2026-11-14
+
 ### Added
 
 - A Quests page with three small quests a day from your path, a +20 XP bonus for finishing them, a weekly goal of practicing on 4 days, and a log of your week. (spec: quests-page)
+- Reset progress from the ⋯ menu of a path or from Settings → Danger zone, either wiping everything or keeping your activity history, with Undo for 8 seconds (spec: reset-progress).
 
 ### Changed
 
@@ -21,7 +24,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 - Failed path builds now record where they failed, so setup problems are easier to find. (spec: tree-api-502-on-new-path)
 
-## [Released]
+## [0.1.0] - 2026-11-13
 
 ### Added
 

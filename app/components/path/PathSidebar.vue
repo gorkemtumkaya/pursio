@@ -6,7 +6,12 @@ import type { HobbyEntry } from '~/utils/hobby-store'
  * spec: local-progress-data, Req 4.1), with a Settings link pinned to the bottom.
  */
 defineProps<{ hobbies: readonly HobbyEntry[]; archived: readonly HobbyEntry[]; activeId: string | null }>()
-const emit = defineEmits<{ archive: [entry: HobbyEntry]; delete: [entry: HobbyEntry]; restore: [entry: HobbyEntry] }>()
+const emit = defineEmits<{
+  archive: [entry: HobbyEntry]
+  reset: [entry: HobbyEntry]
+  delete: [entry: HobbyEntry]
+  restore: [entry: HobbyEntry]
+}>()
 </script>
 
 <template>
@@ -32,6 +37,7 @@ const emit = defineEmits<{ archive: [entry: HobbyEntry]; delete: [entry: HobbyEn
       heading-id="sidebar-hobbies"
       layout="sidebar"
       @archive="emit('archive', $event)"
+      @reset="emit('reset', $event)"
       @delete="emit('delete', $event)"
       @restore="emit('restore', $event)"
     />

@@ -2,7 +2,8 @@
 import { nextTick, onBeforeUnmount, ref, useId, watch } from 'vue'
 
 /**
- * "⋯" menu button of one hobby card: Archive and Delete…. Follows the menu
+ * "⋯" menu button of one hobby card: Archive, Reset this path… (only when
+ * `canReset`) and Delete…. Follows the menu
  * button pattern: Enter, Space and ArrowDown open on the first item, ArrowUp
  * on the last; ArrowUp/Down, Home and End move; Escape closes and refocuses
  * the button (without closing a surrounding sheet); Tab and outside clicks
@@ -10,8 +11,8 @@ import { nextTick, onBeforeUnmount, ref, useId, watch } from 'vue'
  * (`group`) is hovered or holds focus, unless `alwaysVisible`. The parent
  * positions the root (e.g. `absolute`), which also anchors the menu.
  */
-const props = defineProps<{ hobby: string; alwaysVisible: boolean }>()
-const emit = defineEmits<{ archive: []; delete: [] }>()
+const props = defineProps<{ hobby: string; alwaysVisible: boolean; canReset: boolean }>()
+const emit = defineEmits<{ archive: []; reset: []; delete: [] }>()
 
 const open = ref(false)
 const root = ref<HTMLElement | null>(null)
@@ -84,9 +85,10 @@ function onMenuKeydown(event: KeyboardEvent): void {
 }
 
 /** Refocus the button first, so a dialog opened by the action returns focus there. */
-function choose(action: 'archive' | 'delete'): void {
+function choose(action: 'archive' | 'reset' | 'delete'): void {
   closeMenu(true)
   if (action === 'archive') emit('archive')
+  else if (action === 'reset') emit('reset')
   else emit('delete')
 }
 
@@ -144,6 +146,10 @@ const itemClass =
       <button type="button" role="menuitem" tabindex="-1" :class="[itemClass, 'text-ink']" @click="choose('archive')">
         <PathIcon name="archive" class="size-4.5 shrink-0" />
         Archive
+      </button>
+      <button v-if="canReset" type="button" role="menuitem" tabindex="-1" :class="[itemClass, 'text-ink']" @click="choose('reset')">
+        <PathIcon name="reset" class="size-4.5 shrink-0" />
+        Reset this path…
       </button>
       <div role="separator" class="mx-2 my-1 h-0.5 rounded-full bg-line" />
       <button type="button" role="menuitem" tabindex="-1" :class="[itemClass, 'text-danger-text']" @click="choose('delete')">

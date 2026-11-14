@@ -10,7 +10,8 @@
         "type": "command",
         "command": "python3 .kiro/hooks/scripts/block-env-access.py",
         "timeout": 10
-      }
+      },
+      "enabled": true
     }
   ]
 }
