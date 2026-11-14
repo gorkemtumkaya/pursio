@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 // @ts-expect-error plain JS module without types
-import { bumpVersion, detectBump, releaseChangelog } from '../../scripts/release.mjs'
+import { bumpVersion, detectBump, extractNotes, releaseChangelog } from '../../scripts/release.mjs'
 
 const changelog = `# Changelog
 
@@ -55,6 +55,13 @@ describe('release script', () => {
     expect(detectBump('\n### Added\n\n- x\n')).toBe('minor')
     expect(detectBump('\n### Added\n\n### Fixed\n\n- x\n')).toBe('patch')
     expect(detectBump('\n### Changed\n\n- BREAKING: x\n')).toBe('major')
+  })
+
+  it('extracts the notes of one version', () => {
+    const released = releaseChangelog(changelog, '0.2.0', '2026-11-14')
+    expect(extractNotes(released, '0.2.0')).toBe('### Added\n\n- New thing.\n\n### Fixed\n\n- A bug.')
+    expect(extractNotes(released, '0.1.0')).toBe('### Added\n\n- First thing.')
+    expect(extractNotes(released, '9.9.9')).toBeNull()
   })
 
   it('bumps semver parts', () => {

@@ -1,7 +1,9 @@
 #!/usr/bin/env node
 // Moves the [Unreleased] changelog entries into a new version section and
 // bumps package.json to match. Run by the pre-commit hook in .githooks/, or by
-// hand with `yarn release [major|minor|patch]`.
+// hand with `yarn release [major|minor|patch]`. The post-commit hook then tags
+// the commit vX.Y.Z, and .github/workflows/release.yml turns the pushed tag
+// into a GitHub Release.
 //
 // Bump level, unless given as an argument or RELEASE_BUMP:
 //   - "BREAKING" in an entry -> major
@@ -68,12 +70,35 @@ export function releaseChangelog(changelog, version, date) {
   return changelog.slice(0, section.headingStart) + released + changelog.slice(section.end).replace(/^\n+/, '')
 }
 
+/** Returns the body of the `## [version]` section, or null if there is none. */
+export function extractNotes(changelog, version) {
+  const escaped = version.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
+  const heading = new RegExp(`^## \\[${escaped}\\][^\\n]*$`, 'm').exec(changelog)
+  if (!heading) return null
+  const rest = changelog.slice(heading.index + heading[0].length)
+  const next = NEXT_SECTION.exec(rest)
+  return (next ? rest.slice(0, next.index) : rest).trim()
+}
+
 function main() {
   const root = resolve(fileURLToPath(import.meta.url), '../..')
   const changelogPath = resolve(root, 'CHANGELOG.md')
   const pkgPath = resolve(root, 'package.json')
 
   const changelog = readFileSync(changelogPath, 'utf8')
+
+  // `node scripts/release.mjs notes 1.2.3` prints that version's notes (used by CI).
+  if (process.argv[2] === 'notes') {
+    const version = (process.argv[3] || '').replace(/^v/, '')
+    const notes = extractNotes(changelog, version)
+    if (notes === null) {
+      console.error(`release: no "## [${version}]" section in CHANGELOG.md.`)
+      process.exit(1)
+    }
+    process.stdout.write(`${notes}\n`)
+    return
+  }
+
   const section = findUnreleased(changelog)
   if (!section || !hasEntries(section.body)) {
     console.log('release: nothing under [Unreleased], skipping.')

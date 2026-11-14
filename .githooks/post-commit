@@ -1,0 +1,23 @@
+#!/bin/sh
+# Tags a commit vX.Y.Z when it changed the version in package.json.
+# Pushing the tag (git push, with push.followTags on) triggers the GitHub
+# Release workflow in .github/workflows/release.yml.
+
+version=$(node -p "require('./package.json').version") || exit 0
+previous=$(git show HEAD~1:package.json 2>/dev/null | node -p "JSON.parse(require('fs').readFileSync(0, 'utf8')).version" 2>/dev/null)
+
+[ "$version" = "$previous" ] && exit 0
+tag="v$version"
+
+if git rev-parse -q --verify "refs/tags/$tag" >/dev/null; then
+  # An amend of the release commit: move the local tag to the new commit,
+  # unless it was already pushed.
+  if git ls-remote --exit-code --tags origin "refs/tags/$tag" >/dev/null 2>&1; then
+    echo "post-commit: $tag already exists on origin; leaving it." >&2
+    exit 0
+  fi
+  git tag -d "$tag" >/dev/null
+fi
+
+git tag -a "$tag" -m "Release $tag"
+echo "post-commit: tagged $tag (git push to publish the release)"

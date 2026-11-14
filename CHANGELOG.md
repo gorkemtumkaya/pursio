@@ -6,6 +6,12 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+## [0.2.1] - 2026-11-14
+
+### Changed
+
+- Each new version is now published as a GitHub Release with its changelog notes.
+
 ## [0.2.0] - 2026-11-14
 
 ### Added
