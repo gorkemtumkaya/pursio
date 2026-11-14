@@ -115,7 +115,7 @@ export function useAuth() {
     const url = typeof config.public.supabaseUrl === 'string' ? config.public.supabaseUrl.trim() : ''
     const anonKey = typeof config.public.supabaseAnonKey === 'string' ? config.public.supabaseAnonKey.trim() : ''
     const supabase = await getSupabase(url, anonKey)
-    if (!supabase) throw new Error('unavailable')
+    if (!supabase) throw new Error('Supabase URL or anon key is empty (NUXT_PUBLIC_SUPABASE_URL / NUXT_PUBLIC_SUPABASE_ANON_KEY)')
     client = supabase
     subscribe(supabase)
 
@@ -129,7 +129,9 @@ export function useAuth() {
         // Nothing stored, or it could not be removed: the new session replaces it.
       }
       const created = await supabase.auth.signInAnonymously()
-      if (created.error || !created.data.session) throw new Error('unavailable')
+      if (created.error || !created.data.session) {
+        throw new Error(`Anonymous sign-in failed: ${created.error?.message ?? 'no session returned'}`)
+      }
       session = created.data.session
     }
     apply(session)
@@ -144,7 +146,8 @@ export function useAuth() {
     if (started) return Promise.resolve()
     state.value = { ...LOADING }
     const run: Promise<void> = raceDeadline(start(), DEADLINE_MS)
-      .catch(() => {
+      .catch((error: unknown) => {
+        console.error('[auth] Session start failed:', error)
         if (!started) state.value = { status: 'unavailable', user: null }
       })
       .finally(() => {
