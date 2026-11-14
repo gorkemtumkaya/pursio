@@ -31,8 +31,8 @@ export default defineNuxtConfig({
       title: 'Pursio',
       meta: [{ name: 'theme-color', content: '#2A231E' }],
       link: [
-        { rel: 'icon', href: '/favicon.ico', sizes: '32x32' },
-        { rel: 'icon', href: '/favicon.svg', type: 'image/svg+xml' },
+        { rel: 'icon', href: '/favicon.ico?v=2', sizes: '32x32' },
+        { rel: 'icon', href: '/favicon.svg?v=2', type: 'image/svg+xml' },
         { rel: 'apple-touch-icon', href: '/apple-touch-icon.png' },
         { rel: 'manifest', href: '/site.webmanifest' },
         { rel: 'preconnect', href: 'https://fonts.googleapis.com' },
