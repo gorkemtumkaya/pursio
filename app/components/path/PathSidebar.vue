@@ -21,7 +21,6 @@ const emit = defineEmits<{
   >
     <div class="flex items-center gap-2.5">
       <span aria-hidden="true" class="size-9.5 shrink-0 bg-(image:--pursio-logo) bg-contain bg-center bg-no-repeat" />
-
       <span class="font-head text-[26px] font-bold text-ink">Pursio</span>
     </div>
 
