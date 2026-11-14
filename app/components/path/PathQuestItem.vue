@@ -1,7 +1,11 @@
 <script setup lang="ts">
+import type { RankedVideo } from '#shared/types/video'
+
 /**
  * One quest checkbox in the Node_Detail (Req 8.6–8.8, 13.8).
  * Optional `subtitle`, `badge` and `ariaLabel` serve the Quests page (Req 5.2, 15.6).
+ * `watchHow` adds a "Watch how" link when a video matches this quest's text
+ * (spec: skill-video-pipeline, Req 12.11, 12.12).
  */
 defineProps<{
   text: string
@@ -12,11 +16,14 @@ defineProps<{
   badge?: string
   /** Accessible name of the checkbox; falls back to the visible text. */
   ariaLabel?: string
+  /** The video whose matched quest text equals this quest; null or absent shows no link. */
+  watchHow?: RankedVideo | null
 }>()
-const emit = defineEmits<{ toggle: [] }>()
+const emit = defineEmits<{ toggle: []; watch: [videoId: string] }>()
 </script>
 
 <template>
+  <div class="flex flex-col gap-1">
   <label
     class="flex min-h-12 cursor-pointer items-center gap-3 rounded-2xl border-2 border-line bg-surface px-3 py-2 text-[15px] font-bold has-[input:focus-visible]:outline-2 has-[input:focus-visible]:outline-offset-2 has-[input:focus-visible]:outline-ink"
   >
@@ -41,4 +48,14 @@ const emit = defineEmits<{ toggle: [] }>()
       {{ badge }}
     </span>
   </label>
+  <button
+    v-if="watchHow"
+    type="button"
+    class="min-h-11 self-start rounded-xl px-3 text-sm font-extrabold text-accent-text underline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink"
+    :aria-label="`Watch how: ${watchHow.title}`"
+    @click="emit('watch', watchHow.id)"
+  >
+    Watch how
+  </button>
+  </div>
 </template>

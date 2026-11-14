@@ -7,6 +7,16 @@ import { version } from '~~/package.json'
 import { isValidEmail, normalizeDisplayName } from '~/utils/auth-logic'
 import { effectiveModel, emptySettings, loadSettings, saveSettings, type LlmSettings } from '~/utils/llm-settings'
 import { browserStorage } from '~/utils/progress-store'
+import {
+  effectiveLanguage,
+  emptyUserSettings,
+  LANGUAGE_OPTIONS,
+  loadUserSettings,
+  normalizeGoal,
+  saveUserSettings,
+  USER_GOAL_MAX_LENGTH,
+  type UserSettings,
+} from '~/utils/user-settings'
 import { errorCodeFrom, friendlyMessage } from '~/utils/tree-client'
 
 /**
@@ -60,6 +70,55 @@ async function saveName(): Promise<void> {
   // On failure the entered name stays on screen (Req 7.5).
   if (saved && displayName.value === entered) displayName.value = normalizeDisplayName(entered) ?? ''
   nameState.value = saved ? 'saved' : 'idle'
+}
+
+// Language and goal (spec: skill-video-pipeline, Req 1.11, 3.3, 10.1). Kept in this browser
+// and, for a signed-in learner, saved to the account too. The default language is `en`.
+const userSettings = ref<UserSettings>(emptyUserSettings())
+const userSettingsLoaded = ref(false)
+const goalDraft = ref('')
+const goalState = ref<'idle' | 'saving' | 'saved'>('idle')
+const languageValue = computed(() => effectiveLanguage(userSettings.value))
+/** A stored code outside the list stays selectable instead of silently changing. */
+const languageOptions = computed(() =>
+  LANGUAGE_OPTIONS.some((o) => o.code === languageValue.value)
+    ? LANGUAGE_OPTIONS
+    : [...LANGUAGE_OPTIONS, { code: languageValue.value, label: languageValue.value }],
+)
+
+onMounted(() => {
+  userSettings.value = loadUserSettings(browserStorage)
+  goalDraft.value = userSettings.value.goal
+  userSettingsLoaded.value = true
+})
+
+// The account values win once they are loaded.
+watch(
+  () => [cloud.profile.value?.language, cloud.profile.value?.goal] as const,
+  ([language, goal]) => {
+    if (!userSettingsLoaded.value) return
+    if (language == null && goal == null) return
+    userSettings.value = { language: language ?? userSettings.value.language, goal: goal ?? userSettings.value.goal }
+    goalDraft.value = userSettings.value.goal
+    saveUserSettings(browserStorage, userSettings.value)
+  },
+)
+
+function chooseLanguage(code: string): void {
+  userSettings.value = { ...userSettings.value, language: code }
+  saveUserSettings(browserStorage, userSettings.value)
+  void cloud.saveLanguage(code)
+}
+
+async function saveGoal(): Promise<void> {
+  if (goalState.value === 'saving') return
+  goalState.value = 'saving'
+  const goal = normalizeGoal(goalDraft.value)
+  goalDraft.value = goal
+  userSettings.value = { ...userSettings.value, goal }
+  saveUserSettings(browserStorage, userSettings.value)
+  await cloud.saveGoal(goal)
+  goalState.value = 'saved'
 }
 
 /** Client-side limit; the Test_Route itself gives up after 15 s (Req 12.3). */
@@ -274,6 +333,52 @@ const fieldLabelClass = 'font-head text-[15px] font-semibold text-ink'
             </button>
           </div>
         </div>
+
+        <div :class="[rowClass, dividerClass]">
+          <span :class="rowTextClass">
+            <label for="video-language" :class="rowTitleClass">Language</label>
+            <span :class="rowHintClass">The language of the videos we look for</span>
+          </span>
+          <select
+            id="video-language"
+            :value="languageValue"
+            :class="[
+              'h-11 min-w-0 flex-[1_1_200px] rounded-2xl border-2 border-line bg-bg px-4 text-base text-ink lg:flex-none lg:basis-60',
+              focusRing,
+            ]"
+            @change="chooseLanguage(($event.target as HTMLSelectElement).value)"
+          >
+            <option v-for="option in languageOptions" :key="option.code" :value="option.code">{{ option.label }}</option>
+          </select>
+        </div>
+
+        <form :class="[rowClass, dividerClass]" @submit.prevent="saveGoal">
+          <span :class="rowTextClass">
+            <label for="user-goal" :class="rowTitleClass">Goal</label>
+            <span role="status" aria-live="polite" :class="rowHintClass">
+              <template v-if="goalState === 'saving'">Saving…</template>
+              <template v-else-if="goalState === 'saved'">Saved.</template>
+              <template v-else>What you want to get out of your hobby</template>
+            </span>
+          </span>
+          <div class="flex min-w-0 flex-[1_1_240px] gap-2 lg:flex-none lg:basis-80">
+            <input
+              id="user-goal"
+              v-model="goalDraft"
+              type="text"
+              name="user-goal"
+              :maxlength="USER_GOAL_MAX_LENGTH"
+              autocomplete="off"
+              placeholder="Optional"
+              :class="[
+                'h-11 min-w-0 flex-1 rounded-2xl border-2 border-line bg-bg px-4 text-base text-ink placeholder:text-muted',
+                focusRing,
+              ]"
+              @input="goalState = 'idle'"
+            >
+            <button type="submit" :disabled="goalState === 'saving'" :class="plainButtonClass">Save</button>
+          </div>
+        </form>
 
         <div :class="dividerClass">
           <div :class="rowClass">

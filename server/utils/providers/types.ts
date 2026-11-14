@@ -19,8 +19,23 @@ export function userMessage(hobby: string, level: StartLevel): string {
   return `${hobby}\n\n${levelInstruction(level)}`
 }
 
+/** A JSON schema node as plain data (already passed through `toProviderSchema`). */
+export type StructuredSchema = { [key: string]: unknown }
+
+export interface StructuredOptions {
+  systemPrompt: string
+  userText: string
+  /** Tool name (Anthropic) or json_schema name (OpenAI): letters, digits, `_` and `-`. */
+  schemaName: string
+  schema: StructuredSchema
+  maxTokens: number
+  signal?: AbortSignal
+}
+
 export interface ProviderAdapter {
   generateTree(hobby: string, config: ProviderConfig, options: GenerateOptions): Promise<AdapterResult>
+  /** One structured-output call for the Judge, the query writer and the goal classifier. */
+  generateStructured(config: ProviderConfig, options: StructuredOptions): Promise<AdapterResult>
   /** One request with at most 16 output tokens (Req 12.3). */
   testConnection(config: ProviderConfig, signal?: AbortSignal): Promise<AdapterResult>
 }

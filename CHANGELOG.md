@@ -6,6 +6,21 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+## [0.3.0] - 2026-11-14
+
+### Added
+
+- A Watch section in the skill sheet shows videos picked for that skill, so you can learn it without searching YouTube yourself. (spec: skill-video-pipeline)
+- Settings now has a language and a goal, so videos match the language you prefer and your paths aim at what you want to reach. (spec: skill-video-pipeline)
+- Quests now have a "Watch how" link that opens a video for that step. (spec: skill-video-pipeline)
+
+### Changed
+
+- New paths now include what is needed to find videos for each skill. (spec: skill-video-pipeline)
+
+- A new path now queues video lookups for its first three skills right away, and the goal from Settings is used when building the tree. (spec: skill-video-pipeline)
+- Videos found for your current skill now use the language chosen in Settings. (spec: skill-video-pipeline)
+
 ## [0.2.1] - 2026-11-14
 
 ### Changed

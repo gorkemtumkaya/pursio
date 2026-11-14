@@ -11,6 +11,10 @@ export interface SkillNode {
   optional: boolean
   milestone: boolean
   quests: QuestTriple<string>
+  /** 2 to 3 video search strings; absent on paths made before the video pipeline. */
+  searchQueries?: string[]
+  /** True when videos shorter than 60 s are fine; absent means false. */
+  quickTip?: boolean
 }
 
 export interface Section {

@@ -164,6 +164,23 @@ export function parseWeeklyReward(row: unknown): WeeklyReward | null {
   return { week: week.success ? week.data : null, count: readCount(row.weekly_reward_count) }
 }
 
+/** Longest goal the database accepts (`profiles.goal` check). */
+export const GOAL_MAX_LENGTH = 200
+
+/**
+ * The language and goal of a Profile_Row (spec: skill-video-pipeline). A value
+ * that is not a usable string reads as `null`: no language (read as `en`) or no goal.
+ */
+export function parseProfileSettings(row: unknown): { language: string | null; goal: string | null } {
+  if (!isRecord(row)) return { language: null, goal: null }
+  const language = typeof row.language === 'string' ? row.language.trim() : ''
+  const goal = typeof row.goal === 'string' ? row.goal.trim() : ''
+  return {
+    language: language !== '' && language.length <= 35 ? language : null,
+    goal: goal !== '' && goal.length <= GOAL_MAX_LENGTH ? goal : null,
+  }
+}
+
 /**
  * Joins Path_Rows with their Progress_Rows. Unusable Path_Rows are left out
  * without an error, as are repeated Hobby_Ids; a path without a Progress_Row

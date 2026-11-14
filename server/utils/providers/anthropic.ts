@@ -14,13 +14,13 @@ function headers(config: ProviderConfig): Record<string, string> {
 }
 
 /** Finds the forced tool call's input, or undefined when the answer is unusable. */
-function toolInput(response: unknown): { found: true; input: unknown } | { found: false } {
+function toolInput(response: unknown, toolName = TOOL_NAME): { found: true; input: unknown } | { found: false } {
   if (!isRecord(response)) return { found: false }
   if (response.stop_reason === 'max_tokens') return { found: false }
   const content = response.content
   if (!Array.isArray(content)) return { found: false }
   for (const block of content) {
-    if (isRecord(block) && block.type === 'tool_use' && block.name === TOOL_NAME && 'input' in block) {
+    if (isRecord(block) && block.type === 'tool_use' && block.name === toolName && 'input' in block) {
       return { found: true, input: block.input }
     }
   }
@@ -49,6 +49,27 @@ export function createAnthropicAdapter(fetcher: Fetcher): ProviderAdapter {
       const result = await callProvider(fetcher, URL, headers(config), body, options.signal)
       if (!result.ok) return result
       const tool = toolInput(result.response)
+      return tool.found ? { ok: true, value: tool.input } : { ok: false, error: 'bad_output' }
+    },
+
+    async generateStructured(config, options) {
+      const body: Record<string, unknown> = {
+        model: config.model,
+        max_tokens: options.maxTokens,
+        system: options.systemPrompt,
+        messages: [{ role: 'user', content: [{ type: 'text', text: options.userText }] }],
+        tools: [
+          {
+            name: options.schemaName,
+            description: 'Submit the structured result.',
+            input_schema: options.schema,
+          },
+        ],
+        tool_choice: { type: 'tool', name: options.schemaName },
+      }
+      const result = await callProvider(fetcher, URL, headers(config), body, options.signal)
+      if (!result.ok) return result
+      const tool = toolInput(result.response, options.schemaName)
       return tool.found ? { ok: true, value: tool.input } : { ok: false, error: 'bad_output' }
     },
 

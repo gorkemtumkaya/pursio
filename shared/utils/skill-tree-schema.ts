@@ -13,6 +13,8 @@ const nodeSchema = z.object({
   optional: z.boolean(),
   milestone: z.boolean(),
   quests: z.tuple([text, text, text]),
+  searchQueries: z.array(text).min(2).max(3).optional(),
+  quickTip: z.boolean().optional(),
 })
 
 const sectionSchema = z.object({

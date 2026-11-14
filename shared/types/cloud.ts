@@ -2,6 +2,7 @@ import type { StartLevel } from './llm'
 import type { QuestId } from './progress'
 import type { QuestTriple, SkillTree } from './skill-tree'
 import type { Theme } from './theme'
+import type { GoalClass } from './video'
 
 /** What the Tree_Route saves for the verified user. */
 export interface PathSaveInput {
@@ -10,6 +11,8 @@ export interface PathSaveInput {
   level: StartLevel
   tree: SkillTree
   model: string
+  /** The classified Goal; missing means `none` (spec: skill-video-pipeline). */
+  goalClass?: GoalClass
 }
 
 /** Arguments of the `save_generated_path` database function. */
@@ -20,6 +23,7 @@ export interface PathSaveArgs {
   p_tree: SkillTree
   p_mascot_set: string
   p_model: string
+  p_goal_class: GoalClass
 }
 
 /** Completion_Timestamps: Node id to epoch ms. */
@@ -85,6 +89,10 @@ export interface ProfileRow {
   created_at: string
   weekly_reward_week: string | null
   weekly_reward_count: number
+  /** The user's language as entered on Settings; null means not chosen (read as `en`). */
+  language: string | null
+  /** The user's free-text goal, at most 200 characters; null means none. */
+  goal: string | null
 }
 
 export interface ProfilePatch {
@@ -92,6 +100,8 @@ export interface ProfilePatch {
   display_name?: string | null
   weekly_reward_week?: string | null
   weekly_reward_count?: number
+  language?: string | null
+  goal?: string | null
 }
 
 export type ResetScope = 'path' | 'all'

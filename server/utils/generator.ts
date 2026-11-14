@@ -8,7 +8,7 @@ import type { ProviderAdapter } from './providers/types'
 export type GenerationResult =
   | { kind: 'tree'; tree: SkillTree; model: string }
   | { kind: 'not_a_hobby' }
-  | { kind: 'error'; code: 'generation_failed' | 'provider_auth' | 'provider_error' | 'timeout'; status?: number }
+  | { kind: 'error'; code: 'generation_failed' | 'provider_auth' | 'provider_error' | 'timeout'; status?: number; detail?: string }
 
 export interface GeneratorDeps {
   adapters: Record<Provider, ProviderAdapter>
@@ -24,6 +24,16 @@ const REJECTED_HEADER =
   'Your previous answer was rejected. Fix these problems and return the complete skill tree again:'
 const SCHEMA_MISMATCH =
   'Your previous answer did not match the schema. Return the complete skill tree again.'
+
+/** A short fixed-label summary of why the last answer was rejected. Labels only, never model text. */
+export function rejectionDetail(errors: ValidationError[] | null): string {
+  if (errors === null) return 'schema_mismatch'
+  const first = errors[0]
+  if (!first) return 'unknown'
+  if (first.kind === 'video_fields') return `video_fields:${first.field}:${first.issues[0] ?? 'invalid'}`
+  if (first.kind === 'schema') return `schema:${String(first.path[first.path.length - 1] ?? 'root').replace(/[^A-Za-z0-9_]/g, '')}`
+  return first.kind
+}
 
 /** Extra user text for the retry call: the first 20 Validation_Errors, or the schema-mismatch sentence for `null` (Req 4.3). */
 export function retryNote(errors: ValidationError[] | null): string {
@@ -45,6 +55,7 @@ export async function generateSkillTree(
   const adapter = deps.adapters[config.provider]
   const { systemPrompt, signal } = deps
   let note: string | undefined
+  let detail = 'unknown'
 
   for (let attempt = 1; attempt <= MAX_ATTEMPTS; attempt++) {
     const result = await adapter.generateTree(hobby, config, { systemPrompt, level, retryNote: note, signal })
@@ -53,6 +64,7 @@ export async function generateSkillTree(
     if (!result.ok) {
       if (result.error === 'bad_output') {
         note = retryNote(null)
+        detail = 'bad_output'
         continue
       }
       return result.status === undefined
@@ -63,10 +75,11 @@ export async function generateSkillTree(
     const unwrapped = unwrapGenerationOutput(result.value)
     if (unwrapped.kind === 'not_a_hobby') return { kind: 'not_a_hobby' }
 
-    const loaded = loadSkillTree(unwrapped.value)
+    const loaded = loadSkillTree(unwrapped.value, { requireVideoFields: true })
     if (loaded.ok) return { kind: 'tree', tree: loaded.value, model: config.model }
     note = retryNote(loaded.errors)
+    detail = rejectionDetail(loaded.errors)
   }
 
-  return { kind: 'error', code: 'generation_failed' }
+  return { kind: 'error', code: 'generation_failed', detail }
 }

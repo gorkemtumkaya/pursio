@@ -9,6 +9,7 @@ import { loadSettings } from '~/utils/llm-settings'
 import type { StorageLike } from '~/utils/progress-store'
 import { buildTreeRequest, errorCodeFrom, friendlyMessage } from '~/utils/tree-client'
 import { summarizeTree, type TreeSummary } from '~/utils/tree-summary'
+import { loadUserSettings } from '~/utils/user-settings'
 
 export type BuilderState = 'input' | 'generating' | 'ready' | 'error'
 
@@ -84,7 +85,10 @@ export function useHobbyBuilder() {
   async function build(): Promise<void> {
     const value = hobby.value.trim()
     if (value.length === 0 || state.value === 'generating' || preparing) return
-    const request = buildTreeRequest(value, level.value, loadSettings(browserStorage))
+    // The Settings goal: the account value wins, else the browser copy (spec: skill-video-pipeline, Req 1.11).
+    const accountGoal = cloud.profile.value?.goal ?? null
+    const goal = accountGoal !== null && accountGoal.trim() !== '' ? accountGoal : loadUserSettings(browserStorage).goal
+    const request = buildTreeRequest(value, level.value, loadSettings(browserStorage), goal)
     const requestLevel = level.value
     // The token as held right now; without one nothing is sent (spec: accounts-cloud-save, Req 9.12, 9.14).
     preparing = true

@@ -310,14 +310,14 @@ describe('package.json dependencies (Req 14.1, 14.2)', () => {
 })
 
 describe('service role key location (spec: accounts-cloud-save, Req 1.5, 9.13)', () => {
-  it('is named only in nuxt.config.ts and server/utils/account-runtime.ts', () => {
+  it('is named only in nuxt.config.ts, server/utils/account-runtime.ts and server/utils/video/runtime.ts', () => {
     const KEY_NAME = ['supabase', 'ServiceRoleKey'].join('')
     const scanned = ['app', 'server', 'shared'].flatMap((dir) => listFiles(join(ROOT, dir)))
     const hits = scanned
       .filter((path) => /\.(vue|ts|js|mjs|json|md)$/.test(path))
       .filter((path) => readFileSync(path, 'utf8').includes(KEY_NAME))
       .map((path) => relative(ROOT, path))
-    expect(hits).toEqual(['server/utils/account-runtime.ts'])
+    expect(hits).toEqual(['server/utils/account-runtime.ts', 'server/utils/video/runtime.ts'])
     expect(readFileSync(join(ROOT, 'nuxt.config.ts'), 'utf8')).toContain(`${KEY_NAME}: ''`)
   })
 })

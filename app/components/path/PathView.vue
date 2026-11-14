@@ -1,6 +1,6 @@
 <script setup lang="ts">
-import { computed, nextTick, onBeforeUnmount, ref, shallowRef, useTemplateRef, watch } from 'vue'
-import type { QuestTriple, SkillNode, SkillTree } from '#shared/types/skill-tree'
+import { computed, nextTick, onBeforeUnmount, onMounted, ref, shallowRef, useTemplateRef, watch } from 'vue'
+import type { Level, QuestTriple, SkillNode, SkillTree } from '#shared/types/skill-tree'
 import { toWickOutfit } from '~/components/mascot/wick'
 import MascotWick from '~/components/mascot/wick.vue'
 import { completionPercent } from '#shared/utils/progress-engine'
@@ -8,12 +8,15 @@ import { useActivity } from '~/composables/useActivity'
 import { usePathLayout } from '~/composables/usePathLayout'
 import { useSkillPath } from '~/composables/useSkillPath'
 import { useViewportClass } from '~/composables/useViewportClass'
+import { useSkillVideos, type SkillVideosParams } from '~/composables/useSkillVideos'
 import { dismissSavePrompt, isSavePromptDismissed } from '~/utils/active-hobby'
 import { shouldShowSavePrompt } from '~/utils/auth-logic'
 import { freshFor } from '~/utils/fresh-samples'
 import type { HobbyEntry } from '~/utils/hobby-store'
 import { detailTitleId } from '~/utils/node-visual'
 import { browserStorage, createProgressStore, type ProgressStore } from '~/utils/progress-store'
+import { requestFill } from '~/utils/video-api'
+import { effectiveLanguage, emptyUserSettings, loadUserSettings } from '~/utils/user-settings'
 
 /**
  * Path_View orchestration (design "Page orchestration"). The page picks the
@@ -73,12 +76,14 @@ interface NodeEntry {
   node: SkillNode
   /** 1-based Section index and 1-based index within the Section (Req 8.5). */
   position: { section: number; skill: number }
+  /** Level of the section that holds the node: the Pool_Key level. */
+  level: Level
 }
 
 const nodeIndex = new Map<string, NodeEntry>()
 tree.sections.forEach((section, s) => {
   section.nodes.forEach((node, n) => {
-    nodeIndex.set(node.id, { node, position: { section: s + 1, skill: n + 1 } })
+    nodeIndex.set(node.id, { node, position: { section: s + 1, skill: n + 1 }, level: section.level })
   })
 })
 const lastNodeId = tree.sections.at(-1)?.nodes.at(-1)?.id ?? null
@@ -102,11 +107,12 @@ const detail = computed(() => {
   const id = effectiveSelectedId.value
   const entry = id === null ? undefined : nodeIndex.get(id)
   if (!entry) return null
-  const { node, position } = entry
+  const { node, position, level } = entry
   const stateMap = states.value
   return {
     node,
     position,
+    level,
     state: stateMap.get(node.id) ?? 'locked',
     isCurrent: currentId.value === node.id,
     checks: progress.value.quests[node.id] ?? UNCHECKED,
@@ -240,6 +246,59 @@ onBeforeUnmount(clearAnimationTimer)
 /** Demo_Mode has no account, so it never asks for the session (spec: accounts-cloud-save, Req 12). */
 const auth = props.demo ? null : useAuth()
 const authDialog = useAuthDialog()
+
+// Videos for the open skill (spec: skill-video-pipeline, Req 12.7 to 12.10, 12.16, 12.17).
+// A failed request hides the Watch section only; quests, XP, level and streak never depend on it.
+const cloud = props.demo ? null : useCloudStore()
+const browserSettings = ref(emptyUserSettings())
+onMounted(() => {
+  browserSettings.value = loadUserSettings(browserStorage)
+})
+/** The account's language wins over the browser copy once loaded; default `en`. */
+const videoLanguage = computed(() => {
+  const stored = cloud?.profile.value?.language ?? null
+  return stored !== null && stored.trim() !== ''
+    ? stored
+    : effectiveLanguage(browserSettings.value)
+})
+
+const videoParams = computed<SkillVideosParams | null>(() => {
+  const current = detail.value
+  if (!current || current.state === 'locked') return null
+  if (viewport.value === 'mobile' && !sheetOpen.value) return null
+  return {
+    hobby: tree.hobby,
+    skillTitle: current.node.title,
+    level: current.level,
+    language: videoLanguage.value,
+    // Only a signed-in learner has a stored path (Req 12.16); demo sends neither id.
+    pathId: props.demo ? undefined : props.progressKey,
+    skillId: props.demo ? undefined : current.node.id,
+  }
+})
+const { state: videos } = useSkillVideos(videoParams)
+
+/** Asks the server to fill the window around a new current skill, after a short pause (Req 8.3). */
+const FILL_DEBOUNCE_MS = 1000
+let fillTimer: ReturnType<typeof setTimeout> | null = null
+
+function clearFillTimer(): void {
+  if (fillTimer !== null) {
+    clearTimeout(fillTimer)
+    fillTimer = null
+  }
+}
+
+watch(currentId, (id) => {
+  clearFillTimer()
+  if (props.demo || id === null || !auth) return
+  fillTimer = setTimeout(() => {
+    fillTimer = null
+    void auth.accessToken().then(token => requestFill({ pathId: props.progressKey, currentSkillId: id, language: videoLanguage.value }, token))
+  }, FILL_DEBOUNCE_MS)
+})
+
+onBeforeUnmount(clearFillTimer)
 
 /** Pause between the completion (or the closed Unlock_Moment card) and the Save_Prompt (Req 10.1). */
 const SAVE_PROMPT_DELAY_MS = 250
@@ -405,6 +464,7 @@ function onContinue(): void {
           :position="detail.position"
           :locked-by="detail.lockedBy"
           :fresh="detail.fresh"
+          :videos="videos"
           layout="panel"
           @toggle="onToggle(detail.node.id, $event)"
           @complete="onComplete(detail.node.id)"
@@ -432,6 +492,7 @@ function onContinue(): void {
       :checks="detail.checks"
       :locked-by="detail.lockedBy"
       :fresh="detail.fresh"
+      :videos="videos"
       layout="sheet"
       @toggle="onToggle(detail.node.id, $event)"
       @complete="onComplete(detail.node.id)"

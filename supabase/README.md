@@ -10,6 +10,10 @@ Apply the files in `supabase/migrations/` in file-name order:
 2. `20261108000100_rls.sql`: Row Level Security and its policies.
 3. `20261108000200_quests.sql`: quest columns on `progress` (`quest_ticks`, `daily_pick`, `daily_bonus_count`) and `profiles` (`weekly_reward_week`, `weekly_reward_count`), with their check constraints.
 4. `20261109000000_reset_progress.sql`: the functions `reset_progress` and `restore_progress` (security invoker, one transaction each), executable by signed-in users only.
+5. `20261110000000_goal_language.sql`: `profiles.language`, `profiles.goal`, `paths.goal_class`, and a 7-argument `save_generated_path` (`p_goal_class` defaults to `'none'`) that replaces the 6-argument one.
+
+6. `20261110000100_video_pipeline.sql`, `20261110000200_video_events.sql`: video pipeline tables and functions, and per-user video events.
+7. `20261110000300_video_drain_cron.sql`: enables `pg_cron` and `pg_net` and schedules the `video-drain` job (every 20 seconds). See "Video drain job" below for the Vault secrets it needs.
 
 Either run `supabase db push` with the Supabase CLI linked to the project, or paste each file into the dashboard SQL editor and run them in that order.
 
@@ -42,6 +46,22 @@ Set these three keys in your local environment file and in the hosting environme
 | `NUXT_PUBLIC_SUPABASE_URL` | Browser and server |
 | `NUXT_PUBLIC_SUPABASE_ANON_KEY` | Browser and server |
 | `NUXT_SUPABASE_SERVICE_ROLE_KEY` | Server only, by `DELETE /api/account` |
+
+### Video drain job
+
+The `video-drain` cron job calls `POST <app URL>/api/videos/drain` every 20 seconds with the header `x-video-drain-secret`. It reads both values from Supabase Vault, so no value lives in a migration or in git. Until both secrets exist the job runs and sends nothing.
+
+Create the secrets once per project in the SQL editor. Replace the placeholders:
+
+```sql
+select vault.create_secret('<app URL, e.g. https://your-domain.example>', 'video_drain_app_url');
+select vault.create_secret('<same value as NUXT_VIDEO_DRAIN_SECRET on the host>', 'video_drain_secret');
+```
+
+- `video_drain_secret` must equal `NUXT_VIDEO_DRAIN_SECRET` on the host, or the route answers 401.
+- To change a value, use `vault.update_secret(<id from vault.secrets>, '<new value>')`.
+- Check runs with `select * from cron.job_run_details order by start_time desc limit 5;` and responses with `select * from net._http_response order by created desc limit 5;`.
+- Roll back with `select cron.unschedule('video-drain');`.
 
 ## 4. Row Level Security checklist
 

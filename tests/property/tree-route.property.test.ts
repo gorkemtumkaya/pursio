@@ -7,7 +7,7 @@ import { loadSkillTree } from '../../shared/utils/skill-tree-load'
 import { handleTreeRequest } from '../../server/utils/llm-handlers'
 import { cacheKey } from '../../server/utils/tree-cache'
 import { arbValidTree } from '../arbitraries'
-import { DEFAULTS, fakeTreeDeps, never, treeOutput, type FakeTreeOptions } from '../support/tree-deps'
+import { DEFAULTS, fakeTreeDeps, never, treeOutput, withVideoFields, type FakeTreeOptions } from '../support/tree-deps'
 import type { AdapterResult } from '../../server/utils/providers/types'
 
 const RUNS = { numRuns: 100 }
@@ -63,6 +63,8 @@ function requestBody(hobby: string, level: StartLevel | undefined, config: Confi
 function headerKey(config: ConfigChoice): string | undefined {
   return config.kind === 'user' ? config.key : undefined
 }
+
+const arbVideoTree = arbValidTree.map(withVideoFields)
 
 function loaded(tree: SkillTree): SkillTree {
   const result = loadSkillTree(tree)
@@ -186,7 +188,7 @@ describe('Property 13: Only the verified user id is used', () => {
           token: arbToken,
           userId: fc.uuid(),
           otherUserId: fc.uuid(),
-          tree: arbValidTree,
+          tree: arbVideoTree,
           cachedModel: fc.option(arbModel, { nil: undefined }),
         }),
         async ({ hobby, level, config, spoof, scheme, token, userId, otherUserId, tree, cachedModel }) => {
@@ -223,7 +225,7 @@ describe('Property 13: Only the verified user id is used', () => {
           expect(fake.calls.save).toEqual([
             {
               token,
-              input: { hobby: hobby.trimmed, level: expectedLevel, tree: expectedTree, model: expectedModel },
+              input: { hobby: hobby.trimmed, level: expectedLevel, tree: expectedTree, model: expectedModel, goalClass: 'none' },
             },
           ])
         },
@@ -367,7 +369,7 @@ describe('Property 15: A save failure keeps the tree for a free retry', () => {
           level: arbOptionalLevel,
           config: arbConfig,
           mode: fc.constantFrom('throws' as const, 'timeout' as const, 'empty' as const),
-          tree: arbValidTree,
+          tree: arbVideoTree,
         }),
         async ({ hobby, level, config, mode, tree }) => {
           const expectedTree = loaded(tree)
@@ -580,7 +582,7 @@ describe('Property 3: Preservation of status, body, cache and limiter effects', 
           level: arbOptionalLevel,
           config: arbConfig,
           outcome: arbOutcome,
-          tree: arbValidTree,
+          tree: arbVideoTree,
           token: arbToken,
           scheme: arbScheme,
           userId: fc.uuid(),
@@ -615,7 +617,7 @@ describe('Property 3: Preservation of status, body, cache and limiter effects', 
             expect(fake.calls.cacheSet).toEqual([cacheKey(hobby.trimmed, level ?? 'new', provider, model)])
             // The learner's own token and the trimmed hobby reach the save.
             expect(fake.calls.save).toEqual([
-              { token, input: { hobby: hobby.trimmed, level: level ?? 'new', tree: expectedTree, model } },
+              { token, input: { hobby: hobby.trimmed, level: level ?? 'new', tree: expectedTree, model, goalClass: 'none' } },
             ])
           }
         },
@@ -672,7 +674,7 @@ describe('Property 3: Preservation of status, body, cache and limiter effects', 
   it('answers 429 rate_limited on a default-config miss, and never for a user key or a cache hit', async () => {
     await fc.assert(
       fc.asyncProperty(
-        fc.record({ hobby: arbHobby, level: arbOptionalLevel, config: arbConfig, tree: arbValidTree, token: arbToken, cachedHit: fc.boolean() }),
+        fc.record({ hobby: arbHobby, level: arbOptionalLevel, config: arbConfig, tree: arbVideoTree, token: arbToken, cachedHit: fc.boolean() }),
         async ({ hobby, level, config, tree, token, cachedHit }) => {
           const expectedTree = loaded(tree)
           const { provider, model } = effective(config)
@@ -707,7 +709,7 @@ describe('Property 3: Preservation of status, body, cache and limiter effects', 
   it('serves a cache hit without the adapter, the limiter or a cache write, and saves with the learner token', async () => {
     await fc.assert(
       fc.asyncProperty(
-        fc.record({ hobby: arbHobby, level: arbOptionalLevel, config: arbConfig, tree: arbValidTree, token: arbToken, cachedModel: arbModel }),
+        fc.record({ hobby: arbHobby, level: arbOptionalLevel, config: arbConfig, tree: arbVideoTree, token: arbToken, cachedModel: arbModel }),
         async ({ hobby, level, config, tree, token, cachedModel }) => {
           const expectedTree = loaded(tree)
           const { provider, model } = effective(config)
@@ -724,7 +726,7 @@ describe('Property 3: Preservation of status, body, cache and limiter effects', 
           expect(fake.calls.consume).toEqual([])
           expect(fake.calls.cacheSet).toEqual([])
           expect(fake.calls.save).toEqual([
-            { token, input: { hobby: hobby.trimmed, level: level ?? 'new', tree: expectedTree, model: cachedModel } },
+            { token, input: { hobby: hobby.trimmed, level: level ?? 'new', tree: expectedTree, model: cachedModel, goalClass: 'none' } },
           ])
         },
       ),
@@ -735,7 +737,7 @@ describe('Property 3: Preservation of status, body, cache and limiter effects', 
   it('uses the body provider and model for a user key, even when the default config is unusable', async () => {
     await fc.assert(
       fc.asyncProperty(
-        fc.record({ hobby: arbHobby, level: arbOptionalLevel, provider: arbProvider, model: arbModel, key: fc.stringMatching(/^[a-z0-9]{1,20}$/), tree: arbValidTree, token: arbToken }),
+        fc.record({ hobby: arbHobby, level: arbOptionalLevel, provider: arbProvider, model: arbModel, key: fc.stringMatching(/^[a-z0-9]{1,20}$/), tree: arbVideoTree, token: arbToken }),
         async ({ hobby, level, provider, model, key, tree, token }) => {
           const fake = fakeTreeDeps({
             users: { [token]: 'user-1' },
@@ -767,7 +769,7 @@ describe('Property 2: A failed save keeps the generated tree for a free retry', 
           hobby: arbHobby,
           level: arbOptionalLevel,
           config: arbConfig,
-          tree: arbValidTree,
+          tree: arbVideoTree,
           mode: fc.constantFrom('throws' as const, 'timeout' as const, 'empty' as const),
         }),
         async ({ hobby, level, config, tree, mode }) => {

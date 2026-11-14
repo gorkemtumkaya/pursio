@@ -47,14 +47,25 @@ export default defineNuxtConfig({
     llmProvider: '',
     llmModel: '',
     llmApiKey: '',
-    // Read only by server/utils/account-runtime.ts (DELETE /api/account).
+    // Read by server/utils/account-runtime.ts (DELETE /api/account) and
+    // server/utils/video/runtime.ts (video pipeline tables).
     supabaseServiceRoleKey: '',
+    // Video pipeline (server-only, never under public).
+    youtubeApiKey: '',
+    // Daily provider quota units per Pacific day.
+    videoDailyQuota: 10000,
+    // Secret for POST /api/videos/drain (header x-video-drain-secret).
+    videoDrainSecret: '',
     public: {
       supabaseUrl: '',
       supabaseAnonKey: '',
     },
   },
   nitro: {
+    // Hosted on Vercel; supabase is only the database, Auth and pg_cron + pg_net.
+    preset: 'vercel',
+    // Video pipeline runs fit in 60 s (see design.md, Serverless execution).
+    vercel: { functions: { maxDuration: 60 } },
     // Relative to server/; read with useStorage('assets:prompts').
     serverAssets: [{ baseName: 'prompts', dir: './prompts' }],
   },

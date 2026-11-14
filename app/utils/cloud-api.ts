@@ -8,6 +8,8 @@ import type {
   ResetSnapshotRow,
   WeeklyReward,
 } from '#shared/types/cloud'
+import type { VideoEvent } from '#shared/types/video'
+import { serializeEvent } from '#shared/utils/video-events'
 
 /**
  * Every table call of the browser (spec: accounts-cloud-save). All of them run
@@ -31,6 +33,8 @@ export interface CloudApi {
   resetProgress(scope: ResetScope, mode: ResetMode, pathId: string | null): Promise<unknown>
   /** Writes a snapshot back in one transaction. */
   restoreProgress(rows: readonly ResetSnapshotRow[], reward: WeeklyReward | null): Promise<void>
+  /** Sends video event records to `merge_video_events`, which merges them with the stored ones. */
+  mergeVideoEvents(rows: readonly VideoEvent[]): Promise<void>
 }
 
 /** A failed call. It carries no Supabase message, so none can reach the screen. */
@@ -81,7 +85,7 @@ export function createCloudApi(client: SupabaseClient, userId: string): CloudApi
     async getProfile() {
       const result: Outcome = await client
         .from('profiles')
-        .select('id, display_name, theme, created_at, weekly_reward_week, weekly_reward_count')
+        .select('id, display_name, theme, created_at, weekly_reward_week, weekly_reward_count, language, goal')
         .eq('id', userId)
         .maybeSingle()
       check(result)
@@ -126,6 +130,10 @@ export function createCloudApi(client: SupabaseClient, userId: string): CloudApi
     },
     async restoreProgress(rows, reward) {
       check(await client.rpc('restore_progress', { p_rows: [...rows], p_reward: reward }))
+    },
+    async mergeVideoEvents(rows) {
+      if (rows.length === 0) return
+      check(await client.rpc('merge_video_events', { p_rows: rows.map(serializeEvent) }))
     },
   }
 }

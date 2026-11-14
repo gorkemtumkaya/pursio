@@ -1,6 +1,9 @@
 import { createClient, type SupabaseClient } from '@supabase/supabase-js'
 import type { PathSaveInput } from '../../shared/types/cloud'
 import { buildSaveArgs } from '../../shared/utils/cloud-path'
+import { loadSkillTree } from '../../shared/utils/skill-tree-load'
+import { coerceGoalClass } from './goal-classifier'
+import type { StoredPath } from './video/handlers'
 
 // Server-side Supabase calls that act for a user (spec: accounts-cloud-save, Req 9).
 // Only the public URL and anon key are used here; the service role key is not.
@@ -41,6 +44,27 @@ export async function verifyAccessToken(token: string, _signal?: AbortSignal): P
   const { data, error } = await sharedClient(config).auth.getUser(token)
   if (error || !data.user) return null
   return data.user.id
+}
+
+/**
+ * Loads the user's own path (tree and goal class) with the user's token, so Row Level
+ * Security applies. Null when no visible path has this id; throws on any other failure.
+ */
+export async function loadPathForUser(token: string, pathId: string, signal?: AbortSignal): Promise<StoredPath | null> {
+  const config = publicSupabaseConfig()
+  if (!config) throw new Error('config_missing')
+  const client = createClient(config.url, config.anonKey, {
+    auth: SERVER_AUTH,
+    global: { headers: { Authorization: `Bearer ${token}` } },
+  })
+  const filtered = client.from('paths').select('tree, goal_class').eq('id', pathId)
+  const { data, error } = await (signal ? filtered.abortSignal(signal) : filtered).maybeSingle()
+  if (error) throw new Error('path_load_failed')
+  if (!data) return null
+  const row: { tree?: unknown; goal_class?: unknown } = data
+  const loaded = loadSkillTree(row.tree)
+  if (!loaded.ok) throw new Error('path_invalid')
+  return { tree: loaded.value, goalClass: coerceGoalClass(row.goal_class) }
 }
 
 /** A `save_failed` error carrying a fixed, non-secret `reason` label. */

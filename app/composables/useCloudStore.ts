@@ -1,5 +1,5 @@
 import { computed, toRaw } from 'vue'
-import type { ResetMode, ResetScope, ResetSnapshot, WeeklyReward } from '#shared/types/cloud'
+import type { ProfilePatch, ResetMode, ResetScope, ResetSnapshot, WeeklyReward } from '#shared/types/cloud'
 import type { Progress } from '#shared/types/progress'
 import type { Theme } from '#shared/types/theme'
 import { isTheme } from '#shared/utils/theme'
@@ -14,7 +14,15 @@ import {
   type CloudPath,
   type GeneratedPath,
 } from '~/utils/cloud-library'
-import { buildCloudPaths, parseResetSnapshot, parseWeeklyReward, toPathInsertRow, toProgressRow } from '~/utils/cloud-rows'
+import {
+  buildCloudPaths,
+  GOAL_MAX_LENGTH,
+  parseProfileSettings,
+  parseResetSnapshot,
+  parseWeeklyReward,
+  toPathInsertRow,
+  toProgressRow,
+} from '~/utils/cloud-rows'
 import { hobbyId } from '~/utils/hobby-store'
 import { clearLegacyData, planImport, readLegacyData, runLegacyImport } from '~/utils/legacy-import'
 import { browserStorage, type ProgressStore } from '~/utils/progress-store'
@@ -31,6 +39,10 @@ export interface CloudProfile {
   createdAt: string | null
   /** The account's weekly reward values; null when they are not loaded (decision D4). */
   weeklyReward: WeeklyReward | null
+  /** The language chosen on Settings; null means not chosen (read as `en`). */
+  language: string | null
+  /** The goal entered on Settings; null means none. */
+  goal: string | null
 }
 
 interface CloudState {
@@ -62,7 +74,14 @@ export const CLOUD_MESSAGES = {
   undoFailed: "Couldn't undo the reset. Your progress stays reset.",
 } as const
 
-const emptyProfile = (): CloudProfile => ({ displayName: null, theme: null, createdAt: null, weeklyReward: null })
+const emptyProfile = (): CloudProfile => ({
+  displayName: null,
+  theme: null,
+  createdAt: null,
+  weeklyReward: null,
+  language: null,
+  goal: null,
+})
 
 const emptyState = (): CloudState => ({ status: 'idle', userId: '', paths: [], profile: null, resetEpoch: 0 })
 
@@ -127,7 +146,11 @@ export function useCloudStore() {
       const stored = isTheme(record.theme) ? record.theme : null
       const displayName = typeof record.display_name === 'string' ? record.display_name : null
       const createdAt = typeof record.created_at === 'string' ? record.created_at : null
-      state.value = { ...state.value, profile: { displayName, theme: stored, createdAt, weeklyReward: parseWeeklyReward(row) } }
+      const { language, goal } = parseProfileSettings(row)
+      state.value = {
+        ...state.value,
+        profile: { displayName, theme: stored, createdAt, weeklyReward: parseWeeklyReward(row), language, goal },
+      }
       // A valid, different theme is applied and replaces the one in localStorage (Req 7.1);
       // a bad or missing one changes nothing and is not written back (Req 7.7).
       if (stored !== null && stored !== theme.value) setTheme(stored)
@@ -455,7 +478,7 @@ export function useCloudStore() {
     return true
   }
 
-  async function updateProfile(patch: { theme?: Theme; display_name?: string | null }): Promise<boolean> {
+  async function updateProfile(patch: ProfilePatch): Promise<boolean> {
     const cloud = api()
     if (!cloud) return false
     try {
@@ -486,6 +509,28 @@ export function useCloudStore() {
     return true
   }
 
+  /** Saves the language; empty means not chosen (read as `en`). Returns true when it was saved. */
+  async function saveLanguage(raw: string): Promise<boolean> {
+    if (state.value.userId === '') return false
+    const trimmed = raw.trim()
+    const language = trimmed === '' ? null : trimmed
+    if (!(await updateProfile({ language }))) return false
+    const current = state.value.profile
+    state.value = { ...state.value, profile: { ...(current ?? emptyProfile()), language } }
+    return true
+  }
+
+  /** Saves the goal, trimmed and cut to 200 characters; empty means no goal. Returns true when it was saved. */
+  async function saveGoal(raw: string): Promise<boolean> {
+    if (state.value.userId === '') return false
+    const trimmed = raw.trim().slice(0, GOAL_MAX_LENGTH).trim()
+    const goal = trimmed === '' ? null : trimmed
+    if (!(await updateProfile({ goal }))) return false
+    const current = state.value.profile
+    state.value = { ...state.value, profile: { ...(current ?? emptyProfile()), goal } }
+    return true
+  }
+
   return {
     status,
     paths,
@@ -506,5 +551,7 @@ export function useCloudStore() {
     undoReset,
     saveTheme,
     saveDisplayName,
+    saveLanguage,
+    saveGoal,
   }
 }

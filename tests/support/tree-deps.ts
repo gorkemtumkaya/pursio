@@ -5,6 +5,7 @@ import { fileURLToPath } from 'node:url'
 import type { PathSaveInput } from '../../shared/types/cloud'
 import type { Provider, ProviderConfig } from '../../shared/types/llm'
 import type { SkillTree } from '../../shared/types/skill-tree'
+import { LEVEL_TERMS } from '../../shared/utils/search-queries'
 import { loadSkillTree } from '../../shared/utils/skill-tree-load'
 import type { DefaultConfigInput, TreeDeps, TreeLogEntry } from '../../server/utils/llm-handlers'
 import type { AdapterResult, ProviderAdapter } from '../../server/utils/providers/types'
@@ -33,7 +34,25 @@ function readSampleTree(): SkillTree {
   const raw: unknown = JSON.parse(readFileSync(path, 'utf8'))
   const loaded = loadSkillTree(raw)
   if (!loaded.ok) throw new Error('tests/support/tree-deps: the sample tree did not load')
-  return loaded.value
+  return withVideoFields(loaded.value)
+}
+
+/** Adds valid video fields to every skill, as generation now requires (spec: skill-video-pipeline, Req 1.10). */
+export function withVideoFields(tree: SkillTree): SkillTree {
+  return {
+    ...tree,
+    sections: tree.sections.map((section) => {
+      const [first = '', second = ''] = LEVEL_TERMS[section.level]
+      return {
+        ...section,
+        nodes: section.nodes.map((node) => ({
+          ...node,
+          searchQueries: [`${tree.hobby} ${node.title} ${first}`, `${node.title} ${second}`],
+          quickTip: false,
+        })),
+      }
+    }),
+  }
 }
 
 /** A promise that never settles, for timeout cases. */
@@ -130,6 +149,9 @@ export function fakeTreeDeps(options: FakeTreeOptions = {}): FakeTree {
       calls.order.push('adapter')
       calls.adapter.push({ provider, hobby, model: config.model })
       return adapterResult(hobby, config)
+    },
+    async generateStructured() {
+      return { ok: false, error: 'bad_output' }
     },
     async testConnection() {
       return { ok: true, value: null }

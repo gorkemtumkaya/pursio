@@ -1,7 +1,9 @@
 <script setup lang="ts">
-import { computed } from 'vue'
+import { computed, ref, watch } from 'vue'
 import type { NodeState } from '#shared/types/progress'
 import type { QuestTriple, SkillNode } from '#shared/types/skill-tree'
+import type { SkillVideosState } from '#shared/types/video'
+import { watchHowFor as watchHowForQuest } from '#shared/utils/watch-how'
 import type { FreshItem } from '~/utils/fresh-samples'
 import { buttonFor, chipFor, detailTitleId, formatTitleList } from '~/utils/node-visual'
 
@@ -18,9 +20,29 @@ const props = defineProps<{
   lockedBy: readonly string[]
   fresh: readonly FreshItem[]
   layout: 'sheet' | 'panel'
+  /** Videos for this skill (spec: skill-video-pipeline); absent or `hidden` shows no Watch section. */
+  videos?: SkillVideosState
 }>()
 
 const emit = defineEmits<{ toggle: [index: number]; complete: [] }>()
+
+/** The video playing in the Watch section, set by a card or a "Watch how" link. */
+const activeVideoId = ref<string | null>(null)
+const readyVideos = computed(() => (props.videos?.kind === 'ready' ? props.videos.videos : []))
+const watchLanguage = computed(() => (props.videos?.kind === 'ready' ? props.videos.language : 'en'))
+const finding = computed(() => props.videos?.kind === 'finding')
+
+// A different skill starts with no video playing.
+watch(
+  () => props.node.id,
+  () => {
+    activeVideoId.value = null
+  },
+)
+
+function watchHowFor(text: string) {
+  return watchHowForQuest(text, readyVideos.value)
+}
 
 const chip = computed(() => chipFor(props.state))
 const button = computed(() => buttonFor(props.state))
@@ -82,10 +104,25 @@ const buttonListeners = computed(() => (button.value.enabled ? { click: () => em
         </h3>
         <ul class="flex flex-col gap-2">
           <li v-for="(quest, index) in node.quests" :key="index">
-            <PathQuestItem :text="quest" :checked="checks[index] ?? false" @toggle="emit('toggle', index)" />
+            <PathQuestItem
+              :text="quest"
+              :checked="checks[index] ?? false"
+              :watch-how="watchHowFor(quest)"
+              @toggle="emit('toggle', index)"
+              @watch="activeVideoId = $event"
+            />
           </li>
         </ul>
       </div>
+
+      <WatchSection
+        :videos="readyVideos"
+        :language="watchLanguage"
+        :finding="finding"
+        :active-id="activeVideoId"
+        @play="activeVideoId = $event"
+        @stop="activeVideoId = null"
+      />
 
       <!-- Hidden until the node has real content (spec: local-progress-data, Req 5.2). -->
       <PathFreshList v-if="fresh.length > 0" :items="fresh" :layout="layout" />

@@ -4,17 +4,19 @@ import { AUTH_MESSAGES } from './auth-logic'
 import { effectiveModel, type LlmSettings } from './llm-settings'
 
 export interface TreeRequest {
-  body: { hobby: string; level: StartLevel; provider?: Provider; model?: string }
+  body: { hobby: string; level: StartLevel; goal?: string; provider?: Provider; model?: string }
   headers: Record<string, string>
   usesOwnKey: boolean
 }
 
 /** Sends the key, provider and effective model only when the user set a key (Req 9.5, 11.2). */
-export function buildTreeRequest(hobby: string, level: StartLevel, settings: LlmSettings): TreeRequest {
+export function buildTreeRequest(hobby: string, level: StartLevel, settings: LlmSettings, goal?: string): TreeRequest {
   const apiKey = settings.apiKey.trim()
-  if (apiKey.length === 0) return { body: { hobby, level }, headers: {}, usesOwnKey: false }
+  const trimmedGoal = goal?.trim() ?? ''
+  const goalPart = trimmedGoal === '' ? {} : { goal: trimmedGoal }
+  if (apiKey.length === 0) return { body: { hobby, level, ...goalPart }, headers: {}, usesOwnKey: false }
   return {
-    body: { hobby, level, provider: settings.provider, model: effectiveModel(settings) },
+    body: { hobby, level, ...goalPart, provider: settings.provider, model: effectiveModel(settings) },
     headers: { [KEY_HEADER]: apiKey },
     usesOwnKey: true,
   }

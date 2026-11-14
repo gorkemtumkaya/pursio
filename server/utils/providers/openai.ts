@@ -49,6 +49,25 @@ export function createOpenAIAdapter(fetcher: Fetcher): ProviderAdapter {
       return parsed.ok ? { ok: true, value: parsed.value } : { ok: false, error: 'bad_output' }
     },
 
+    async generateStructured(config, options) {
+      const body: Record<string, unknown> = {
+        model: config.model,
+        max_completion_tokens: options.maxTokens,
+        messages: [
+          { role: 'system', content: options.systemPrompt },
+          { role: 'user', content: options.userText },
+        ],
+        response_format: {
+          type: 'json_schema',
+          json_schema: { name: options.schemaName, strict: true, schema: options.schema },
+        },
+      }
+      const result = await callProvider(fetcher, URL, headers(config), body, options.signal)
+      if (!result.ok) return result
+      const parsed = parsedContent(result.response)
+      return parsed.ok ? { ok: true, value: parsed.value } : { ok: false, error: 'bad_output' }
+    },
+
     async testConnection(config, signal) {
       const body = {
         model: config.model,

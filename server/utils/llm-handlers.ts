@@ -3,10 +3,15 @@ import type { ErrorCode, Provider, ProviderConfig, StartLevel, TestResponse, Tre
 import type { SkillTree } from '../../shared/types/skill-tree'
 import { parseBearer } from '../../shared/utils/auth'
 import { DEFAULT_LEVEL, HOBBY_MAX_LENGTH, MODEL_MAX_LENGTH, isProvider, isStartLevel } from '../../shared/utils/llm'
+import type { GoalClass } from '../../shared/types/video'
+import { classifyGoal } from './goal-classifier'
 import { generateSkillTree, type GenerationResult } from './generator'
 import type { ProviderAdapter } from './providers/types'
 import type { RateLimiter } from './rate-limiter'
 import { cacheKey, type TreeCache } from './tree-cache'
+
+/** Longest accepted Goal after trim. */
+const GOAL_MAX_LENGTH = 200
 
 export interface HandlerResponse<B> {
   status: number
@@ -128,6 +133,11 @@ export interface TreeDeps {
   verifyTimeoutMs: number
   /** 10_000 at runtime (spec: accounts-cloud-save, Req 9.10). */
   saveTimeoutMs: number
+  /**
+   * Called after a successful save, not awaited; it must never block or fail the response
+   * (spec: skill-video-pipeline, Req 8.1, 8.2).
+   */
+  afterSave?: (input: { pathId: string; tree: SkillTree }) => void | Promise<void>
   /** Receives only code, stage, reason, provider and model, never keys, tokens or bodies (Req 2.6). */
   log?: (entry: TreeLogEntry) => void
 }
@@ -167,6 +177,14 @@ export async function handleTreeRequest(
   if (typeof body.hobby !== 'string') return treeError('invalid_input')
   const hobby = body.hobby.trim()
   if (hobby === '' || hobby.length > HOBBY_MAX_LENGTH) return treeError('invalid_input')
+
+  // 1a. Optional Goal: a string of at most 200 characters after trim (spec: skill-video-pipeline, Req 1.11).
+  let goal = ''
+  if (body.goal !== undefined) {
+    if (typeof body.goal !== 'string') return treeError('invalid_input')
+    goal = body.goal.trim()
+    if (goal.length > GOAL_MAX_LENGTH) return treeError('invalid_input')
+  }
 
   // 1b. Starting level: missing means the default, anything else must be a StartLevel.
   const rawLevel = body.level
@@ -215,7 +233,7 @@ export async function handleTreeRequest(
     if (result.kind === 'not_a_hobby') return fail('not_a_hobby', 'tree_validation', 'not_a_hobby')
     if (result.kind === 'error') {
       const { code } = result
-      if (code === 'generation_failed') return fail(code, 'tree_validation', 'bad_output')
+      if (code === 'generation_failed') return fail(code, 'tree_validation', result.detail ?? 'bad_output')
       const { status } = result
       const httpReason =
         !thrown && typeof status === 'number' && Number.isInteger(status) && status >= 100 && status <= 599
@@ -233,7 +251,14 @@ export async function handleTreeRequest(
   }
 
   // 7. Save as the user's Path_Row with the user's own token (Req 9.7 to 9.10).
-  const saveInput: PathSaveInput = { hobby, level, tree, model }
+  // The classifier is not billable and never throws; any failure gives 'none' (Req 1.11, 1.12).
+  let goalClass: GoalClass = 'none'
+  try {
+    goalClass = await classifyGoal(goal, config, deps.adapters[config.provider])
+  } catch {
+    goalClass = 'none'
+  }
+  const saveInput: PathSaveInput = { hobby, level, tree, model, goalClass }
   // null marks a timeout (the sentinel); a thrown error carries its own reason.
   let pathId: string | null
   let saveReason = 'unknown'
@@ -247,6 +272,13 @@ export async function handleTreeRequest(
     saveReason = errorReason(error)
   }
   if (typeof pathId !== 'string' || pathId === '') return fail('save_failed', 'path_save', saveReason)
+
+  // 8. Start the video fill without waiting for it (spec: skill-video-pipeline, Req 8.1, 8.2).
+  try {
+    void Promise.resolve(deps.afterSave?.({ pathId, tree })).catch(() => {})
+  } catch {
+    // afterSave must never fail the response.
+  }
   return { status: 200, body: { tree, model, pathId } }
 }
 

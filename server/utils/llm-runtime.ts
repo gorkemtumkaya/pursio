@@ -6,6 +6,7 @@ import type { Fetcher, ProviderAdapter } from './providers/types'
 import { createRateLimiter } from './rate-limiter'
 import { savePathForUser, verifyAccessToken } from './supabase-server'
 import { createTreeCache } from './tree-cache'
+import { afterTreeSave } from './video/runtime'
 
 /** Request timeouts in milliseconds (Req 8.1, 12.3). */
 const TREE_TIMEOUT_MS = 90_000
@@ -83,6 +84,7 @@ export function llmTreeDeps(): TreeDeps {
     savePath: savePathForUser,
     verifyTimeoutMs: VERIFY_TIMEOUT_MS,
     saveTimeoutMs: SAVE_TIMEOUT_MS,
+    afterSave: afterTreeSave,
     log: logLlmError,
   }
 }
