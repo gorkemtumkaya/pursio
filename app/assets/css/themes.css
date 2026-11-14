@@ -49,6 +49,7 @@
   --pursio-overlay: rgba(42, 35, 30, 0.55);
 
   --pursio-radius-node: 46% 54% 42% 58% / 54% 44% 56% 46%;
+  --pursio-logo: url("/favicon.svg?v=2");
 
   --pursio-font-head: "Archivo Black", "Archivo", system-ui, sans-serif;
   --pursio-font-display: "Archivo Black", "Archivo", system-ui, sans-serif;
@@ -97,6 +98,7 @@
   --pursio-overlay: rgba(22, 33, 27, 0.55);
 
   --pursio-radius-node: 50%;
+  --pursio-logo: url("/favicon.svg?v=2");
 
   --pursio-font-head: "Fredoka", ui-rounded, system-ui, sans-serif;
   --pursio-font-display: "Fredoka", ui-rounded, system-ui, sans-serif;
@@ -145,6 +147,7 @@
   --pursio-overlay: rgba(10, 5, 18, 0.72);
 
   --pursio-radius-node: 50% 50% 46% 46% / 58% 58% 42% 42%;
+  --pursio-logo: url("/favicon-halloween.svg");
 
   --pursio-font-head: "Fredoka", ui-rounded, system-ui, sans-serif;
   --pursio-font-display: "Creepster", "Fredoka", system-ui, cursive;

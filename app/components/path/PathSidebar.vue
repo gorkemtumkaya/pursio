@@ -20,11 +20,8 @@ const emit = defineEmits<{
     class="sticky top-0 flex h-dvh flex-col gap-7 overflow-y-auto border-r-2 border-line px-5 py-7"
   >
     <div class="flex items-center gap-2.5">
-      <span
-        class="flex size-9.5 shrink-0 items-center justify-center rounded-node bg-primary text-primary-ink shadow-raised-primary"
-      >
-        <PathIcon name="star" class="size-5.5" />
-      </span>
+      <span aria-hidden="true" class="size-9.5 shrink-0 bg-(image:--pursio-logo) bg-contain bg-center bg-no-repeat" />
+
       <span class="font-head text-[26px] font-bold text-ink">Pursio</span>
     </div>
 
