@@ -1,0 +1,456 @@
+# Requirements Document
+
+## Introduction
+
+Fresh is a page that shows new learning videos every day for the hobbies on the user's paths, sorted into the user's Skills, followed by the best existing videos for the user's current Skills.
+
+Fresh builds on the `skill-video-pipeline` spec and extends its modules instead of adding parallel ones. It reuses, from that spec:
+
+- the Video_Provider details operation, the details stage (batches of 50, quota counted) and the filter stage;
+- the Judge adapter (`generateStructured` with the Default_Config, 30 s timeout, whole-response discard on schema failure);
+- Normalization, Pool_Key and Language_Code (`shared/utils/video-normalize.ts`);
+- the quota gate (`quota.ts`, Pacific_Day count in Postgres);
+- the pattern of server-only pipeline tables behind `security definer` SQL functions with no Client access;
+- the drain approach on Vercel (a secret-protected route called by a pg_cron job through pg_net, with secrets in Supabase Vault). Fresh replaces the drain's 50 s work budget with a start window and a call deadline: the Check_Route runs with a function time limit of 120 s while every other function keeps the 60 s limit, starts a new Fresh_Check only while at most 10 seconds of the call have passed, and aborts all work still in flight 117 seconds after the call started. Feeds of one Fresh_Check are fetched in parallel (at most 8 at a time) and at most 40 videos go to the Judge per Fresh_Check (decision D12);
+- the ranking helpers (`baseScore`, `goalAdjustment`, `rankVideos`, `composeVideos`) and the language fallback;
+- the Video_Event recorder (`useVideoEvents`, Source `feed`) and the Watch components (`WatchVideoCard`, `WatchEmbedPlayer`).
+
+New work in this spec: Channel_Sources collected from stored Video_Pools, a daily Fresh_Check that reads each Channel_Source's public RSS feed and classifies new videos into Skills, Fresh_Items, per-user mutes, Save_Snapshots, the Fresh page, and its ranking.
+
+Naming note: `skill-video-pipeline` already uses the term **Source** for the surface that produced a Video_Event (`skill_sheet` or `feed`). To keep one term per concept, this spec calls a YouTube channel linked to a hobby a **Channel_Source**. The page text still shows "Your sources" and "Sources".
+
+The Fresh_Check runs only on the Server and only from the scheduled route. Opening the Fresh page never causes a provider call, an RSS fetch or a model call, for signed-in and signed-out users alike.
+
+Existing context: the navigation is `app/components/path/PathNavItems.vue` (Path, Quests, Profile today; the Fresh item was hidden by `local-progress-data`, Req 5.1). In Demo_Mode the Fresh item now opens the real Fresh_Page with the Demo_Paths, read only (decision D13). `PathFreshList.vue` and `fresh-samples.ts` stay unchanged: the Node_Detail still uses them for the sample "Fresh this week" content in Demo_Mode. Paths do not yet store when they were last opened; the design phase must add that. Video details from the provider do not yet carry a channel id; the design phase must add it to `SearchHit`, `VideoDetails` and `PoolVideo`.
+
+Layout reference: `dev_docs/Desktop · Fresh@1x.png` (left navigation, main column, right column) and `dev_docs/Mobile · Fresh@1x.png` (one column, bottom navigation, list cards). The designs' "+5 XP" on the Watch button, article cards and non-YouTube sources (RSS blogs, Reddit) are not built.
+
+### Decisions
+
+These points were settled in the requirements review. Criteria refer to them as "(decision Dn)". D13 is a small assumption made while applying the review and is the only item still open to change.
+
+- D1. **Variety rule.** Within each section, any 6 consecutive cards in display order hold at most 2 cards from the same channel. The window is fixed at 6 so the rule does not depend on the screen width (6 is two rows of the 3-column desktop grid). `skill-video-pipeline` has no variety rule to reuse.
+- D2. **Saving.** "Save" and the "Saved" chip reuse the `saved` value and Saved_Time of Video_Events with Source `feed`. Each save also stores a Save_Snapshot of the video (id, title, channel name, channel id, thumbnail, duration), so the "Saved" chip keeps showing the video after its Fresh_Item or Video_Pool is gone. Save_Snapshots follow the same local and cloud storage and merge rules as Video_Events. When a merge keeps the record that has no Save_Snapshot, the Save_Snapshot of the other record is kept. No separate saved-videos store is added.
+- D3. **Mute scope.** A mute is keyed by channel id and hides that channel on the Fresh page for every hobby of the user.
+- D4. **Section sizes.** "New for your path" shows at most 24 cards and "Best for your current skills" at most 12 cards.
+- D5. **Quote check for "why".** A "why" line counts as quoting the video when it contains 6 or more consecutive words of the video title or description, compared after Normalization.
+- D6. **Skill titles given to the Judge.** The up to 60 titles are the distinct Normalized Skill titles of stored Video_Pools of the hobby (any Language_Code), most recently stored first.
+- D7. **Hero card.** The Hero_Card shows the top-ranked Fresh_Item of the paths in scope of the selected chip, labeled "New for <skill title>". When there is none, it shows the best Video_Pool video of the hero path's Current_Skill, labeled "Best for your current skill". The hero path is the Selected_Path for "For <current skill>" and "All skills", and the chip's path for a path chip, so a path chip never shows another hobby's video. The Hero_Card is hidden only when neither video exists or "Saved" is selected.
+- D8. **Empty pages.** When the Hero_Card and both sections are empty, the page shows Wick with "No videos yet. Pursio checks for new ones every day." When "Saved" has no videos, it shows "No saved videos yet."
+- D9. **Taste range.** The taste adjustment lies between -0.2 and 0.2, the same bound as the goal rerank, and applies to Fresh_Items only.
+- D10. **Default chip.** The Fresh_Page opens with "All skills" selected. "For <current skill>" stays available as a chip.
+- D11. **Path matching.** A Fresh_Item matches a Skill by Normalized hobby and Normalized Skill title only. The Judge's `level` is still returned and stored on the Fresh_Item, and its `level_fit` still enters the Fresh_Score.
+- D12. **Timing on Vercel.** The Check_Route runs with a function time limit (`maxDuration`) of 120 seconds; every other function keeps 60 seconds. Channel_Feeds of one Fresh_Check are fetched in parallel, at most 8 at a time. The Check_Route starts a new Fresh_Check only while at most 10 seconds of the call have passed. At the Call_Deadline, 117 seconds after the call started, every feed fetch, details call and Judge call still in flight is aborted, and the Fresh_Check that was running fails with nothing stored. The per-call timeouts (10 s per feed, 10 s per details call, 30 s for the Judge) can end earlier because of the Call_Deadline. At most 40 videos, the newest by published time after the filter stage, go to the Judge per Fresh_Check. The other videos are dropped for that check and are not stored or queued. A later Fresh_Check reads a dropped video again only if its published time still falls in that check's feed window (Requirement 4, criterion 2). After a successful Fresh_Check that is not the case, because the last check times move to that check's start time, so in practice a dropped video is gone. After a failed Fresh_Check no last check time changes, so the next check reads the same videos again.
+- D13. **Demo_Mode is read only (assumption).** In Demo_Mode the Fresh_Page sends a Signed_Out_User request with the Demo_Paths. It writes no Channel_Mute, no Video_Event and no Save_Snapshot, locally or in the cloud. Mute switches, Save controls and the "Saved" chip are hidden (not shown disabled), so the demo has no control that does nothing.
+- D14. **Closeness per path.** Every Path_Match is scored against its own path: 1.0 for that path's Current_Skill, 0.8 for another Skill of that path's Current_Window, 0.6 for any other Skill of that path. There is no lower value for matches on a path other than the Selected_Path, so "All skills" treats all the user's paths alike. A path chip has only that path in scope, so its ranking does not change.
+- D15. **Missing language.** A missing or empty language means `en`, as in `skill-video-pipeline` Requirement 10, criterion 1. Check_Keys, Active_Check_Keys and the Fresh_Endpoint use `en` in that case, so no Check_Key with Language_Code `und` is formed from a missing profile or request language. A signed-out request with a missing or empty Language_Code is accepted as `en`, not rejected.
+- D16. **Completed paths.** A path whose Skills are all completed has no Current_Skill. A Signed_Out_User request may send its Current_Skill id as null. Such a path has no Current_Window, so it contributes Fresh_Items (each scored 0.6 under D14) and Channel_Sources but no Best_Section videos and no Hero_Card fallback.
+
+## Glossary
+
+Terms reused from `skill-video-pipeline` keep their meaning there: **Video_Provider**, **YouTube_Provider**, **Judge**, **Default_Config**, **Normalized**, **Punctuation**, **Language_Code**, **Level**, **Skill**, **Skill_Sheet**, **Goal_Class**, **Style**, **Video_Pool**, **Pool_Key**, **Stale_Pool**, **Current_Window**, **Pacific_Day**, **Daily_Quota**, **Quota_Gate** (the `quota.ts` reserve functions), **Pipeline_State**, **Video_Event**, **Source** (event surface: `skill_sheet` or `feed`), **Finished**, **Skipped**, **Saved_Time**, **Video_Card**, **Embed_Player**, **Fallback_Condition**, **Pool_Language**, **Client**, **Server**, **System**, **Access_Token**, **Signed_In_User**, **Signed_Out_User**. Terms reused from `local-progress-data`: **Sample_Tree**, **Node_Detail**. New terms:
+
+- **Demo_Mode**: As defined in `local-progress-data` (`/path` opened with the query `demo=1`). This spec extends it to the Fresh_Page opened as `/fresh?demo=1`.
+- **Demo_Path**: A path of the Sample_Tree that `/path?demo=1` shows.
+- **Fresh_Page**: The page at `/fresh` that shows Fresh_Items and Video_Pool videos for the user's paths.
+- **Fresh_Endpoint**: The Server route that returns the data of the Fresh_Page.
+- **Check_Route**: The Server route `POST /api/fresh/check`, protected by a secret kept in server environment variables.
+- **Check_Key**: The pair of a Normalized hobby and a Language_Code. A missing or empty language gives the Language_Code `en` (decision D15).
+- **Call_Deadline**: The point 117 seconds after a Check_Route call started. At the Call_Deadline the Server aborts every feed fetch, details call and Judge call still in flight (Requirement 3, criterion 15). The Check_Route's function time limit is 120 seconds (decision D12).
+- **Channel_Source**: A YouTube channel linked to one Check_Key, with its channel id, channel name, Qualifying_Count, latest qualifying time and last check time.
+- **Qualifying_Video**: A video in a stored Video_Pool whose `teaches_this_skill` is 0.7 or higher.
+- **Qualifying_Count**: The number of distinct Qualifying_Video ids of one channel in the Video_Pools of one Check_Key.
+- **Fresh_Check**: One run of the daily check for one Check_Key: RSS fetch, details, filter, Judge and store.
+- **Start_Window**: The first 10 seconds of a Check_Route call, measured from the time the call started. The Check_Route starts a new Fresh_Check only inside the Start_Window (Requirement 3, criterion 8).
+- **Judge_Limit**: 40, the largest number of videos sent to the Judge in one Fresh_Check (Requirement 6, criterion 1).
+- **Lease**: The database-backed record that one Server instance holds while it runs a Fresh_Check for a Check_Key. The Server takes the Lease before the Fresh_Check starts and releases it when the Fresh_Check succeeds or fails; the Lease expires 300 seconds after it was taken (Requirement 3, criterion 9).
+- **Last_Attempt_Time**: The start time of the most recent Fresh_Check attempt for a Check_Key. It orders due Check_Keys (Requirement 3, criterion 6) and is never included in a Server response (Requirement 7, criterion 7).
+- **Channel_Feed**: The public RSS (Atom) document of a channel at `https://www.youtube.com/feeds/videos.xml?channel_id=<id>`.
+- **Feed_Entry**: One video entry parsed from a Channel_Feed, with video id, title, channel id and published time.
+- **Feed_Parser**: The Server code that parses a Channel_Feed into a list of Feed_Entries.
+- **Feed_Printer**: The test helper that formats a list of Feed_Entries into a Channel_Feed document.
+- **Fresh_Item**: A stored, judged new video with its Check_Key, Normalized Skill title, Level, video details, channel id, scores, Style, Why_Line, published time and found time.
+- **Fresh_Retention**: 30 days (2592000 seconds) after a Fresh_Item's found time.
+- **Why_Line**: The Judge's one-sentence reason for a Fresh_Item, at most 120 characters, written in Pursio's own words.
+- **Save_Snapshot**: The copy of a video's id, title, channel name, channel id, thumbnail and duration that the System stores with a save on the user's Video_Event for that video (decision D2).
+- **Active_Path**: A stored path of a Signed_In_User that was opened or had progress saved in the last 14 days (1209600 seconds).
+- **Active_Check_Key**: A Check_Key of an Active_Path's hobby with the Language_Code of that path's user (`en` when that user's language is missing or empty, decision D15), or with the Language_Code `en`.
+- **Selected_Path**: The path the user last opened on the Path page.
+- **Current_Skill**: The current Skill of a path, as defined by `skill-path-ui`.
+- **Path_Match**: A Fresh_Item matches a Skill when the Fresh_Item's Normalized hobby and Normalized Skill title equal the path's Normalized hobby and the Skill's Normalized title. The Level is not compared (decision D11).
+- **Hero_Path**: The path whose Current_Skill the Hero_Card fallback uses: the Selected_Path when the chip "For <current skill>" or "All skills" is selected, and the chip's path when a path chip is selected (decision D7).
+- **Hero_Card**: The large card at the top of the Fresh_Page. It shows either the top-ranked Fresh_Item of the paths in scope, labeled "New for <skill title>", or, when there is none, the best Video_Pool video of the Hero_Path's Current_Skill, labeled "Best for your current skill" (decision D7).
+- **New_Section**: The section "New for your path".
+- **Best_Section**: The section "Best for your current skills".
+- **Filter_Chip**: One of the chips "For <current skill>", "All skills", one chip per path, and "Saved".
+- **Sources_Panel**: The "Your sources" list with a mute switch per Channel_Source and the note about how Fresh works.
+- **Channel_Mute**: A per-user record that a channel id is muted, with the time it was set or cleared.
+- **Fresh_Score**: The ranking score of a Fresh_Item defined in Requirement 9, criterion 1.
+- **Recency_Factor**: A number in (0.5, 1] for Fresh_Items published less than 7 days ago, equal to 1 − 0.5 × (age in seconds ÷ 604800), as defined in Requirement 9, criterion 2.
+- **Closeness_Factor**: A number for how close a Fresh_Item's matched Skill is to the Current_Skill of the matched Skill's own path: 1.0, 0.8 or 0.6, as defined in Requirement 9, criterion 3 (decision D14).
+- **Taste_Adjustment**: The per-user adjustment from the user's Video_Events defined in Requirement 9, criteria 7 to 10.
+- **Variety_Window**: 6 consecutive cards of one section in display order (decision D1).
+
+## Requirements
+
+### Requirement 1: Channel_Sources from stored Video_Pools
+
+**User Story:** As a learner, I want Pursio to find good channels for my hobby by itself, so that new videos come from channels that already taught my skills well.
+
+#### Acceptance Criteria
+
+1. WHEN the skill-video-pipeline store step stores a Video_Pool, THE Server SHALL take the Check_Key from the Normalized hobby and the Language_Code of that Video_Pool's Pool_Key, and SHALL add a Channel_Source for that Check_Key for the channel of each Qualifying_Video (`teaches_this_skill` of 0.7 or higher) in the Video_Pool that has no Channel_Source for that Check_Key yet.
+2. WHEN the skill-video-pipeline store step stores a Video_Pool and a Channel_Source already exists for the Check_Key and the channel of a Qualifying_Video in that Video_Pool, THE Server SHALL update that Channel_Source's channel name to the name in the newly stored Video_Pool, recompute its Qualifying_Count, set its latest qualifying time to the store time of that Video_Pool, and leave its last check time unchanged.
+3. THE Server SHALL compute the Qualifying_Count of a Channel_Source as the number of distinct video ids of that channel with `teaches_this_skill` of 0.7 or higher across all Video_Pools stored at that moment for its Check_Key (any Pool_Key with that Normalized hobby and Language_Code). A video id that appears in several Video_Pools or Skills counts once.
+4. WHEN a Video_Pool store replaces an existing Video_Pool (for example a Stale_Pool refill) and the recomputed Qualifying_Count of a Channel_Source of that Check_Key becomes 0, THE Server SHALL remove that Channel_Source.
+5. WHEN the store step has added, updated or removed Channel_Sources for a Check_Key, THE Server SHALL keep at most 15 Channel_Sources for that Check_Key, ranked by Qualifying_Count descending, then by latest qualifying time descending, then by channel id ascending, and SHALL remove every Channel_Source ranked 16th or lower.
+6. THE Server SHALL make every Channel_Source add, update and removal in the same database transaction as the Video_Pool store, so that a Video_Pool store that fails or rolls back leaves the Channel_Sources of every Check_Key exactly as they were before the store.
+7. IF a Qualifying_Video has no known channel id, THEN THE Server SHALL leave that video out of every Channel_Source and every Qualifying_Count, and SHALL still store the Video_Pool, including that video, with no error.
+8. IF a stored Video_Pool contains no Qualifying_Video with a known channel id, THEN THE Server SHALL add no Channel_Source for its Check_Key and SHALL still store the Video_Pool.
+9. THE System SHALL store Channel_Sources in shared server-only tables, deny every Client read and write of them, and include only the channel id, the channel name and the Check_Key of a Channel_Source in any Server response, never the Qualifying_Count, the latest qualifying time or the last check time.
+10. WHEN a user mutes or unmutes a Channel_Source, THE System SHALL leave the shared Channel_Source list unchanged for every Check_Key: the same channels, Qualifying_Counts, ranks and check times.
+
+### Requirement 2: Channel mutes
+
+**User Story:** As a learner, I want to mute a channel I don't like, so that it no longer shows up on my Fresh page.
+
+#### Acceptance Criteria
+
+1. WHEN a user switches off the mute switch of a Channel_Source in the Sources_Panel, THE System SHALL store a Channel_Mute for that user and that channel id with muted true and the time of the change.
+2. WHEN a user switches the mute switch of a muted Channel_Source back on, THE System SHALL store muted false and the time of the change for that user and that channel id.
+3. THE System SHALL store at most one Channel_Mute per user and channel id. Each change SHALL update that record in place, and no second record SHALL be added for the same user and channel id (decision D3).
+4. WHILE a user is signed in, THE System SHALL store Channel_Mutes in the user's cloud data under row-level security, so that a user can read and write only the user's own Channel_Mutes and a request for another user's Channel_Mutes reads or changes no record.
+5. WHILE a user is signed out, THE System SHALL store Channel_Mutes locally on the device, and they SHALL still apply after the page is reloaded or the app is restarted on that device.
+6. WHEN a user signs in and local Channel_Mutes exist, THE System SHALL merge them into the user's cloud data. For each channel id, it SHALL keep the muted value and change time of the record with the later change time. IF the two change times are equal, THEN the record with muted true SHALL be kept. The System SHALL remove the local Channel_Mutes only after the cloud write succeeds.
+7. IF storing a Channel_Mute in the user's cloud data fails, THEN THE System SHALL keep the switch in the state the user chose and keep the change stored locally. It SHALL show no blocking error and SHALL retry the write at least once within 60 seconds and again on each later app start until the write succeeds. On a successful retry, the stored change time SHALL be the time of the user's change, not the time of the retry.
+8. FOR ALL Channel_Mute records a and b for the same user and channel id, merging a with b SHALL produce the same record as merging b with a, using the rule in criterion 6 (commutative property). Merging a record with itself SHALL return that record unchanged (idempotent property).
+9. WHEN the Fresh_Page opens, THE Fresh_Page SHALL show each Channel_Source's mute switch as off if the user's Channel_Mute for that channel id has muted true, and as on if muted is false or no Channel_Mute exists.
+10. IF a Channel_Mute write has an empty channel id or a channel id longer than 64 characters, THEN THE System SHALL reject the write, store no Channel_Mute and leave the user's existing Channel_Mutes unchanged.
+11. WHERE Demo_Mode is active, THE System SHALL store no Channel_Mute, locally or in cloud data, and SHALL apply no Channel_Mute stored outside Demo_Mode to the Fresh_Page (decision D13).
+
+### Requirement 3: Check scheduling and the Check_Route
+
+**User Story:** As the product owner, I want the daily check to run by itself in small batches, so that it fits the serverless limit and costs no provider quota for feeds.
+
+#### Acceptance Criteria
+
+1. THE System SHALL schedule a pg_cron job that calls the Check_Route every 15 minutes (96 calls per day) through pg_net, with the app URL and the secret read from Supabase Vault, using the same setup as the skill-video-pipeline drain job.
+2. IF the app URL or the secret is missing from Supabase Vault, THEN THE scheduled job SHALL make no call to the Check_Route and SHALL leave every Check_Key's due state unchanged.
+3. WHEN a request reaches the Check_Route with a secret that equals the secret set in server environment variables, THE Server SHALL run Fresh_Checks one after another for the first 3 due Active_Check_Keys in the order of criterion 6 (or for all of them, if fewer than 3 are due), and SHALL return a success response that contains no secret, no Lease and no Fresh_Item data.
+4. IF a request to the Check_Route has a missing or wrong secret, or no secret is set in server environment variables, THEN THE Server SHALL run no Fresh_Check, fetch no Channel_Feed, make no provider call, make no model call, change no stored data, and return an error response.
+5. THE Server SHALL treat an Active_Check_Key as due when the Check_Key has no successful Fresh_Check or the last successful Fresh_Check finished 86400 seconds or more before the Check_Route call started.
+6. THE Server SHALL order due Active_Check_Keys first by never-attempted Check_Keys, then by Last_Attempt_Time ascending, then by Normalized hobby ascending and Language_Code ascending.
+7. THE Server SHALL check only Active_Check_Keys, so that a Check_Key whose hobby has no Active_Path (no path opened and no progress saved in the last 1209600 seconds) gets no Fresh_Check.
+8. WHEN more than 10 seconds have passed since the Check_Route call started (the end of the Start_Window), THE Server SHALL start no further Fresh_Check in that call, SHALL let a Fresh_Check that is already running continue until it ends or the Call_Deadline (117 seconds after the call started) is reached, and SHALL leave every Check_Key that was not started due for the next Check_Route call. THE Check_Route SHALL run with a function time limit of 120 seconds, and every other Server function SHALL keep the 60 second limit (decision D12).
+9. WHILE a Fresh_Check for a Check_Key runs on any Server instance, THE Server SHALL start no second Fresh_Check for that Check_Key, using a database-backed Lease that the Server takes before the Fresh_Check starts, releases when it succeeds or fails, and that expires 300 seconds after it was taken.
+10. WHEN a Signed_In_User opens a path or saves progress on a path, THE System SHALL record the time of that action on the stored path, so that Active_Path can be decided; a Signed_Out_User's local paths SHALL record no such time on the Server.
+11. THE Fresh_Endpoint SHALL start no Fresh_Check, so that Fresh_Checks run only from the Check_Route.
+12. IF the Lease of a due Active_Check_Key is held and has not expired, THEN THE Server SHALL skip that Check_Key in the current call without counting it toward the limit of 3, record no Last_Attempt_Time for it, and continue with the next due Active_Check_Key in the order of criterion 6.
+13. IF a Fresh_Check fails during a Check_Route call, THEN THE Server SHALL handle that failure under Requirement 7 and SHALL continue with the next due Active_Check_Key in the same call, within the limit of 3 and the Start_Window of criterion 8.
+14. IF no Active_Check_Key is due when a valid Check_Route request arrives, THEN THE Server SHALL run no Fresh_Check, fetch no Channel_Feed, make no provider or model call, and return a success response.
+15. IF a Fresh_Check is still running when the Call_Deadline is reached, THEN THE Server SHALL abort every Channel_Feed fetch, details call and Judge call of that Fresh_Check that is still in flight, store nothing for that Fresh_Check, treat the Fresh_Check as failed under Requirement 7 with the failure type `deadline_exceeded`, and return a response before the 120 second function time limit.
+16. WHEN the Server forms the Active_Check_Keys of a user whose stored language is missing or empty, THE Server SHALL use the Language_Code `en` for that user, as in `skill-video-pipeline` Requirement 10, criterion 1, so that no Check_Key with Language_Code `und` is formed from a missing language (decision D15).
+
+### Requirement 4: Reading Channel_Feeds
+
+**User Story:** As a learner, I want new uploads of good channels picked up every day, so that I see videos that came out since I last looked.
+
+#### Acceptance Criteria
+
+1. WHEN a Fresh_Check runs, THE Server SHALL fetch the Channel_Feed of each Channel_Source of the Check_Key once, in parallel with at most 8 Channel_Feed fetches in progress at the same time, with no API key and no Daily_Quota units counted (decision D12).
+2. WHEN a Channel_Feed is fetched and parsed, THE Server SHALL keep only the Feed_Entries that meet all of these conditions: the channel id equals the Channel_Source's channel id; the published time is strictly after the later of the Channel_Source's last check time and 7 days (604800 seconds) before the Fresh_Check started; and the published time is at or before the time the Fresh_Check started. THE Server SHALL then keep at most the 15 most recently published of those Feed_Entries per Channel_Feed.
+3. IF a Channel_Source has no last check time, THEN THE Server SHALL keep the Feed_Entries published strictly after the point 7 days (604800 seconds) before the Fresh_Check started and at or before the time it started, subject to the channel id match and the 15-entry limit of criterion 2.
+4. IF a Channel_Feed fetch fails to connect, returns a non-success status, does not finish within 10 seconds, or returns a body larger than 1 MB, THEN THE Server SHALL discard that feed, leave that Channel_Source's last check time unchanged, and continue with the other Channel_Sources of the Fresh_Check. The 10 second limit ends earlier when the Call_Deadline is reached first; a fetch aborted at the Call_Deadline fails the whole Fresh_Check under Requirement 3, criterion 15.
+5. IF every Channel_Feed fetch of a Fresh_Check fails under criterion 4 or criterion 9, THEN THE Server SHALL treat the Fresh_Check as failed under Requirement 7.
+6. WHEN all Channel_Feeds of a Fresh_Check have been read, THE Server SHALL merge the kept Feed_Entries into one list that contains each video id exactly once (where a video id appears in more than one feed, it SHALL keep the entry with the lowest channel id), and SHALL drop every video id already stored as a Fresh_Item for the Check_Key.
+7. IF at least one Channel_Feed of the Fresh_Check succeeds and no new Feed_Entry remains after criterion 6, THEN THE Server SHALL skip the details and Judge steps, complete the Fresh_Check as successful with no new Fresh_Item, and update the last check time only for the Channel_Sources whose feed succeeded.
+8. WHEN a valid Channel_Feed document is given, THE Feed_Parser SHALL return one Feed_Entry per video entry, in document order, each with the video id, the title (an empty string if the entry has no title), the channel id, and the published time as an absolute instant with its time-zone offset applied.
+9. IF a Channel_Feed document is not well-formed XML or is not an Atom feed, THEN THE Feed_Parser SHALL return an error, and THE Server SHALL treat that feed as a failed fetch under criterion 4.
+10. IF a Feed_Entry has no video id, a video id that is not 11 characters drawn from letters, digits, `-` and `_`, no channel id, or a missing or unparseable published time, THEN THE Feed_Parser SHALL skip that entry and still return the other entries of the document.
+11. THE Feed_Printer SHALL format a list of Feed_Entries into a well-formed Atom Channel_Feed document that holds one entry per Feed_Entry in list order, escaping XML special characters (`&`, `<`, `>`, `"`, `'`) in titles.
+12. FOR ALL lists of 0 to 15 valid Feed_Entries (valid video ids per criterion 10, titles of 0 to 100 characters that may contain XML special characters, and published times with whole-second precision), printing then parsing SHALL produce a list of the same length and order in which every entry has the same video id, title, channel id and published instant (round-trip property).
+13. IF a Check_Key has no Channel_Source when its Fresh_Check runs, THEN THE Server SHALL fetch no Channel_Feed, skip the details and Judge steps, and complete the Fresh_Check as successful with no new Fresh_Item.
+
+### Requirement 5: Details and filter for new videos
+
+**User Story:** As a learner, I want new videos checked the same way as skill videos, so that only embeddable videos of the right length and language reach me.
+
+#### Acceptance Criteria
+
+1. WHEN one or more new Feed_Entries remain after Requirement 4, criterion 6, THE Server SHALL get their details through the Video_Provider `getDetails` operation of the skill-video-pipeline details stage, in batches of 1 to 50 video ids taken in merged Feed_Entry order, and SHALL reserve 1 Daily_Quota unit through the Quota_Gate before each batch call. The unit stays counted when the call returns an error.
+2. IF the Quota_Gate refuses a details batch because reserving 1 unit would raise the counted use of the current Pacific_Day above the Daily_Quota, THEN THE Server SHALL start no further details batch in that Fresh_Check, pass no video to the filter stage, store nothing for the Check_Key, keep the units already counted, and treat the Fresh_Check as failed under Requirement 7.
+3. IF a details call fails (an error response, a quota-exceeded response, or no response within 10 seconds after the single retry allowed by the Video_Provider), THEN THE Server SHALL start no further details batch in that Fresh_Check, pass no video from any earlier batch to the filter stage, and treat the Fresh_Check as failed under Requirement 7. The 10 second limit ends earlier when the Call_Deadline is reached first (Requirement 3, criterion 15). A quota-exceeded response also sets the counted quota use of the current Pacific_Day to the Daily_Quota, as in skill-video-pipeline.
+4. WHEN the details of every batch are known, THE Server SHALL run the skill-video-pipeline filter stage once over all new videos of the Fresh_Check, with the Language_Code of the Check_Key and the quick-tip flag false. The filter stage drops each video that is longer than 1500 seconds, shorter than 60 seconds, not embeddable, or whose default audio language has a primary subtag different from the Language_Code, and keeps each video with no default audio language or when the Language_Code is `und`.
+5. IF the filter stage drops every new video, THEN THE Server SHALL make no Judge call and complete the Fresh_Check as successful with no new Fresh_Item, storing the Channel_Source last check times and the successful check time under Requirement 7, criterion 1.
+6. IF a requested video id is missing from the details response (for example, a deleted or private video), THEN THE Server SHALL drop that video and keep the other videos of the batch.
+7. IF a video's details carry no channel id, THEN THE Server SHALL use the channel id of that video's Feed_Entry for the video.
+
+### Requirement 6: Judge classification into Skills
+
+**User Story:** As a learner, I want each new video sorted into one of my hobby's skills with a short reason, so that I know why it is worth watching.
+
+#### Acceptance Criteria
+
+1. WHEN the filter stage leaves one or more videos for a Fresh_Check, THE Server SHALL send at most the Judge_Limit of 40 of those videos to the Judge in exactly one model call for the Check_Key, through `generateStructured` with the Default_Config and a 30 second timeout. THE Server SHALL choose the videos with the latest Feed_Entry published time, breaking ties by video id ascending (decision D12).
+2. WHEN the Server builds the Judge call, THE Server SHALL include the Normalized hobby of the Check_Key, the Language_Code of the Check_Key and the Skill title list. The Skill title list holds between 1 and 60 distinct Normalized Skill titles from stored Video_Pools of the hobby in any Language_Code, ordered with the most recently stored Video_Pool first (decision D6). For each video, the call SHALL include the video id, the title, the first 500 characters of the description (an empty string when there is no description), the channel name and the duration in seconds.
+3. IF the hobby of the Check_Key has no stored Video_Pool in any Language_Code when the Judge step starts, THEN THE Server SHALL make no model call and SHALL complete the Fresh_Check as successful with no new Fresh_Item.
+4. THE Judge SHALL return one entry per video, each with: `video_id`; `skill_title`, which is one of the given titles or null; `level`, which is one of `beginner`, `intermediate` or `advanced`; `teaches_this_skill` and `level_fit`, which are numbers from 0 to 1 inclusive; `is_instruction`, which is a boolean; `style`, which is one of `drill`, `technique`, `explainer` or `approachable`; and `why`, which is a string of 1 to 120 characters after trimming leading and trailing whitespace.
+5. IF the Judge response is not valid for the schema in criterion 4, THEN THE Server SHALL discard the whole response, keep no video from it, and treat the Fresh_Check as failed under Requirement 7. A response is invalid when a field is missing, a field has the wrong type, a number lies outside 0 to 1, a value lies outside its list, a `why` is empty or longer than 120 characters after trimming, or the output cannot be parsed.
+6. IF the model call returns an error or gives no response within 30 seconds, THEN THE Server SHALL make no retry of the model call in that Fresh_Check and SHALL treat the Fresh_Check as failed under Requirement 7. The 30 second limit ends earlier when the Call_Deadline is reached first, and the Fresh_Check then fails under Requirement 3, criterion 15.
+7. WHEN the Judge returns a valid response, THE Server SHALL drop each video whose `is_instruction` is false, whose `teaches_this_skill` is below 0.5, or whose `skill_title` is null. A video with `teaches_this_skill` of exactly 0.5 is kept.
+8. IF a `skill_title` is not null and its Normalized form matches none of the given titles, THEN THE Server SHALL drop that video. When the Normalized form does match a given title, THE Server SHALL use that given Normalized title as the Fresh_Item's Skill title.
+9. IF a `why`, compared after Normalization and split into words at whitespace, contains 6 or more consecutive words that also appear in the same order in the video's title or in the full description from the details stage (decision D5), THEN THE Server SHALL drop that video.
+10. IF the Judge response omits a video that was sent, THEN THE Server SHALL drop that video. IF the response contains an entry for a video id that was not sent, THEN THE Server SHALL ignore that entry. IF the response contains more than one entry for the same video id, THEN THE Server SHALL drop that video.
+11. THE Server SHALL include in every Judge call an instruction to write each `why` in Pursio's own words as one sentence of at most 120 characters about what the learner gets from the video, without copying the video's title or description.
+12. IF the filter stage leaves more than 40 videos, THEN THE Server SHALL drop the videos not chosen under criterion 1 for that Fresh_Check, store no Fresh_Item and no queue entry for them, and read them again in a later Fresh_Check only when their published time still falls in that check's feed window of Requirement 4, criterion 2 (decision D12).
+13. WHEN the Server stores a Fresh_Item, THE Server SHALL store the Judge's `level` on the Fresh_Item as its Level, and THE System SHALL use the Level for no Path_Match (decision D11).
+
+### Requirement 7: Storing Fresh_Items and failure rules
+
+**User Story:** As the product owner, I want checks to be all or nothing and old items cleaned up, so that the page never shows half results and storage stays small.
+
+#### Acceptance Criteria
+
+1. WHEN a Fresh_Check succeeds, THE Server SHALL store in one database transaction: every video kept after Requirement 6 as a Fresh_Item, the start time of the Fresh_Check as the new last check time of every Channel_Source whose Channel_Feed was fetched and parsed without failure, and the finish time of the Fresh_Check as the time of the successful Fresh_Check for the Check_Key. Channel_Sources whose feed failed under Requirement 4, criterion 4 keep their last check time.
+2. THE Server SHALL store each video id at most once per Check_Key. IF a video id is already stored as a Fresh_Item for the Check_Key when the transaction runs, THEN THE Server SHALL keep the existing Fresh_Item unchanged, including its found time, and SHALL still store the rest of the transaction.
+3. THE Fresh_Item SHALL hold the Check_Key, the Normalized Skill title, the Level, the video details, the channel id, `teaches_this_skill`, `level_fit`, the Style, the Why_Line, the published time from the Feed_Entry, and the found time, which is the time of the store transaction that first stored the Fresh_Item.
+4. WHEN a Check_Route call with a valid secret runs, THE Server SHALL delete, before it starts any Fresh_Check in that call, every Fresh_Item whose found time is Fresh_Retention (2592000 seconds) or more before the call started. A failed deletion SHALL be logged under criterion 6 with the failure type `cleanup_failed`, and the Fresh_Checks of that call SHALL still run.
+5. IF a Fresh_Check fails (every feed failed, a details failure, a Quota_Gate refusal, a model failure, a lost Lease, a store failure, or an abort at the Call_Deadline), THEN THE Server SHALL roll back the whole transaction of criterion 1 so that no Fresh_Item is stored, no Channel_Source last check time changes and the successful check time stays unchanged. It SHALL keep every stored Fresh_Item, release the Lease, record the Fresh_Check start time as the Last_Attempt_Time, and leave the Check_Key due for the next Check_Route call under Requirement 3, criterion 5.
+6. IF a Fresh_Check fails, THEN THE Server SHALL log the Check_Key and exactly one failure type from the fixed set `feeds_failed`, `details_failed`, `quota_refused`, `model_failed`, `lease_lost`, `store_failed`, `deadline_exceeded` (plus `cleanup_failed` for criterion 4), with no API key, secret, Access_Token or provider, feed or model response body.
+7. THE System SHALL store Fresh_Items, check times and Leases in server-only tables and deny every Client read and write of them. No Server response SHALL include a Lease, a Last_Attempt_Time or a Channel_Source last check time. The last successful check time of a Check_Key is the only check time a response may include.
+8. IF a Fresh_Check fails, THEN THE Fresh_Endpoint SHALL return the Fresh_Items and Video_Pool videos stored before the failure and the last successful check time from before the failure, with no error response and no error field caused by the failure.
+9. IF the Server instance running a Fresh_Check no longer holds that Check_Key's Lease when the store transaction of criterion 1 starts, because the Lease expired 300 seconds after it was taken or another instance took it, THEN THE Server SHALL store nothing for that Fresh_Check and SHALL treat it as failed with the failure type `lease_lost`.
+10. THE Fresh_Endpoint SHALL return no Fresh_Item whose found time is Fresh_Retention (2592000 seconds) or more in the past, even when the deletion of criterion 4 has not yet run.
+
+### Requirement 8: Fresh_Endpoint
+
+**User Story:** As a learner, I want the Fresh page to load from one server call, so that it is fast and works signed out too.
+
+#### Acceptance Criteria
+
+1. WHEN a Signed_In_User with a verified Access_Token requests the Fresh_Endpoint, THE Server SHALL load the user's stored paths with the user's own access (row-level security) and return the following for those paths: every Fresh_Item that has a Path_Match with a Skill of those paths, the ranked Video_Pool videos of each path's Current_Window, the Channel_Sources of the paths' Check_Keys, and the last successful check time of each of those Check_Keys.
+2. WHEN a request carries no Access_Token, THE Server SHALL treat it as a Signed_Out_User request and SHALL take the paths and the Language_Code from the request body, using `en` when the Language_Code is missing or empty (criterion 16). Each path in the body holds a path id, a hobby, its Skills (each with a Skill id, title and section Level) and the Current_Skill id, which is null for a path whose Skills are all completed (decision D16). THE Server SHALL then rank with the Goal_Class `none` and return the same kinds of data as in criterion 1.
+3. IF a Signed_Out_User request body cannot be parsed, has more than 10 paths, has a path with more than 200 Skills, has an empty path id, Skill id, hobby or Skill title, has a hobby or Skill title longer than 100 characters, has a Level outside the defined Levels, or has a Current_Skill id that is neither null nor one of the path's Skill ids, THEN THE Server SHALL return a 400 response with an error code that names the first invalid field, and SHALL read no data.
+4. IF a request carries an Access_Token that the Server cannot verify, THEN THE Server SHALL return a 401 response, read no data, and not fall back to a Signed_Out_User request.
+5. IF a request exceeds the existing rate limiter (counted per user for a Signed_In_User and per client IP address for a Signed_Out_User), THEN THE Server SHALL return a rate-limit error response and read no data.
+6. THE Fresh_Endpoint SHALL make no provider call, no model call, no Channel_Feed fetch and no fill request, for Signed_In_User and Signed_Out_User requests alike.
+7. THE Fresh_Endpoint SHALL respond within 500 ms at the 95th percentile, measured at the Server, for requests with up to 10 paths.
+8. THE Server SHALL use the Signed_In_User's stored Goal_Class of each path for the goal rerank. IF that Goal_Class cannot be read or is not set, THEN THE Server SHALL use `none` for that path.
+9. IF any database read of the Fresh_Endpoint fails, THEN THE Fresh_Endpoint SHALL return a success response with empty lists and no check time, change no stored data, and log the failure with no Access_Token, secret or response body.
+10. THE Server SHALL return for the New_Section and Hero_Card only those Fresh_Items whose published time is less than 7 days (604800 seconds) before the time the Server received the request.
+11. IF the Fallback_Condition holds for a Skill's Fresh_Items in the user's Language_Code (fewer than 3 items) and that Language_Code is not `en`, THEN THE Server SHALL add the Fresh_Items of the `en` Check_Key for that Skill after the user-language items, mark each item with its Pool_Language, and return only the user-language copy of a video id found in both.
+12. THE Server SHALL include in each returned item: the video id, title, channel name, channel id, thumbnail, duration, Style, Pool_Language, and every path id and Skill id it has a Path_Match with. Fresh_Items also carry the Why_Line and the published time.
+13. IF a Signed_In_User has no stored paths, or a Signed_Out_User request body has 0 paths, THEN THE Server SHALL return a success response with empty lists and no check time.
+14. WHEN a Signed_In_User requests the Fresh_Endpoint, THE Server SHALL return the user's Channel_Mutes and SHALL also return items from muted channels. The Client then applies the mute exclusion of Requirement 9, criterion 6, and a mute switch change takes effect without a new Fresh_Endpoint request (Requirement 15, criterion 6).
+15. WHERE Demo_Mode is active, THE Fresh_Page SHALL request the Fresh_Endpoint as a Signed_Out_User request with no Access_Token, with the Demo_Paths as the paths of the request body and the user's Language_Code, and SHALL use the first Demo_Path as the Selected_Path (decision D13).
+16. IF the Signed_In_User's stored language is missing or empty, or a Signed_Out_User request body has a missing or empty Language_Code, THEN THE Server SHALL use the Language_Code `en` for that request, for the Check_Keys it reads, the language fallback of criterion 11 and the Pool_Language comparison, and SHALL return no 400 response for that reason (decision D15).
+17. WHEN a path of the request has no Current_Skill (a stored path whose Skills are all completed, or a Signed_Out_User path with a null Current_Skill id), THE Server SHALL return no Current_Window Video_Pool videos for that path and SHALL still return the Fresh_Items that have a Path_Match with a Skill of that path and the Channel_Sources of its Check_Keys (decision D16).
+
+### Requirement 9: Ranking
+
+**User Story:** As a learner, I want the newest, most useful videos for the skill I'm on first, without one channel taking over, so that I watch the right thing next.
+
+#### Acceptance Criteria
+
+1. THE System SHALL compute the Fresh_Score of a Fresh_Item as Recency_Factor × `teaches_this_skill` × `level_fit` × Closeness_Factor, plus the goal rerank adjustment of `skill-video-pipeline` Requirement 11 for the Goal_Class of the matched path, plus the Taste_Adjustment.
+2. THE System SHALL compute the Recency_Factor as 1 − 0.5 × (age in seconds of the Fresh_Item's published time ÷ 604800), so that it is 1 at age 0 and above 0.5 for every published time less than 7 days old. An age below 0, which means a published time in the future, counts as age 0.
+3. THE System SHALL score each Path_Match against the path of the matched Skill: a Closeness_Factor of 1.0 when the matched Skill is that path's Current_Skill, 0.8 when the matched Skill is another Skill of that path's Current_Window, and 0.6 when the matched Skill is any other Skill of that path, whichever Filter_Chip is selected (decision D14).
+4. WHEN a Fresh_Item has a Path_Match with Skills on several of the user's paths in scope, or with several Skills of one path, THE System SHALL score each match under criterion 3 against its own path and use the highest Closeness_Factor among those matches. THE System SHALL show the Fresh_Item once, with the path id, Skill id and skill tag of the match that gives that highest value. If matches tie, the Selected_Path wins first, then the Skill that comes earlier in path order.
+5. THE System SHALL order Fresh_Items by Fresh_Score descending, then by published time descending, then by video id ascending, and SHALL use this order for both the Hero_Card and the New_Section.
+6. THE System SHALL exclude from the Hero_Card, the New_Section and the Best_Section every Fresh_Item and every Video_Pool video whose channel id has a Channel_Mute for the user whose latest muted value is true.
+7. WHILE the user has fewer than 10 Video_Event records in total, counted over every Source and every video, THE System SHALL set the Taste_Adjustment to 0 for every Fresh_Item.
+8. WHILE the user has 10 or more Video_Event records, THE System SHALL add +0.1 to the Taste_Adjustment of a Fresh_Item whose channel id has at least 1 Finished Video_Event of the user. It SHALL add −0.1 to the Taste_Adjustment of a Fresh_Item whose channel id has 3 or more Video_Event records with Source `feed` and skipped true. A Fresh_Item that meets neither condition SHALL get a Taste_Adjustment of 0. A Video_Event's channel id is the channel id of that video in the returned Fresh_Items or Video_Pools, or else the channel id in the Video_Event's Save_Snapshot. A Video_Event with neither SHALL count toward the total in criterion 7 only.
+9. THE System SHALL clamp every Taste_Adjustment to the range −0.2 to 0.2 inclusive and SHALL apply it to Fresh_Items only, never to Best_Section videos or to a Video_Pool video shown in the Hero_Card (decision D9).
+10. THE System SHALL count skipped flags for the Taste_Adjustment only from Video_Event records with Source `feed`, so that skips with Source `skill_sheet` change no Taste_Adjustment.
+11. THE System SHALL order the videos of each Skill in the Best_Section by the ranking of `skill-video-pipeline` Requirement 11. Within one path, it SHALL list the Skills in Current_Window order, Current_Skill first. Paths SHALL appear with the Selected_Path first, then the other paths by most recent open or progress time descending. THE System SHALL then take the first 12 cards of that combined list.
+12. THE System SHALL remove from the Best_Section every video id shown in the Hero_Card (a Fresh_Item or a Video_Pool video) or the New_Section before taking the first 12 cards. It SHALL also show each video id at most once in the Best_Section, keeping its first position.
+13. THE System SHALL rearrange each section after ranking and capping so that every Variety_Window holds at most 2 cards from the same channel id (decision D1). When a card would break the rule, the System SHALL move it to the first later position where it breaks no Variety_Window. All other cards keep their ranked order, and the section keeps the same set of cards.
+14. IF a card has no later position in its section that keeps the variety rule, THEN THE System SHALL place that card at the end of the section. All such cards SHALL be placed in their ranked order, and no card SHALL be removed.
+15. WHEN the request comes from a Signed_Out_User, THE System SHALL use the Goal_Class `none` for every path. Outside Demo_Mode, it SHALL compute the Taste_Adjustment under criteria 7 to 10 from the Video_Events stored locally on the device. WHERE Demo_Mode is active, it SHALL set every Taste_Adjustment to 0.
+
+### Requirement 10: Navigation
+
+**User Story:** As a learner, I want Fresh in the main navigation, so that I can open it from anywhere.
+
+#### Acceptance Criteria
+
+1. THE navigation SHALL show a "Fresh" item, made of an inline stroke icon and the text label "Fresh", that links to the Fresh_Page at `/fresh`, on every page that shows the navigation, in both the desktop left navigation and the mobile bottom navigation.
+2. WHILE the Quests item is shown, THE navigation SHALL place the Fresh item directly after the Path item and directly before the Quests item, with no other item between them.
+3. WHILE the Fresh_Page is open, THE navigation SHALL mark the Fresh item as the current page, using the same active style and the same `aria-current="page"` marking that the other items use, and SHALL mark none of the Path, Quests and Profile items as current.
+4. WHERE Demo_Mode is active, THE navigation SHALL show the Fresh item directly after the Path item, linking to `/fresh?demo=1` so that the Fresh_Page opens in Demo_Mode with the Demo_Paths (Requirement 8, criterion 15), while the Quests and Profile items stay hidden as they are in Demo_Mode today. The Path item of the Fresh_Page in Demo_Mode SHALL link to `/path?demo=1`.
+5. WHILE the user is a Signed_Out_User outside Demo_Mode, THE navigation SHALL show the Fresh item in the same place as for a Signed_In_User (criterion 2).
+6. WHILE the viewport is 390 px wide, THE mobile bottom navigation SHALL show all its shown items in one row, each with its full label, no item clipped or overlapping another, no horizontal scrolling, and a touch target of at least 44 × 44 px per item.
+7. WHEN the user activates the Fresh item by click, tap, or Enter while it has keyboard focus, THE navigation SHALL open the Fresh_Page without a full page reload.
+8. THE Fresh item SHALL be reachable with the Tab key, SHALL show the visible focus outline that the other navigation items use, and SHALL have the accessible name "Fresh".
+
+### Requirement 11: Fresh_Page layout and header
+
+**User Story:** As a learner, I want a clear page that tells me what's new and when it was updated, so that I can trust it is fresh.
+
+#### Acceptance Criteria
+
+1. WHILE the viewport is 1024 px wide or wider (desktop width, the same `lg` breakpoint the Path page uses), THE Fresh_Page SHALL show the left navigation, a main column with the header, the Filter_Chips, the Hero_Card, the New_Section and the Best_Section, and a right column with the Sources_Panel, in that left-to-right order, following `dev_docs/Desktop · Fresh@1x.png`.
+2. WHILE the viewport is narrower than 1024 px (mobile width), THE Fresh_Page SHALL show one column with the header, the Filter_Chips and the sections in that top-to-bottom order, the bottom navigation, and list cards with the thumbnail left of the text, following `dev_docs/Mobile · Fresh@1x.png`. THE Fresh_Page SHALL also show a "Sources" button in the header that opens the Sources_Panel, and SHALL show no right column.
+3. THE Fresh_Page header SHALL show the title "Fresh", a filter label and, when criterion 5 gives a value, the text "Updated <relative time>".
+4. THE Fresh_Page SHALL set the header filter label from the selected Filter_Chip as follows: the hobby name of the Selected_Path for "For <current skill>"; the hobby name of the only path for "All skills" when the user has exactly 1 path; "All hobbies" for "All skills" when the user has 2 or more paths; the chip's hobby name for a path chip; and "Saved" for the "Saved" chip.
+5. WHEN the Fresh_Page receives a Fresh_Endpoint response, and again every 60 seconds while the Fresh_Page stays open, THE Fresh_Page SHALL compute the relative time from the most recent last successful check time returned for the Check_Keys of the paths in scope of the selected Filter_Chip (all the user's paths for "All skills" and "Saved"). THE Fresh_Page SHALL show elapsed time rounded down to whole units: "just now" when less than 60 seconds have passed or the check time is in the future, "<n>m ago" from 60 seconds up to but not including 3600 seconds, "<n>h ago" from 3600 seconds up to but not including 86400 seconds, and "<n>d ago" from 86400 seconds on.
+6. IF no last successful check time is returned for any Check_Key of the paths in scope, or the Fresh_Endpoint returned no check time after a failed database read, THEN THE Fresh_Page SHALL hide the "Updated" text and SHALL show the rest of the header unchanged.
+7. WHEN the user selects a different Filter_Chip, THE Fresh_Page SHALL update the header filter label and the relative time under criteria 4 to 6 without a new Fresh_Endpoint request.
+8. THE Fresh_Page SHALL style color, font, radius and shadow only with theme token utilities. It SHALL use only the Wick logo and inline stroke icons for images other than video thumbnails, and SHALL contain no hardcoded color, font, radius or shadow value. WHEN `data-theme` changes between trail, boulder and halloween, THE Fresh_Page SHALL change only its token values and keep the same markup.
+9. THE Fresh_Page SHALL show no XP value on any button or card, and SHALL show only YouTube videos, with no article cards and no non-YouTube Channel_Sources.
+10. WHERE Demo_Mode is active, THE Fresh_Page SHALL hide every mute switch, every Save button and save control, and the "Saved" chip, and SHALL show the Sources_Panel entries with the channel name only (decision D13).
+
+### Requirement 12: Hero_Card
+
+**User Story:** As a learner, I want the best video for my path at the top, so that I can start watching in one tap.
+
+#### Acceptance Criteria
+
+1. WHEN at least one returned Fresh_Item has a Path_Match with a Skill shown under the selected Filter_Chip (Requirement 14, criteria 3 to 5), has a published time less than 604800 seconds (7 days) before the Fresh_Endpoint response, and has a channel id with no Channel_Mute set to muted true for the user, THE Fresh_Page SHALL show the first such Fresh_Item in the Requirement 9 order (criteria 1 to 5) as the Hero_Card (decision D7). The Hero_Card SHALL carry the label "New for <skill title>", where the skill title is the title of the Skill chosen under Requirement 9, criterion 4, and SHALL show the thumbnail, a duration badge, the title, the channel name, the Why_Line, a "Watch" button and a "Save" button.
+2. IF no Fresh_Item meets every condition in criterion 1, the Hero_Path has a Current_Skill, and at least one returned Video_Pool video of that Current_Skill has a channel id with no Channel_Mute set to muted true for the user, THEN THE Fresh_Page SHALL show the first such video in the order of `skill-video-pipeline` Requirement 11 (with the goal rerank of the Hero_Path) as the Hero_Card. The Hero_Card SHALL carry the label "Best for your current skill" and SHALL show the thumbnail, a duration badge, the title, the channel name, a "Watch" button and a "Save" button, with no Why_Line (decision D7).
+3. THE Fresh_Page SHALL use as the Hero_Path the Selected_Path when the chip "For <current skill>" or "All skills" is selected, and the chip's path when a path chip is selected.
+4. IF no Selected_Path is known (for example, a Signed_Out_User who has never opened the Path page), THEN THE Fresh_Page SHALL use the first path in the Filter_Chip order as the Selected_Path for the Hero_Card and the chips "For <current skill>" and "All skills".
+5. WHEN the user activates "Watch", THE Fresh_Page SHALL replace the Hero_Card thumbnail with the Embed_Player, start playback without a second user action, stop every other video playing on the page, and stay on the Fresh_Page with no route change.
+6. WHEN the user activates "Save", THE System SHALL toggle the video's saved value through `useVideoEvents` with Source `feed`, record the Saved_Time and, on save, store the Save_Snapshot of the video (Requirement 17, criterion 4). THE "Save" button SHALL then show the new saved or unsaved state, both visibly and in its accessible state, without a new Fresh_Endpoint request (decision D2).
+7. IF neither criterion 1 nor criterion 2 gives a video, or the "Saved" chip is selected, THEN THE Fresh_Page SHALL hide the Hero_Card and show no empty placeholder in its place (decision D7).
+8. WHEN the user mutes the channel of the video shown in the Hero_Card, THE Fresh_Page SHALL, without a new Fresh_Endpoint request, stop that video if it is playing and replace the Hero_Card with the next video that meets criterion 1, else with the video that criterion 2 gives, else hide it under criterion 7.
+9. THE System SHALL show the video id of the Hero_Card, whether a Fresh_Item or a Video_Pool video, in no other section of the page, so that it appears in neither the New_Section nor the Best_Section.
+
+### Requirement 13: New_Section and Best_Section
+
+**User Story:** As a learner, I want new videos for my path first and the best known ones after, so that I always have something good to watch.
+
+#### Acceptance Criteria
+
+1. THE New_Section SHALL show, under the heading "New for your path", the Fresh_Items with a published time in the last 7 days (604800 seconds) that have a Path_Match with a Skill of the paths in scope of the selected Filter_Chip (Requirement 14). The items SHALL be ranked under Requirement 9, show each video id at most once, leave out the Hero_Card video, and stop at 24 cards (decision D4).
+2. THE New_Section card SHALL show the thumbnail, a duration badge in the Video_Card duration format of `skill-video-pipeline`, the title, the channel name, the Why_Line, a skill tag with the matched Skill's title, and a save control. WHEN a Fresh_Item matches Skills on more than one path in scope, the skill tag SHALL name the Skill with the highest Closeness_Factor.
+3. WHILE the viewport is desktop width (Requirement 11, criterion 1), THE New_Section and the Best_Section SHALL lay out cards as a grid of 3 columns. Between mobile and desktop width they SHALL use 2 columns. At mobile width they SHALL use 1 column of list cards with the thumbnail on the left (Requirement 11, criterion 2).
+4. WHEN the user activates a skill tag, THE Fresh_Page SHALL open the Path page of the matched path with the Skill_Sheet of the matched Skill open. WHERE Demo_Mode is active, the Path page SHALL open as `/path?demo=1`.
+5. THE Best_Section SHALL show, under the heading "Best for your current skills" and below the New_Section, the Video_Pool videos of the Current_Windows of the paths in scope of the selected Filter_Chip. The videos SHALL be grouped per Skill in the order of Requirement 9, criterion 11, with each video id shown at most once, no video id shown in the Hero_Card (including a Video_Pool video shown there under Requirement 12, criterion 2) or the New_Section, and at most 12 cards (decision D4).
+6. WHEN the user taps or activates a card in either section, THE Fresh_Page SHALL replace that card's thumbnail with the Embed_Player in the same card position and start playback without a second user action, and the Fresh_Page SHALL stay open.
+7. WHEN a video starts playing on the Fresh_Page, THE Fresh_Page SHALL stop every other video on the page, so that at most 1 video plays at a time.
+8. IF the Pool_Language of a shown video differs from the user's Language_Code, THEN THE card SHALL show the Pool_Language code as a label. IF the two are equal, THEN the card SHALL show no language label.
+9. THE Fresh_Page SHALL reuse the skill-video-pipeline Watch components (`WatchVideoCard`, `WatchEmbedPlayer`) for cards and playback, extended for the Why_Line, the skill tag, the "New" badge and the save control.
+10. THE Fresh_Page SHALL let every card, button, chip, skill tag and mute switch be reached with the Tab key and activated with Enter or Space. Each card SHALL have an accessible name that includes the video title.
+11. THE Best_Section card SHALL show the thumbnail, the duration badge, the title, the channel name, a skill tag with the matched Skill's title, and a save control. It SHALL show no Why_Line and no "New" badge.
+12. WHEN a New_Section card's Fresh_Item has a published time less than 86400 seconds before the Fresh_Endpoint response, THE card SHALL show a "New" badge. IF the published time is 86400 seconds or more before the response, THEN THE card SHALL show no "New" badge.
+13. IF the browser blocks automatic playback after the user activates a card, THEN THE Fresh_Page SHALL keep the Embed_Player shown in that card with its play control, so the user can start the video with one more tap.
+
+### Requirement 14: Filter_Chips
+
+**User Story:** As a learner, I want to narrow the page to my current skill, one path or my saved videos, so that I find what I need.
+
+#### Acceptance Criteria
+
+1. WHILE the user has 1 or more paths, THE Fresh_Page SHALL show the Filter_Chips in this order: "For <title of the Selected_Path's Current_Skill>", "All skills", one chip per path labeled with its hobby (in the order of the paths in the Fresh_Endpoint response), and "Saved". Exactly one chip SHALL be selected at any time, and the selected chip SHALL expose its selected state to assistive technology. Criterion 10 and Requirement 11, criterion 10 hide chips in some cases.
+2. WHEN the Fresh_Page opens, THE Fresh_Page SHALL select the chip "All skills" (decision D10).
+3. WHILE "For <current skill>" is selected, THE Fresh_Page SHALL show in the Hero_Card and the New_Section only Fresh_Items with a Path_Match to the Selected_Path's Current_Skill, and in the Best_Section and the Hero_Card fallback of Requirement 12, criterion 2 only Video_Pool videos of that Current_Skill.
+4. WHILE "All skills" is selected, THE Fresh_Page SHALL show the Fresh_Items with a Path_Match to any Skill of any of the user's paths, and the Video_Pool videos of the Current_Windows of all the user's paths, with the Hero_Card fallback taken from the Selected_Path's Current_Skill.
+5. WHILE a path chip is selected, THE Fresh_Page SHALL show only the Fresh_Items with a Path_Match to a Skill of that path, and only the Video_Pool videos of that path's Current_Window, with the Hero_Card fallback taken from that path's Current_Skill.
+6. WHILE "Saved" is selected, THE Fresh_Page SHALL show every video whose combined saved value (`skill-video-pipeline` Requirement 13, criterion 16) is true and that has a Save_Snapshot whose channel id has no Channel_Mute with muted true, using the title, channel name, thumbnail and duration of the Save_Snapshot, whether or not the video is still among the returned Fresh_Items or Video_Pools. These videos SHALL be ordered by Saved_Time descending, then by video id ascending (decision D2).
+7. IF "Saved" is selected and no saved video can be shown, THEN THE Fresh_Page SHALL show the line "No saved videos yet." and no other section (decision D8).
+8. WHEN the user selects a chip, THE Fresh_Page SHALL update the header label, Hero_Card and sections to match the new chip within 200 ms, without a new Fresh_Endpoint request and without reloading the page.
+9. IF the stored Selected_Path is missing or no longer among the user's paths, THEN THE Fresh_Page SHALL use the first path in the Fresh_Endpoint response as the Selected_Path.
+10. IF the Selected_Path has no Current_Skill (every Skill of the path is completed), THEN THE Fresh_Page SHALL hide the chip "For <current skill>".
+11. WHEN the user selects "Saved" or a path chip and later returns to "For <current skill>" or "All skills" on the same page visit, THE Fresh_Page SHALL show the same items as in criteria 3 and 4, including any mute changes made since the page opened.
+
+### Requirement 15: Sources_Panel
+
+**User Story:** As a learner, I want to see and control which channels Fresh reads, so that I trust where videos come from.
+
+#### Acceptance Criteria
+
+1. THE Sources_Panel SHALL list, under the heading "Your sources", the Channel_Sources of the Check_Keys of all the user's paths, whichever Filter_Chip is selected. Channel_Sources SHALL be grouped by hobby, with groups in the same order as the path chips. Within a group, each channel id SHALL appear once, sorted by channel name ascending (case-insensitive), then by channel id ascending. Each entry SHALL show the channel name and, outside Demo_Mode, a mute switch.
+2. THE Sources_Panel SHALL keep muted channels in the list. A mute switch SHALL be on when the user's Channel_Mute for that channel id is missing or has muted false, and off when it has muted true (decision D3).
+3. THE Sources_Panel SHALL show the note "Every day Pursio checks these channels, picks new videos for the skills on your path and checks them for your level. Videos play from YouTube; nothing is copied." below the list.
+4. WHILE the viewport is desktop width, THE Fresh_Page SHALL show the Sources_Panel in the right column at all times, with no "Sources" button.
+5. WHILE the viewport is mobile width, THE Fresh_Page SHALL hide the Sources_Panel until the user activates the "Sources" button. It SHALL then show the panel in a sheet that closes when the user activates its close button or presses Escape. When the sheet closes, keyboard focus SHALL return to the "Sources" button.
+6. WHEN the user changes a mute switch, THE Fresh_Page SHALL, within 200 ms and without a new Fresh_Endpoint request: store the change under Requirement 2; remove that channel's cards from the Hero_Card, New_Section and Best_Section (on mute), or put them back (on unmute); and re-apply the ranking, Hero_Card choice and variety rule of Requirement 9 to the cards that are left.
+7. WHEN a channel id appears in more than one hobby group and the user changes its mute switch in one group, THE Sources_Panel SHALL show the same switch state for that channel id in every group (decision D3).
+8. IF a hobby of the user's paths has no Channel_Source, THEN THE Sources_Panel SHALL show the line "No sources yet for <hobby>." in that hobby's group, with no mute switch.
+9. IF the user has no paths, THEN THE Sources_Panel SHALL show the heading and the note with no hobby group and no mute switch.
+10. THE mute switch SHALL have an accessible name that includes the full channel name and its on or off state, and SHALL toggle with Enter or Space.
+
+### Requirement 16: Empty, quiet and error states
+
+**User Story:** As a learner, I want a clear message when there is nothing new, so that the page never looks broken.
+
+#### Acceptance Criteria
+
+1. WHILE the user has no path (no stored path for a Signed_In_User, no local path for a Signed_Out_User), THE Fresh_Page SHALL show Wick with a "Build your first path" link to the new-hobby page, and SHALL show no Filter_Chips, no Hero_Card, no New_Section, no Best_Section and no Sources_Panel, with the navigation usable.
+2. WHILE a Filter_Chip other than "Saved" is selected and, after Channel_Mutes and the selected chip are applied, no Fresh_Item is shown (the Hero_Card is hidden or shows a Video_Pool video under Requirement 12, criterion 2, and the New_Section has 0 cards) and at least one Video_Pool video is shown in the Hero_Card or the Best_Section, THE Fresh_Page SHALL hide the New_Section heading and show the line "No new videos today. Here are the best ones for your skills." directly below the Filter_Chips, above the Hero_Card or, when the Hero_Card is hidden, above the Best_Section.
+3. WHILE the user has 1 or more paths, a Filter_Chip other than "Saved" is selected and, after Channel_Mutes and the selected chip are applied, the Hero_Card is hidden (neither a Fresh_Item nor a Video_Pool video qualifies under Requirement 12) and both the New_Section and the Best_Section have 0 cards, THE Fresh_Page SHALL show Wick with the line "No videos yet. Pursio checks for new ones every day." in place of both section headings, and SHALL keep the Filter_Chips and the Sources_Panel (or the "Sources" button on mobile) available (decision D8). This includes the case where the Fresh_Endpoint returned empty lists after a database read failure (Requirement 8, criterion 9).
+4. IF the Fresh_Endpoint request fails (a network error, an error response of any kind including validation, authentication and rate-limit errors, or no response within 10 seconds), THEN THE Fresh_Page SHALL show the line "Couldn't load Fresh right now." with a "Try again" button in the main column, SHALL show no Hero_Card, no section and no empty-state line from criteria 1 to 3, SHALL show no blocking dialog, and SHALL keep the navigation usable.
+5. WHEN the user activates "Try again", THE Fresh_Page SHALL send exactly one new Fresh_Endpoint request and disable the "Try again" button until that request completes. If the request succeeds, THE Fresh_Page SHALL replace the error line with the page content under Requirements 11 to 15. If the request fails, THE Fresh_Page SHALL show the error line and an enabled "Try again" button again.
+6. WHILE a Fresh_Endpoint request is pending, THE Fresh_Page SHALL show Wick in the thinking mood and SHALL show none of the lines from criteria 1 to 4, so that no empty or error state appears before the response arrives or the 10 second limit passes.
+
+### Requirement 17: Video events and XP
+
+**User Story:** As the product owner, I want Fresh viewing recorded like skill videos, so that taste and the Feed use the same data.
+
+#### Acceptance Criteria
+
+1. WHEN a user starts a video in the Hero_Card or in a card of the New_Section, the Best_Section or the "Saved" chip view, THE System SHALL record a played event through `useVideoEvents` for that user and video with Source `feed`, with the time of the first play stored once and not overwritten by later plays (`skill-video-pipeline` Requirement 13, criterion 1).
+2. WHILE a video plays on the Fresh_Page, THE System SHALL add the elapsed playback time to the watched seconds of the user's Video_Event with Source `feed` at intervals of 5 seconds or less. THE System SHALL also write the current value when the video pauses, ends or is stopped because another video starts (Requirement 13, criterion 7 of this spec), when a chip change or a mute hides its card, and when the user leaves the Fresh_Page.
+3. WHEN the watched seconds of a video played on the Fresh_Page reach 80 percent or more of its duration, THE System SHALL mark the video as Finished for that user with Source `feed`, and SHALL NOT mark it Finished when the duration is unknown or 0 seconds.
+4. WHEN a user saves or removes a saved video on the Fresh_Page, including in the "Saved" chip view, THE System SHALL record saved as true or false, with the Saved_Time and the updated time both set to the time of the change, for that user and video with Source `feed` (`skill-video-pipeline` Requirement 13, criteria 5 and 6). On a save, THE System SHALL also store the Save_Snapshot taken from the video's shown details (id, title, channel name, channel id, thumbnail and duration), replacing any earlier Save_Snapshot of that video. On a removal, THE System SHALL keep the stored Save_Snapshot (decision D2).
+5. WHEN a card on the Fresh_Page has been at least 50 percent visible in the viewport for 2 continuous seconds while the browser tab is visible, and the user's combined Video_Event for that video (`skill-video-pipeline` Requirement 13, criterion 16) has no played time, THE System SHALL record skipped for that user and video with Source `feed` only, and SHALL NOT record skipped for a card hidden by a mute or a chip.
+6. WHEN a user plays a video on the Fresh_Page that is recorded as skipped with Source `feed`, THE System SHALL clear the skipped flag of that user's Video_Event for that video with Source `feed`.
+7. WHEN a user plays, finishes, saves, removes a save or skips a video on the Fresh_Page, or changes a mute switch, THE System SHALL leave the user's XP total, level, streak, quest progress and Skill completion unchanged.
+8. IF recording a Video_Event on the Fresh_Page fails, THEN THE System SHALL keep the video playing or playable, keep the unsent event stored locally, show no blocking error, and retry the write at least once within 60 seconds and again on the next app start until it succeeds (`skill-video-pipeline` Requirement 13, criterion 14).
+9. WHERE Demo_Mode is active, THE System SHALL record no Video_Event and no Save_Snapshot, locally or in cloud data, for any play, finish, save or skip on the Fresh_Page (decision D13).
+10. THE System SHALL store each Save_Snapshot with the user's Video_Event for that video, locally while the user is signed out and in the user's cloud data under row-level security while signed in, and SHALL move, retry and merge it with that Video_Event under the rules of `skill-video-pipeline` Requirement 13. WHEN two Video_Event records are merged, THE System SHALL keep the Save_Snapshot of the record whose saved value and Saved_Time the merge keeps. IF that record has no Save_Snapshot, THEN THE System SHALL keep the Save_Snapshot of the other record (decision D2). IF both records give the same saved value and Saved_Time, THEN THE System SHALL keep the Save_Snapshot that is present over a missing one and, when both are present and differ, the one whose serialized form sorts first, so that merging a with b gives the same record as merging b with a.
+
+### Requirement 18: Secrets and Client requests
+
+**User Story:** As the product owner, I want keys and feeds kept on the server, so that nothing secret leaks and the Client stays simple.
+
+#### Acceptance Criteria
+
+1. THE System SHALL keep the Check_Route secret and the provider API key out of every file committed to the repository, the Client bundle and runtime public config, in full or in part.
+2. THE System SHALL list every environment key added by this spec, including the Check_Route secret key, in the example environment file with a placeholder value that is not a working secret.
+3. THE Client SHALL fetch no Channel_Feed and SHALL send no request to a provider-owned host other than the embed, player script and thumbnail hosts allowed by `skill-video-pipeline` Requirement 12, criterion 4.
+4. THE System SHALL add no new dependency for feed parsing or any other part of this spec unless the user has approved that dependency before it is added.
+5. THE Server SHALL include neither the Check_Route secret nor the provider API key, in full or in part, in any Server response. This covers success and error responses of the Check_Route and the Fresh_Endpoint, and responses after a failed provider call, Channel_Feed fetch or model call.
+6. THE Server SHALL write neither the Check_Route secret nor the provider API key, in full or in part, to any log output. This covers logs of failed Fresh_Checks, failed Channel_Feed fetches, failed provider calls and rejected Check_Route requests. Any logged provider request URL SHALL have the API key removed.
+7. THE Client SHALL send no request to the Check_Route and no request to the provider data API, and SHALL get all data shown on the Fresh_Page from the Fresh_Endpoint and from locally stored Video_Events, Save_Snapshots and Channel_Mutes.
+
+### Requirement 19: Verification
+
+**User Story:** As a developer, I want tests for Fresh's guarantees, so that regressions are caught.
+
+#### Acceptance Criteria
+
+1. THE test suite SHALL verify that storing a Video_Pool adds a Channel_Source for a video with `teaches_this_skill` of exactly 0.7 and adds none for a video with 0.69. THE test suite SHALL also verify that a video with no channel id is skipped while the Video_Pool is still stored. With 16 or more qualifying channels for one Check_Key, THE test suite SHALL verify that exactly 15 Channel_Sources remain, in the order of Requirement 1, criterion 5 (ties broken by latest qualifying time, then by channel id), and that a failed Video_Pool store adds no Channel_Source.
+2. THE test suite SHALL include a property-based test of at least 100 generated cases asserting that printing a list of 0 to 15 Feed_Entries and then parsing it gives an equivalent list (Requirement 4, criterion 12). Equivalent means the same number of entries in the same order, with equal video id, title, channel id and published time to the second. THE test suite SHALL also verify that the Feed_Parser returns an error for a document that cannot be parsed, and that it skips an entry with no video id or no valid published time while keeping the other entries.
+3. THE test suite SHALL verify the Feed_Entry window with a fixed clock. An entry published exactly at the later of the last check time and 7 days (604800 seconds) before the Fresh_Check start SHALL be dropped. An entry published 1 second after that time SHALL be kept. A Channel_Source with no last check time SHALL use the 7-day bound. A video id already stored as a Fresh_Item for the Check_Key SHALL not be sent to the Judge. With 41 or more videos left after the filter stage, exactly the 40 with the latest published time (ties by video id ascending) SHALL be sent to the Judge, the others SHALL not be stored, and after that Fresh_Check succeeds a following Fresh_Check SHALL not read the dropped videos again.
+4. With 4 or more due Active_Check_Keys and a fixed clock, THE test suite SHALL verify that the Check_Route runs at most 3 Fresh_Checks per call and starts no Fresh_Check once more than 10 seconds have passed since the call started, while a Fresh_Check started at 10 seconds or earlier runs to its end when it ends before the Call_Deadline. It SHALL verify that a Fresh_Check whose feed fetch, details call or Judge call is still in flight at 117 seconds after the call started has that call aborted, stores no Fresh_Item, changes no last check time, logs the failure type `deadline_exceeded` and leaves the Check_Key due. It SHALL verify that one Fresh_Check with 15 Channel_Sources has at most 8 Channel_Feed fetches in progress at any moment. It SHALL verify that a missing secret, a wrong secret, or no secret set in server environment variables returns an error response with 0 Fresh_Checks, 0 feed fetches, 0 provider calls and 0 model calls. It SHALL verify that a hobby whose last path open or progress save is more than 14 days (1209600 seconds) ago gets no Fresh_Check.
+5. THE test suite SHALL verify each failure type: a failed details call, a Quota_Gate refusal, an invalid Judge response, and all feeds failed. For each one, the test SHALL check that no Fresh_Item is stored, that no Channel_Source last check time changes, that every existing Fresh_Item is kept, that the Lease is released and that the Check_Key is still due on the next call. THE test suite SHALL also verify that one failed feed among successful ones leaves only that Channel_Source's last check time unchanged.
+6. THE test suite SHALL verify that the Server drops a video with `is_instruction` false, with `teaches_this_skill` of 0.49, with `skill_title` null, or with a `skill_title` whose Normalized form is not among the given titles. It SHALL verify that a video with `teaches_this_skill` of exactly 0.5 is kept. It SHALL verify that a `why` containing 6 consecutive Normalized words of the title or description drops the video, and that a `why` sharing only 5 consecutive words keeps it.
+7. THE test suite SHALL verify that a video id found twice for one Check_Key is stored once and keeps the first Fresh_Item unchanged. Using a fixed clock, it SHALL verify that a Fresh_Item with a found time exactly 2592000 seconds in the past is deleted and one 2591999 seconds in the past is kept.
+8. THE test suite SHALL include a property-based test of at least 100 generated cases, each with 0 to 50 Fresh_Items over 1 to 3 paths. The test SHALL assert that the Fresh_Item order follows Requirement 9, criteria 1 to 5, that every Closeness_Factor is 1.0, 0.8 or 0.6 scored against the matched Skill's own path, that an item matching its own path's Current_Skill ranks above an item with equal other inputs that matches a Skill outside that path's Current_Window, and that no channel with a Channel_Mute set to muted true appears in any section or in the Hero_Card.
+9. THE test suite SHALL verify the Taste_Adjustment cases. With 9 Video_Event records it SHALL be 0. With 10 or more records it SHALL be above 0 for a channel with 1 Finished Video_Event and below 0 for a channel with 3 Video_Event records that have Source `feed` and skipped true. Skips with Source `skill_sheet` SHALL leave it unchanged. Every Taste_Adjustment SHALL lie between -0.2 and 0.2 inclusive. A Video_Event whose video is in no returned Fresh_Item or Video_Pool SHALL take its channel id from its Save_Snapshot.
+10. THE test suite SHALL include a property-based test of at least 100 generated sections of 0 to 24 cards from 1 to 10 channels. The test SHALL assert that every Variety_Window lying fully before the first card placed at the end under Requirement 9, criterion 14 holds at most 2 cards of one channel. It SHALL also assert that the rearranged section holds the same cards, in the same number, as before.
+11. THE test suite SHALL verify the Hero_Card choice. With Fresh_Items in scope, the Hero_Card SHALL show the top-ranked one with the label "New for <skill title>" of its matched Skill. With no Fresh_Item in scope and a Video_Pool video of the Hero_Path's Current_Skill, it SHALL show the best such video with the label "Best for your current skill". With neither, or with "Saved" selected, it SHALL be hidden. Muting the Hero_Card's channel SHALL move to the next Fresh_Item, then to the Video_Pool fallback, then hide the Hero_Card. The Best_Section SHALL contain no video id shown in the Hero_Card (a Fresh_Item or a Video_Pool video) or the New_Section.
+12. THE test suite SHALL verify that the Fresh_Endpoint makes 0 provider calls, 0 model calls, 0 feed fetches and 0 fill requests for both signed-in and signed-out requests. It SHALL verify that signed-out requests rank with Goal_Class `none`, that they are rate-limited by client IP address and return a rate-limit error response when over the limit, and that an Access_Token that cannot be verified returns a 401 response with no data read.
+13. THE test suite SHALL verify the Fresh_Page states. With no paths, the page shows Wick and the "Build your first path" link. With no Fresh_Item in scope and 1 or more Video_Pool videos in the Hero_Card or the Best_Section, it shows the line "No new videos today. Here are the best ones for your skills." below the Filter_Chips. With no Fresh_Item and no Video_Pool video in scope, it shows Wick with "No videos yet. Pursio checks for new ones every day." With no successful Fresh_Check for the shown paths, it shows no update time. When the Fresh_Endpoint request fails, it shows "Couldn't load Fresh right now." with a "Try again" button.
+14. THE test suite SHALL verify that playing, finishing and saving a video on the Fresh_Page records Video_Events with Source `feed`, that a save stores a Save_Snapshot with the video's id, title, channel name, channel id, thumbnail and duration, and that the user's XP total, level and streak are equal before and after.
+15. THE test suite SHALL verify that merging two Channel_Mute records for the same user and channel id keeps the muted value of the record with the later change time, and that merging a with b gives the same record as merging b with a.
+16. THE test suite SHALL verify, using a local test database or an in-memory substitute, that a Client role can neither read nor write Fresh_Items, Channel_Sources, check times or Leases. Every test SHALL use a fake Video_Provider, a fake Channel_Feed fetcher, a fake Judge and a fixed clock, with no network call and no production database.
+17. THE test suite SHALL verify that a second Fresh_Check for a Check_Key does not start while a Lease taken less than 300 seconds earlier is held, and that it can start once 300 seconds have passed. It SHALL also verify that due Active_Check_Keys run with never-attempted Check_Keys first, then in order of Last_Attempt_Time ascending.
+18. THE test suite SHALL verify that the Fresh_Endpoint returns a 400 response with an error code naming the invalid field for each of these signed-out request bodies: more than 10 paths, a path with more than 200 Skills, an empty hobby or Skill title, a hobby or Skill title longer than 100 characters, a Level outside the defined Levels, and a Current_Skill id that is neither null nor one of the path's Skill ids. It SHALL verify that a signed-out body with a missing or empty Language_Code returns a success response that reads the `en` Check_Keys, that a signed-in user with a missing or empty stored language gets the `en` Check_Keys from the Fresh_Endpoint and from Active_Check_Key selection with no `und` Check_Key formed, and that a path with a null Current_Skill id is accepted, returns no Current_Window videos and still returns its matching Fresh_Items. It SHALL also verify that, when fewer than 3 user-language Fresh_Items exist for a Skill, the `en` Fresh_Items are added after them, each marked with its Pool_Language, keeping only the user-language copy of a duplicate video id. It SHALL verify that only Fresh_Items published in the last 604800 seconds are returned for the New_Section and Hero_Card. It SHALL verify that a Fresh_Item whose Level differs from the Skill's section Level still has a Path_Match when its Normalized hobby and Normalized Skill title are equal.
+19. THE test suite SHALL verify that the Fresh_Page opens with "All skills" selected, that selecting each Filter_Chip and changing a mute switch updates the shown cards with 0 new Fresh_Endpoint requests, and that the chip "For <current skill>" is hidden when the Selected_Path has no Current_Skill. It SHALL verify that "Saved" shows only saved videos ordered by Saved_Time descending, with no Hero_Card. It SHALL verify that starting one video stops every other video, so that at most 1 video plays at a time.
+20. THE test suite SHALL verify that in Demo_Mode the Fresh_Page sends a Signed_Out_User request with the Demo_Paths and no Access_Token, shows no mute switch, no save control and no "Saved" chip, and writes 0 Channel_Mutes, 0 Video_Events and 0 Save_Snapshots, locally or in cloud data, after a play, a finish and a skip.
+21. THE test suite SHALL verify that "Saved" still shows a saved video, with the title, channel name, thumbnail and duration of its Save_Snapshot, after its Fresh_Item has been deleted under Requirement 7, criterion 4 and when the video is in no returned Video_Pool. It SHALL verify that merging two Video_Event records keeps the Save_Snapshot of the record whose saved value and Saved_Time are kept, that it keeps the other record's Save_Snapshot when the kept record has none, and that merging a with b gives the same Save_Snapshot as merging b with a.
+
+## Out of scope
+
+- Articles, blogs, Reddit and any non-YouTube Channel_Source shown in the designs.
+- XP for watching (the designs' "+5 XP" on the Watch button).
+- Manual adding of Channel_Sources by users, and changes to the shared Channel_Source list by mutes.
+- Fresh_Checks for hobbies that exist only in Signed_Out_Users' local paths with no Active_Path of a Signed_In_User.
+- Fills of missing Video_Pools started from the Fresh_Page (fills stay with the skill-video-pipeline triggers).
+- Push notifications or emails about new videos.
+- The later Feed spec and its ranking.
+- Ranking rules beyond those in Requirement 9. The cut-off ranking text of the request is settled by the variety rule of decision D1.
+- Saving, muting and event recording in Demo_Mode (decision D13).

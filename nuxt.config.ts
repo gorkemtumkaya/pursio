@@ -32,8 +32,6 @@ export default defineNuxtConfig({
       meta: [{ name: 'theme-color', content: '#2A231E' }],
       link: [
         { rel: 'icon', href: '/favicon.ico?v=2', sizes: '32x32' },
-        { rel: 'apple-touch-icon', href: '/apple-touch-icon.png' },
-        { rel: 'manifest', href: '/site.webmanifest' },
         { rel: 'preconnect', href: 'https://fonts.googleapis.com' },
         { rel: 'preconnect', href: 'https://fonts.gstatic.com', crossorigin: '' },
         { rel: 'stylesheet', href: googleFontsUrl },

@@ -11,6 +11,15 @@ export const THEME_FAVICONS: Readonly<Record<Theme, string>> = {
   trail: '/favicon.svg?v=2',
   halloween: '/favicon-halloween.svg',
 }
+/**
+ * Home-screen icon and manifest per theme. The OS reads whichever is linked
+ * when the app is installed; after that the installed icon does not change.
+ */
+export const THEME_APP_ICONS: Readonly<Record<Theme, { appleTouchIcon: string; manifest: string }>> = {
+  boulder: { appleTouchIcon: '/apple-touch-icon.png?v=3', manifest: '/site.webmanifest?v=3' },
+  trail: { appleTouchIcon: '/apple-touch-icon.png?v=3', manifest: '/site.webmanifest?v=3' },
+  halloween: { appleTouchIcon: '/apple-touch-icon-halloween.png?v=1', manifest: '/site-halloween.webmanifest?v=1' },
+}
 
 export function isTheme(value: unknown): value is Theme {
   return typeof value === 'string' && (THEMES as readonly string[]).includes(value)
