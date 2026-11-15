@@ -126,6 +126,7 @@ export function fakeDetails(id: string, overrides: Partial<VideoDetails> = {}): 
     id,
     title: `Title ${id}`,
     channel: 'Channel',
+    channelId: 'UCfakechannel0000000000',
     description: `Description ${id}`,
     thumbnailUrl: `https://i.ytimg.com/vi/${id}/hqdefault.jpg`,
     durationSeconds: 300,

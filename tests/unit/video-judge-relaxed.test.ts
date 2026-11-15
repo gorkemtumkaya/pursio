@@ -8,6 +8,7 @@ function candidate(id: string): VideoDetails {
     id,
     title: id,
     channel: 'c',
+    channelId: null,
     description: '',
     thumbnailUrl: null,
     durationSeconds: 300,

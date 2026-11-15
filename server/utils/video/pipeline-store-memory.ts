@@ -14,37 +14,51 @@ import {
   type QuotaReserveInput,
 } from './pipeline-store'
 
-interface StoredPool {
+export interface StoredPool {
   videos: PoolVideo[]
   storedAt: number
   runId: string
 }
 
-interface Lease {
+export interface StoredLease {
   runId: string
   takenAt: number
 }
 
-interface State {
+/**
+ * Runs inside storePool after the pool row is written, like a statement in the same
+ * transaction (for example the Fresh Channel_Source upkeep). A throw rolls the pool
+ * store back and is rethrown to the caller.
+ */
+export type PoolStoreHook = (poolKey: string, videos: readonly PoolVideo[], nowMs: number) => void
+
+/** The tables of the in-memory store. Other in-memory stores (Fresh) share these maps. */
+export interface PipelineMemoryState {
   pools: Map<string, StoredPool>
-  leases: Map<string, Lease>
+  leases: Map<string, StoredLease>
   quota: Map<string, number>
   fills: Map<string, FillRow>
+  poolStoreHooks: PoolStoreHook[]
 }
 
 export class InMemoryPipelineStore implements PipelineStore {
-  private readonly state: State
+  private readonly state: PipelineMemoryState
 
   constructor(
     private readonly now: () => number,
-    state?: State,
+    state?: PipelineMemoryState,
   ) {
-    this.state = state ?? { pools: new Map(), leases: new Map(), quota: new Map(), fills: new Map() }
+    this.state = state ?? { pools: new Map(), leases: new Map(), quota: new Map(), fills: new Map(), poolStoreHooks: [] }
   }
 
   /** A new store object over the same state, like a process restart with a persistent database. */
   restart(): InMemoryPipelineStore {
     return new InMemoryPipelineStore(this.now, this.state)
+  }
+
+  /** The shared tables, for an in-memory store of another feature over the same "database". */
+  sharedState(): PipelineMemoryState {
+    return this.state
   }
 
   /** Units used on a Pacific_Day (default: today). For tests. */
@@ -85,10 +99,24 @@ export class InMemoryPipelineStore implements PipelineStore {
   }
 
   async storePool(poolKey: string, runId: string, videos: readonly PoolVideo[]): Promise<boolean> {
-    if (this.state.leases.get(poolKey)?.runId !== runId) return false
-    this.state.pools.set(poolKey, { videos: structuredClone([...videos]), storedAt: this.now(), runId })
+    const lease = this.state.leases.get(poolKey)
+    if (lease?.runId !== runId) return false
+    const now = this.now()
+    const previous = this.state.pools.get(poolKey)
+    const fill = this.state.fills.get(poolKey)
+    this.state.pools.set(poolKey, { videos: structuredClone([...videos]), storedAt: now, runId })
     this.state.leases.delete(poolKey)
     this.state.fills.delete(poolKey)
+    try {
+      for (const hook of this.state.poolStoreHooks) hook(poolKey, videos, now)
+    } catch (error) {
+      // Roll back like the SQL transaction (Req 1.6 of fresh): hooks write only on success.
+      if (previous) this.state.pools.set(poolKey, previous)
+      else this.state.pools.delete(poolKey)
+      this.state.leases.set(poolKey, lease)
+      if (fill) this.state.fills.set(poolKey, fill)
+      throw error
+    }
     return true
   }
 

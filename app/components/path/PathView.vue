@@ -46,6 +46,8 @@ const props = defineProps<{
   activeId: string
   /** Increases when the store reset or restored Progress (spec: reset-progress, Req 4.4, 6.3). */
   resetEpoch?: number
+  /** Skill whose Skill_Sheet opens once after mount, from `?skill=` (spec: fresh, Req 13.4). Unknown ids are ignored. */
+  initialSkillId?: string | null
 }>()
 
 /** The page does the storage work and re-chooses the shown hobby when needed. */
@@ -213,6 +215,19 @@ function onSelect(id: string): void {
 }
 
 /** Close keeps every quest check, which already lives in Progress (Req 8.13), and refocuses the opener (Req 8.16). */
+// Opens the Skill_Sheet named in the URL once, as soon as the viewport is known (spec: fresh, Req 13.4).
+let initialSkillOpened = false
+watch(
+  viewport,
+  (current) => {
+    if (initialSkillOpened || current === null) return
+    initialSkillOpened = true
+    const id = props.initialSkillId ?? null
+    if (id !== null && nodeIndex.has(id)) onSelect(id)
+  },
+  { immediate: true },
+)
+
 function closeSheet(): void {
   sheetOpen.value = false
   const opener = openerId.value

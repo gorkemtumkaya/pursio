@@ -37,7 +37,7 @@ export interface JudgeContext {
 }
 
 /** First 500 characters (by code point); shorter text is unchanged. */
-function truncateDescription(text: string): string {
+export function truncateDescription(text: string): string {
   const chars = Array.from(text)
   return chars.length <= DESCRIPTION_MAX_CHARS ? text : chars.slice(0, DESCRIPTION_MAX_CHARS).join('')
 }
@@ -114,6 +114,7 @@ export function applyVerdicts(
       id: c.id,
       title: c.title,
       channel: c.channel,
+      channelId: c.channelId,
       thumbnailUrl: c.thumbnailUrl,
       durationSeconds: c.durationSeconds ?? 0,
       viewCount: c.viewCount,

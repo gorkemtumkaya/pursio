@@ -122,6 +122,7 @@ export function createYouTubeProvider(options: YouTubeProviderOptions): VideoPro
           id,
           title: str(snippet.title) ?? '',
           channel: str(snippet.channelTitle) ?? '',
+          channelId: str(snippet.channelId) || null,
           thumbnailUrl: thumbnailOf(snippet),
         })
       }
@@ -151,6 +152,7 @@ export function createYouTubeProvider(options: YouTubeProviderOptions): VideoPro
           id,
           title: str(snippet.title) ?? '',
           channel: str(snippet.channelTitle) ?? '',
+          channelId: str(snippet.channelId) || null,
           description: str(snippet.description) ?? '',
           thumbnailUrl: thumbnailOf(snippet),
           durationSeconds: parseIsoDuration(content.duration),

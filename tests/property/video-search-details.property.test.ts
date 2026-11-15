@@ -19,6 +19,7 @@ const arbHit: fc.Arbitrary<SearchHit> = fc.record({
   id: arbId,
   title: fc.string({ maxLength: 8 }),
   channel: fc.string({ maxLength: 8 }),
+  channelId: fc.option(fc.constant('UCfakechannel0000000000'), { nil: null }),
   thumbnailUrl: fc.constant('https://i.ytimg.com/vi/x/hq.jpg'),
 })
 const arbHits = fc.array(arbHit, { maxLength: 8 })

@@ -53,6 +53,8 @@ export default defineNuxtConfig({
     videoDailyQuota: 10000,
     // Secret for POST /api/videos/drain (header x-video-drain-secret).
     videoDrainSecret: '',
+    // Secret for POST /api/fresh/check (header x-fresh-check-secret). Server-only.
+    freshCheckSecret: '',
     public: {
       supabaseUrl: '',
       supabaseAnonKey: '',
@@ -61,8 +63,9 @@ export default defineNuxtConfig({
   nitro: {
     // Hosted on Vercel; supabase is only the database, Auth and pg_cron + pg_net.
     preset: 'vercel',
-    // Video pipeline runs fit in 60 s (see design.md, Serverless execution).
-    vercel: { functions: { maxDuration: 60 } },
+    // Every function, /api/fresh/check included (fresh design.md, Serverless timing):
+    // the Check_Route's Call_Deadline is 117 s after the call starts.
+    vercel: { functions: { maxDuration: 120 } },
     // Relative to server/; read with useStorage('assets:prompts').
     serverAssets: [{ baseName: 'prompts', dir: './prompts' }],
   },

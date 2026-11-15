@@ -17,10 +17,10 @@ These findings come from reading the code, not the earlier design, where they di
 | `applyVerdicts` keeps up to 3 videos at `teaches_this_skill >= 0.3` when none reach 0.5 (relaxed rule) | `server/utils/video/judge.ts` | The Fresh Judge does not use this rule (Req 6.7 is strict at 0.5). Relaxed pool videos are below 0.7, so they never qualify a Channel_Source |
 | `isStale(age, count)` gives empty pools a 1-day expiry | `server/utils/video/pool.ts` | No effect on Fresh |
 | `handleDrainRequest` checks a header secret with `secretsMatch` (hash plus constant-time compare) and awaits its work | `server/utils/video/handlers.ts` | The Check_Route reuses `secretsMatch` and the same 404/401 rules |
-| `nitro.vercel.functions.maxDuration` is 60 and is written to the one `.vc-config.json` of the server bundle | `nuxt.config.ts`, `node_modules/nitropack/dist/presets/vercel/utils.mjs` (nitropack 2.13.6) | Nitro has no per-route function option. With `compatibilityDate` at or after 2025-07-15 it writes one `.func` per API route as a symlink to the same bundle, so all share one config. The Check_Route gets its own 120 s config through a build hook (see Serverless timing) |
+| `nitro.vercel.functions.maxDuration` is 60 today; the Vercel preset spreads `nitro.options.vercel.functions` into the shared `.vc-config.json` | `nuxt.config.ts`, `node_modules/nitropack/dist/presets/vercel/utils.mjs` (nitropack 2.13.6) | One config value sets the limit for every function. It is raised to 120 (see Serverless timing) |
 | `languageCode(null \| undefined \| '' \| whitespace)` already returns `'en'`; only non-empty text without a valid primary subtag returns `'und'` | `shared/utils/video-normalize.ts` | Every Check_Key is built through `languageCode`, so a missing language gives `en` (decision D15) |
 | `video_leases` is keyed by free text with `video_lease_take` / `video_lease_release` | pipeline migration | The Fresh Lease reuses this table with the key `fresh:` + Check_Key JSON |
-| `mergeEvents` and `merge_video_events` merge per column; local storage keeps only unsent records | `shared/utils/video-events.ts`, `app/utils/video-events-store.ts` | Save_Snapshot is a new column merged by the same rule; a Signed_In_User's full event list comes from the Fresh_Endpoint |
+| `mergeEvents` and `merge_video_events` merge per column; local storage keeps only unsent records | `shared/utils/video-events.ts`, `app/utils/video-events-store.ts` | Save_Snapshot and its time are new columns, merged by their own rule (later snapshot time wins) apart from `saved`; a Signed_In_User's full event list comes from the Fresh_Endpoint |
 | `paths` has no open time; `progress.updated_at` is set by a trigger on every progress write | `supabase/migrations/20261108000000_schema.sql` | Add `paths.last_opened_at`; Active_Path uses the later of the two |
 | `PathNavItems.vue` shows 3 items at `w-28` (336 px) | `app/components/path/PathNavItems.vue` | 4 items need `w-22` (4 × 88 px = 352 px, fits 390 px) |
 | `/path?hobby=<id>` opens a hobby; there is no way to open a Skill_Sheet from the URL | `app/utils/hobby-store.ts`, `app/pages/path.vue` | Add a `skill` query parameter |
@@ -34,9 +34,9 @@ These findings come from reading the code, not the earlier design, where they di
 3. **The Atom parser is built in.** `server/utils/fresh/feed-parser.ts` is a small XML scanner (about 200 lines) that checks tag balance, rejects `<!DOCTYPE>` and unknown entities, requires the root `<feed xmlns="http://www.w3.org/2005/Atom">`, and reads `yt:videoId`, `yt:channelId`, `title` and `published` from each `<entry>`. No dependency is added (Req 18.4, resolved Q5).
 4. **Channel_Source upkeep is SQL inside the pool store transaction.** `video_pool_store` is replaced by a version that calls `fresh_sources_refresh(hobby, language)` before it returns. A TypeScript mirror (`rankChannelSources`) drives the in-memory store and the property test; a contract test keeps both aligned.
 5. **Normalization stays in TypeScript.** SQL never re-implements `normalizeText`. The Check_Route reads raw hobby texts of Active_Paths from Postgres and normalizes them in TypeScript. `video_pools` gets plain columns `hobby_norm`, `skill_norm` and `language`, written by the store function from the Pool_Key (which already holds Normalized parts).
-6. **Save_Snapshot is a field of the Video_Event**, not a separate store (decision D2). It travels through `serializeEvent`, `parseEvent`, `mergeEvents`, the local store and `merge_video_events`.
+6. **Save_Snapshot is a field of the Video_Event**, not a separate store (decision D2). It travels with its own time `snapshotAt` through `serializeEvent`, `parseEvent`, `mergeEvents`, the local store and `merge_video_events`. The merge chooses the snapshot apart from `saved`: the one taken most recently wins, so a removal never clears it.
 7. **Demo_Mode never writes.** The Fresh_Page in Demo_Mode builds the Signed_Out_User body from the Sample_Tree and its local Progress, does not mount the recorder or the mute store, and hides every control that would write (decision D13).
-8. **The Check_Route alone runs with 120 s.** A Nuxt build hook gives `/api/fresh/check` its own Vercel function with `maxDuration: 120`; every other route stays on the 60 s bundle. Every Check_Route call has a Call_Deadline at `callStart + 117 s`, enforced by one abort signal and by the store function (decision D12, Req 3.8, 3.15).
+8. **All functions run with 120 s.** `nitro.vercel.functions.maxDuration` is set to 120 in `nuxt.config.ts`, so every function, the Check_Route included, gets the same limit. Every Check_Route call has a Call_Deadline at `callStart + 117 s`, enforced by one abort signal and by the store function (decision D12, Req 3.8, 3.15).
 9. **Closeness is per path.** Each Path_Match is scored against its own path (1.0, 0.8, 0.6). There is no 0.4 value and no reference path in the ranking (decision D14).
 10. **A missing language is `en`.** Every Check_Key and every Fresh_Endpoint language goes through `languageCode`, which maps a missing or empty value to `en`. No code path writes `'und'` for a missing language (decision D15).
 11. **Completed paths have no window.** A path with no Current_Skill has an empty Current_Window: it contributes Fresh_Items (closeness 0.6) and Channel_Sources, but no pool videos and no Hero_Card fallback (decision D16, Req 8.17).
@@ -49,9 +49,9 @@ Files marked **new** are created; files marked **change** exist and are extended
 
 ```
 shared/types/fresh.ts                    new    CheckKey, FeedEntry, SaveSnapshot, ChannelMute, FreshRequest, FreshResponse, card and view types
-shared/types/video.ts                    change channelId on PoolVideo and RankedVideo; snapshot on VideoEvent
+shared/types/video.ts                    change channelId on PoolVideo and RankedVideo; snapshot and snapshotAt on VideoEvent
 shared/utils/video-ranking.ts            new    baseScore, goalAdjustment, GOAL_BONUS moved here (pure, Client-safe)
-shared/utils/video-events.ts             change snapshot in newEvent/applySave/mergeEvents/serialize/parse; snapshotCanonical
+shared/utils/video-events.ts             change snapshot and snapshotAt in newEvent/applySave/mergeEvents/serialize/parse; snapshotCanonical
 shared/utils/channel-mutes.ts            new    isValidChannelId, mergeMute, mergeMuteLists, parseMute, serializeMute
 shared/utils/fresh-rank.ts               new    recencyFactor, closenessFactor, bestMatch, tasteAdjustments, freshScore, rankFreshItems, arrangeVariety, bestList
 shared/utils/fresh-view.ts               new    chip scope, chooseHero, buildFreshView, headerLabel, relativeTime, savedCards
@@ -84,7 +84,7 @@ server/api/fresh.post.ts                 new    POST /api/fresh (Fresh_Endpoint)
 server/api/fresh/check.post.ts           new    POST /api/fresh/check (Check_Route)
 
 supabase/migrations/20261112000000_fresh_tables.sql   new  video_pools columns, Channel_Sources, Fresh_Items, check state, functions, new video_pool_store
-supabase/migrations/20261112000100_fresh_user.sql     new  paths.last_opened_at, touch_path_opened, channel_mutes, video_events.snapshot, new merge_video_events
+supabase/migrations/20261112000100_fresh_user.sql     new  paths.last_opened_at, touch_path_opened, channel_mutes, video_events.snapshot and snapshot_at, new merge_video_events
 supabase/migrations/20261112000200_fresh_check_cron.sql new pg_cron + pg_net job every 15 minutes
 
 app/pages/fresh.vue                      new    Fresh_Page (AppShell, desktop 3 columns, mobile 1 column)
@@ -108,10 +108,9 @@ app/composables/useVideoEvents.ts        change recordSave takes an optional sna
 app/utils/fresh-api.ts                   new    Typed client and response parser for POST /api/fresh
 app/utils/fresh-request.ts               new    Signed-out and Demo_Mode request body from local paths
 app/utils/channel-mutes-store.ts         new    localStorage store `pursio-channel-mutes:v1`
-app/utils/video-events-store.ts          change no code change beyond the snapshot field carried by parse/serialize
+app/utils/video-events-store.ts          change no code change beyond the snapshot and snapshotAt fields carried by parse/serialize
 app/utils/cloud-api.ts                   change mergeChannelMutes, touchPathOpened
-nuxt.config.ts                           change runtimeConfig.freshCheckSecret; 'nitro:init' hook that registers the Check_Route duration step
-build/vercel-function-duration.ts        new    Build step: gives functions/api/fresh/check.func its own .vc-config.json with maxDuration 120
+nuxt.config.ts                           change runtimeConfig.freshCheckSecret; nitro.vercel.functions.maxDuration 60 -> 120
 env example file                         change NUXT_FRESH_CHECK_SECRET placeholder
 tests/support/feed-printer.ts            new    Feed_Printer (test helper, Req 4.11)
 tests/support/fresh-fakes.ts             new    Fake feed fetcher, fake provider and Judge, fixed clock
@@ -206,68 +205,26 @@ sequenceDiagram
     C->>C: buildFreshView(chip, mutes, events) on every chip or mute change
 ```
 
-### Serverless timing (120 s for the Check_Route only)
+### Serverless timing (120 s for all functions)
 
-Decision D12: the Check_Route runs with `maxDuration` 120 s, every other function keeps 60 s, and every Check_Route call has a Call_Deadline at `callStart + 117 s`. Vercel allows up to 300 s by default on all plans with Fluid compute ([Vercel Functions Limits](https://vercel.com/docs/functions/limitations)), so 120 s needs no plan change.
+Decision D12: every serverless function, the Check_Route included, runs with `maxDuration` 120 s, and every Check_Route call has a Call_Deadline at `callStart + 117 s`. Vercel allows up to 300 s by default on all plans with Fluid compute ([Vercel Functions Limits](https://vercel.com/docs/functions/limitations)), so 120 s needs no plan change.
 
-#### Scoping 120 s to `/api/fresh/check`
+#### One limit for every function
 
-Checked against the installed nitropack 2.13.6 (`node_modules/nitropack/dist/presets/vercel/utils.mjs`):
-
-- `generateFunctionFiles` writes one `.vc-config.json` into the server bundle (`.vercel/output/functions/__fallback.func`), spreading `nitro.vercel.functions` into it. That is where today's `maxDuration: 60` lands.
-- Because `compatibilityDate` (`2026-11-08`) is at or after `2025-07-15`, `getObservabilityRoutes` also creates one function directory per scanned route, for example `functions/api/fresh/check.func`, as a **symlink** to `__fallback.func`, and adds a `config.json` route `{ src: '/api/fresh/check', dest: '/api/fresh/check' }` before the `/(.*)` fallback. The symlinks share the bundle's `.vc-config.json`, so they share its `maxDuration`.
-- The preset has no per-route function option, and a `functions` block in `vercel.json` does not apply to a prebuilt Build Output API v3 directory.
-
-So the design replaces that one symlink with a real copy of the bundle that has its own config, after Nitro has written its files:
+The installed nitropack 2.13.6 Vercel preset (`node_modules/nitropack/dist/presets/vercel/utils.mjs`) spreads `nitro.options.vercel.functions` into the shared `.vc-config.json` of the server bundle, which every function uses. So one config value sets the limit for all functions, and no build step is needed:
 
 ```ts
-// build/vercel-function-duration.ts
-import { cp, lstat, readFile, rm, writeFile } from 'node:fs/promises'
-import { join, resolve } from 'node:path'
-import type { Nitro } from 'nitropack'
-
-/** Routes that need a longer Vercel limit than nitro.vercel.functions.maxDuration. */
-export const ROUTE_MAX_DURATION: Readonly<Record<string, number>> = { '/api/fresh/check': 120 }
-
-export function registerRouteDurations(nitro: Nitro): void {
-  if (nitro.options.preset !== 'vercel') return            // dev and other presets: nothing to do
-  nitro.hooks.hook('compiled', async () => {
-    const bundleDir = nitro.options.output.serverDir        // .vercel/output/functions/__fallback.func
-    const functionsDir = resolve(bundleDir, '..')
-    const base: Record<string, unknown> = JSON.parse(await readFile(join(bundleDir, '.vc-config.json'), 'utf8'))
-    for (const [route, maxDuration] of Object.entries(ROUTE_MAX_DURATION)) {
-      const funcDir = join(functionsDir, `${route.slice(1)}.func`)
-      const entry = await lstat(funcDir).catch(() => null)
-      // Fail the build loudly if Nitro stops creating the per-route function.
-      if (!entry?.isSymbolicLink()) throw new Error(`[vercel-function-duration] no Nitro function for ${route}`)
-      await rm(funcDir)
-      await cp(bundleDir, funcDir, { recursive: true, dereference: true })
-      await writeFile(join(funcDir, '.vc-config.json'), JSON.stringify({ ...base, maxDuration }, null, 2))
-    }
-  })
-}
-```
-
-```ts
-// nuxt.config.ts (additions only)
-import { registerRouteDurations } from './build/vercel-function-duration'
-
+// nuxt.config.ts (change only)
 export default defineNuxtConfig({
   // ...
-  hooks: {
-    // Registered after the preset's own 'compiled' hook, which writes the function files.
-    'nitro:init'(nitro) { registerRouteDurations(nitro) },
-  },
   nitro: {
     preset: 'vercel',
-    // Default for every function. /api/fresh/check gets 120 s (build/vercel-function-duration.ts).
-    vercel: { functions: { maxDuration: 60 } },
+    // Every function, /api/fresh/check included (design.md, Serverless timing).
+    vercel: { functions: { maxDuration: 120 } },
     // ...
   },
 })
 ```
-
-The preset's hooks are added when Nitro is created; `nitro:init` runs after that, and hookable runs `compiled` handlers one after another in the order they were added, so the copy runs after Nitro wrote the symlink and the bundle config. The existing route entry already sends `/api/fresh/check` to `functions/api/fresh/check.func`, so no `config.json` change is needed. The copy duplicates the server bundle once (a few MB, far under Vercel's 250 MB function size limit). A smoke test runs after `yarn build` and checks that `functions/api/fresh/check.func/.vc-config.json` has `maxDuration` 120 and is not a symlink, and that `__fallback.func/.vc-config.json` and every other `.func` still resolve to 60 (Req 3.8).
 
 #### Worst case of one Fresh_Check
 
@@ -696,9 +653,9 @@ export function mergeMuteLists(a: readonly ChannelMute[], b: readonly ChannelMut
 
 ### Video events and Save_Snapshot (Req 17, decision D2)
 
-- `VideoEvent` gains `snapshot: SaveSnapshot | null`. `parseEvent` reads a missing field as `null`, so existing local records stay valid.
-- `applySave(rec, saved, now, snapshot?)`: on save, the snapshot replaces the old one; on removal, the old snapshot stays (Req 17.4).
-- `mergeEvents` decides the kept saved side as today and takes the snapshot by this rule: the later `savedAt` side's snapshot; on equal `savedAt` with different `saved`, the `saved: true` side's snapshot; on fully equal saved fields, the present snapshot over a missing one, and between two present ones the one whose `snapshotCanonical` text sorts first by `compareCodePoints`. When the chosen side has no snapshot, the other side's snapshot is kept (a removal made on another device carries no snapshot). The rule only depends on the unordered pair, so the merge stays commutative, and it is idempotent (Req 17.10, decision D2, resolved Q3).
+- `VideoEvent` gains `snapshot: SaveSnapshot | null` and `snapshotAt: number | null` (epoch ms, the Saved_Time of the save that produced the snapshot; null when there is no snapshot). `parseEvent` reads a missing `snapshot` or `snapshotAt` field as `null`, so existing local records stay valid. `newEvent` sets both to `null`.
+- `applySave(rec, saved, now, snapshot?)`: on a save with a snapshot, `snapshot` is replaced and `snapshotAt = now` (the Saved_Time); on removal, `snapshot` and `snapshotAt` stay unchanged; a save without a snapshot argument (Source `skill_sheet`) also leaves both unchanged, so `snapshotAt` is null exactly when `snapshot` is null (Req 17.4).
+- `mergeEvents` keeps its current rule for `saved` and `savedAt`, unchanged. The snapshot is chosen independently, as one unit with its `snapshotAt`: a present snapshot always beats a missing one; between two present ones the later `snapshotAt` wins; on equal `snapshotAt`, the one whose `snapshotCanonical` text sorts first by `compareCodePoints` wins. A removal (`saved: false`) never clears the snapshot, because the removal side keeps its old snapshot or has none, and a missing one never beats a present one. This replaces the old rule (kept saved side, present over missing, smaller `snapshotCanonical`, other side when the kept one has none). The rule only depends on the unordered pair and is a total order on (present, `snapshotAt`, canonical text), so the merge stays commutative, associative and idempotent on the whole record (Req 17.10, decision D2, resolved Q3).
 - `snapshotCanonical(s)` joins `videoId, title, channel, channelId ?? '', thumbnailUrl, String(durationSeconds)` with U+001F. The SQL function builds the same text with `concat_ws(chr(31), ...)` and compares with `collate "C"`.
 - `useVideoEvents().recordSave(videoId, saved, 'feed', snapshot)` passes the snapshot from the card's shown details. `mergedEvents(cloudRows)` returns `mergeEvents` over the cloud rows and the local unsent records, keyed by `eventKey`.
 - The Fresh_Page records `recordPlay`, `recordProgress`, `recordSave` and `recordSkip` with Source `feed` only (Req 17.1 to 17.6). It never calls the progress engine, so XP, level, streak, quests and completion stay the same (Req 17.7).
@@ -789,7 +746,7 @@ export interface FreshRequestPath { id: string; hobby: string; skills: FreshPath
 export interface FreshRequest { language: string; paths: FreshRequestPath[] }
 ```
 
-`shared/types/video.ts` changes: `PoolVideo.channelId: string | null` (old pools read `undefined` as `null`), `RankedVideo.channelId: string | null`, `VideoEvent.snapshot: SaveSnapshot | null`. `server/utils/video/provider.ts`: `SearchHit.channelId` and `VideoDetails.channelId`, both `string | null`.
+`shared/types/video.ts` changes: `PoolVideo.channelId: string | null` (old pools read `undefined` as `null`), `RankedVideo.channelId: string | null`, `VideoEvent.snapshot: SaveSnapshot | null`, `VideoEvent.snapshotAt: number | null` (epoch ms Saved_Time of the save that produced the snapshot; null exactly when `snapshot` is null; a missing field parses as null). `server/utils/video/provider.ts`: `SearchHit.channelId` and `VideoDetails.channelId`, both `string | null`.
 
 ### Database
 
@@ -888,9 +845,11 @@ create policy channel_mutes_owner on public.channel_mutes for all to authenticat
 
 alter table public.video_events add column snapshot jsonb
   check (snapshot is null or (jsonb_typeof(snapshot) = 'object' and pg_column_size(snapshot) <= 4096));
--- merge_video_events is replaced: same column rules as before plus the snapshot rule of
--- mergeEvents (later saved_at side, saved true on a tie, present over missing,
--- smallest canonical text collate "C" between two present, other side when the kept one is null).
+alter table public.video_events add column snapshot_at timestamptz;  -- Saved_Time of the save that produced the snapshot
+-- merge_video_events is replaced: saved and saved_at keep the rules of before, unchanged;
+-- snapshot and snapshot_at are chosen together, independently of saved, by the rule of
+-- mergeEvents: present over missing, later snapshot_at wins, on equal snapshot_at the smaller
+-- concat_ws(chr(31), ...) canonical text collate "C"; a removal never clears the snapshot.
 ```
 
 Row-level security gives each user only their own mutes and events (Req 2.4, 17.10). The existing `paths_owner` policy already covers `last_opened_at`.
@@ -909,7 +868,7 @@ The key goes in `runtimeConfig` (server-only, never under `public`) and in the e
 
 | Key | Content |
 | --- | --- |
-| `pursio-video-events:v1` (existing) | Unsent Video_Events, now with `snapshot` |
+| `pursio-video-events:v1` (existing) | Unsent Video_Events, now with `snapshot` and `snapshotAt` |
 | `pursio-channel-mutes:v1` (new) | Signed out: all Channel_Mutes. Signed in: unsent ones |
 
 
@@ -917,7 +876,7 @@ The key goes in `runtimeConfig` (server-only, never under `public`) and in the e
 
 *A property is a characteristic or behavior that should hold true across all valid executions of a system-essentially, a formal statement about what the system should do. Properties serve as the bridge between human-readable specifications and machine-verifiable correctness guarantees.*
 
-Redundancy review: Channel_Source add, update, count, removal and cut are one model-based property over `refreshSources` (Property 1); the cut order also gets its own property because the user asked for it and it is shared with the SQL contract test (Property 2). Feed window, merge and Judge selection are separate pure steps with different invariants (Properties 12, 13, 18). All Fresh_Check failure kinds, including `deadline_exceeded`, and the partial-feed case are one atomicity property over the in-memory store (Property 16), instead of one per failure type; the call-level side of the Call_Deadline (abort and response time) is part of Property 7. The language rule gets its own property (Property 40) because the requirement is an absence (no `und` key) that spans three functions and the endpoint. Paths with no Current_Skill get Property 41 rather than a case in Property 28, since they touch the endpoint, the closeness and the hero fallback. Hero, New and Best dedupe and caps are one property (Property 28); mute exclusion and the re-application after a mute change are one metamorphic property (Property 29). The existing Video_Event reducer properties of `skill-video-pipeline` (Properties 35 to 38 there) keep covering play, progress, finish and skip; this spec adds only the snapshot rules (Properties 37 to 39).
+Redundancy review: Channel_Source add, update, count, removal and cut are one model-based property over `refreshSources` (Property 1); the cut order also gets its own property because the user asked for it and it is shared with the SQL contract test (Property 2). Feed window, merge and Judge selection are separate pure steps with different invariants (Properties 12, 13, 18). All Fresh_Check failure kinds, including `deadline_exceeded`, and the partial-feed case are one atomicity property over the in-memory store (Property 16), instead of one per failure type; the call-level side of the Call_Deadline (abort and response time) is part of Property 7. The language rule gets its own property (Property 40) because the requirement is an absence (no `und` key) that spans three functions and the endpoint. Paths with no Current_Skill get Property 41 rather than a case in Property 28, since they touch the endpoint, the closeness and the hero fallback. Hero, New and Best dedupe and caps are one property (Property 28); mute exclusion and the re-application after a mute change are one metamorphic property (Property 29). The existing Video_Event reducer properties of `skill-video-pipeline` (Properties 35 to 38 there) keep covering play, progress, finish and skip; this spec adds only the snapshot rules (Properties 37 to 39). The `skill-video-pipeline` Property 36 (Event merge) and Property 38 (Event round trip) in `tests/property/video-events.property.test.ts` stay full commutative, associative and idempotent checks and full round-trip checks on the whole record, `snapshot` and `snapshotAt` included; their generators gain both fields and they are not narrowed to the old fields.
 
 ### Property 1: Channel_Source refresh matches the model
 
@@ -1137,19 +1096,19 @@ Redundancy review: Channel_Source add, update, count, removal and cut are one mo
 
 ### Property 37: Save reducer with snapshot
 
-*For any* event record, snapshot and sequence of save and removal actions, a save sets `saved` true, `savedAt` and `updatedAt` to the action time and replaces the snapshot; a removal sets `saved` false and the times, and keeps the snapshot; no other reducer changes the snapshot.
+*For any* event record, snapshot and sequence of save and removal actions, a save sets `saved` true, `savedAt` and `updatedAt` to the action time and replaces the snapshot with `snapshotAt` set to the action time; a removal sets `saved` false and the times, and keeps `snapshot` and `snapshotAt`; `newEvent` sets both to null; no other reducer changes the snapshot or `snapshotAt`.
 
 **Validates: Requirements 12.6, 17.4**
 
 ### Property 38: Event merge with snapshot
 
-*For any* event records a, b and c of one video and source, with random snapshots (present, missing, equal, different) and equal or different saved times, `mergeEvents` stays commutative, associative and idempotent including the snapshot; the kept snapshot is that of the record whose saved value and Saved_Time the merge keeps, the present one over a missing one on a full tie, the one with the smaller canonical text between two present ones on a full tie, and the other record's snapshot when the kept record has none.
+*For any* event records a, b and c of one video and source, with random snapshots (present, missing, equal, different), equal or different `snapshotAt` and equal or different saved times, `mergeEvents` is commutative, associative and idempotent on the whole record, `snapshot` and `snapshotAt` included; `saved` and `savedAt` follow the unchanged rule of before; the kept snapshot and its `snapshotAt` are a present one over a missing one, else the one with the later `snapshotAt`, else on equal `snapshotAt` the one whose `snapshotCanonical` text sorts first by `compareCodePoints`, whatever the merged `saved` value; merging a removal never clears a snapshot.
 
 **Validates: Requirements 17.10, 19.21**
 
 ### Property 39: Event round trip with snapshot
 
-*For any* valid event record with or without a snapshot, serializing then parsing gives an equal record; and a stored record without the `snapshot` field parses with `snapshot` null.
+*For any* valid event record with or without a snapshot, serializing then parsing gives an equal whole record, `snapshot` and `snapshotAt` included; and a stored record without the `snapshot` or `snapshotAt` field parses with that field null.
 
 **Validates: Requirements 17.10**
 
@@ -1230,9 +1189,11 @@ Each correctness property is implemented by a single fast-check property test wi
 | 22, 23 | 1 to 3 paths with titles that collide after Normalization, both languages, Levels differing from item levels; invalid bodies with one defect |
 | 24 to 35 | Random `FreshResponseOk` values (0 to 50 items, 0 to 3 paths, 1 to 10 channels, pools per window Skill), chips, mute maps, 0 to 30 events with snapshots |
 | 36 | URLs with random schemes and hosts, including `i.ytimg.com` lookalikes |
-| 37 to 39 | Event records with random snapshots, equal and null saved times |
+| 37 to 39 | Event records with random snapshots and `snapshotAt` (present, null, equal, different), equal and null saved times |
 | 40 | Hobby texts; languages from `fc.constantFrom(null, undefined, '', ' ', '\t')` mixed with valid tags (`de`, `pt-BR`) and invalid non-empty text |
 | 41 | 1 to 3 paths, each with or without a Current_Skill, items matching Skills of both kinds |
+
+The `skill-video-pipeline` Property 36 (Event merge) and Property 38 (Event round trip) in `tests/property/video-events.property.test.ts` keep checking the whole record: their record generator adds `snapshot` and `snapshotAt`, Property 36 stays a full commutative, associative and idempotent check, and Property 38 a full round-trip check.
 
 For Properties 7 and 16, the deadline is a generated point on the fake clock (before the first feed, during feeds, details, Judge or store, or never), and fake calls honor the abort signal.
 
@@ -1244,7 +1205,6 @@ The numbers in brackets are the verification criteria of Requirement 19.
 - Parser: a document that cannot be parsed returns an error; entries without id or valid time are skipped [19.2].
 - Window with a fixed clock: bound exactly dropped, plus 1 s kept, no last check time uses 7 days, stored id not sent, 41 videos send the newest 40 and a following check does not read the others again [19.3].
 - Check_Route: 4 due keys give at most 3 checks; no start after 10 s while a check started at 10 s finishes before the deadline; a feed, details call or Judge call still in flight at 117 s is aborted, nothing is stored, no last check time changes, `deadline_exceeded` is logged and the key stays due; with 2.9 s left the store is not started; 15 sources never exceed 8 in-flight fetches; missing, wrong and unset secret run nothing; a hobby inactive for more than 14 days gets no check; a user with a null or empty profile language forms only `en` keys [19.4, 19.18].
-- Build smoke (after `yarn build`): `.vercel/output/functions/api/fresh/check.func` is a real directory whose `.vc-config.json` has `maxDuration` 120; `__fallback.func` and every other `.func` resolve to a config with `maxDuration` 60; `config.json` routes `/api/fresh/check` to that function before the fallback [3.8].
 - Each failure type leaves items and last check times unchanged, releases the Lease and keeps the key due; one failed feed among good ones keeps only that source's last check time [19.5].
 - Judge drops for `is_instruction` false, 0.49, null title and unknown title; keeps 0.5; a why with 6 copied words drops and with 5 keeps [19.6].
 - A duplicate video id stores once; cleanup deletes at exactly 2592000 s and keeps 2591999 s [19.7].
@@ -1254,7 +1214,7 @@ The numbers in brackets are the verification criteria of Requirement 19.
 - Page states with the composable and pure view (no DOM mounting, because `@vue/test-utils` is not installed): no paths, quiet line, empty Wick line, no update time, error with "Try again" and one request per retry [19.13].
 - Events: play, finish and save record Source `feed`; a save stores the snapshot fields; XP, level and streak are equal before and after [19.14].
 - Mute merge examples: later time wins; a with b equals b with a [19.15].
-- Database tests in `tests/integration/fresh-db.test.ts`, skipped unless a local test database URL is set (for example from `supabase start`): Client roles cannot read or write `fresh_items`, `fresh_channel_sources`, `fresh_check_state` or `video_leases`; `channel_mutes` and `video_events.snapshot` are owner-only; `merge_channel_mutes` and the new `merge_video_events` match their TypeScript merges on generated rows; `fresh_sources_refresh` matches `refreshSources` [19.16].
+- Database tests in `tests/integration/fresh-db.test.ts`, skipped unless a local test database URL is set (for example from `supabase start`): Client roles cannot read or write `fresh_items`, `fresh_channel_sources`, `fresh_check_state` or `video_leases`; `channel_mutes`, `video_events.snapshot` and `video_events.snapshot_at` are owner-only; `merge_channel_mutes` and the new `merge_video_events` match their TypeScript merges on generated rows, including `snapshot` and `snapshot_at` with equal times and canonical-text ties; `fresh_sources_refresh` matches `refreshSources` [19.16].
 - Lease: a second check cannot start under 300 s and can at 300 s; due keys run never-attempted first, then by Last_Attempt_Time [19.17].
 - Chips and mutes: the page opens on "All skills"; each chip and a mute change cause 0 new requests; "For <current skill>" is hidden without a Current_Skill; "Saved" orders by Saved_Time with no Hero_Card; starting one video stops the other [19.19].
 - Demo_Mode: the request has the Demo_Paths and no token; no mute switch, save control or "Saved" chip; 0 mutes, events and snapshots written after play, finish and skip [19.20].
@@ -1270,9 +1230,9 @@ None. The questions of the design review are resolved below and reflected in the
 
 ### Resolved in the design review
 
-1. **Q1. Check_Route time limit.** Resolved: `/api/fresh/check` runs with `maxDuration` 120 s through the build step in Serverless timing; every other function keeps 60 s. The Call_Deadline is `callStart + 117 s`; feed, details and Judge calls keep the deadline abort signal, and a check aborted there fails with `deadline_exceeded` (decision D12, Req 3.8, 3.15, 7.6).
+1. **Q1. Check_Route time limit.** Resolved: every function, the Check_Route included, runs with `maxDuration` 120 s, set once as `nitro.vercel.functions.maxDuration` in `nuxt.config.ts`. The Call_Deadline is `callStart + 117 s`; feed, details and Judge calls keep the deadline abort signal, and a check aborted there fails with `deadline_exceeded` (decision D12, Req 3.8, 3.15, 7.6).
 2. **Q2. Closeness on "All skills".** Resolved: every match is scored against its own path (1.0, 0.8, 0.6), with no 0.4 value (decision D14, Req 9.3, 9.4).
-3. **Q3. Snapshot fallback in the merge.** Resolved as the default: when the record the merge keeps has no snapshot, the other record's snapshot is kept; the merge stays commutative and idempotent (decision D2, Req 17.10).
+3. **Q3. Snapshot fallback in the merge.** First resolved as the default (other record's snapshot when the kept one has none), then changed by the user: the snapshot gets its own time `snapshotAt` and is merged independently of `saved`. The snapshot taken most recently wins, a present one beats a missing one, equal times fall back to the smaller canonical text, and a removal never clears it; the merge stays commutative, associative and idempotent (decision D2, Req 17.10).
 4. **Q4. Completed paths in a signed-out body.** Resolved as the default: `currentSkillId: null` is accepted for a path whose Skills are all completed; such a path returns no Current_Window videos but still its Fresh_Items and Channel_Sources (decision D16, Req 8.2, 8.3, 8.17).
 5. **Q5. XML parser.** Resolved as the default: the built-in Atom scanner, no new dependency (Req 18.4).
 6. **Q6. Check capacity.** Resolved as the default: 96 calls a day with at most 3 checks each, so at most 288 Fresh_Checks a day, accepted for the hackathon (Req 3.1, 3.3).
@@ -1284,7 +1244,7 @@ None. The questions of the design review are resolved below and reflected in the
 | --- | --- |
 | 1 Channel_Sources | `video_pool_store` (replaced), `fresh_sources_refresh`, `sources.ts`, `channelId` on provider types and `PoolVideo`, Properties 1, 2 |
 | 2 Channel mutes | `channel_mutes`, `merge_channel_mutes`, `channel-mutes.ts`, `useChannelMutes`, `channel-mutes-store.ts`, Properties 3 to 5, 34 |
-| 3 Scheduling | `fresh_check_cron` migration, `handleCheckRequest`, `schedule.ts` (`CALL_DEADLINE_MS`, `activeCheckKeys`), `fresh_lease_take`, `paths.last_opened_at`, `touch_path_opened`, Serverless timing, `build/vercel-function-duration.ts` (3.8), deadline signal and `p_deadline_ms` (3.15), `languageCode` rule (3.16), Properties 6 to 8, 10, 16, 40 |
+| 3 Scheduling | `fresh_check_cron` migration, `handleCheckRequest`, `schedule.ts` (`CALL_DEADLINE_MS`, `activeCheckKeys`), `fresh_lease_take`, `paths.last_opened_at`, `touch_path_opened`, Serverless timing (`maxDuration` 120 for all functions, 3.8), deadline signal and `p_deadline_ms` (3.15), `languageCode` rule (3.16), Properties 6 to 8, 10, 16, 40 |
 | 4 Feeds | `feed-fetch.ts`, `feed-parser.ts`, `feed-window.ts`, Feed_Printer, Properties 11 to 16 |
 | 5 Details and filter | `detailsBatch`, parallel batches, `filterCandidates`, Properties 16, 17 |
 | 6 Judge | `fresh-judge.ts`, `fresh-judge.md`, `fresh_skill_titles`, Properties 18 to 21 |
@@ -1298,6 +1258,6 @@ None. The questions of the design review are resolved below and reflected in the
 | 14 Filter_Chips | `FreshFilterChips`, chip scope in `fresh-view.ts`, Properties 31, 32 |
 | 15 Sources_Panel | `FreshSourcesPanel`, `FreshSourcesSheet`, `FreshMuteSwitch`, Property 34 |
 | 16 States | `useFresh`, `FreshState`, Property 35 |
-| 17 Events and XP | `VideoEvent.snapshot`, `applySave`, `mergeEvents`, new `merge_video_events`, `useVideoEvents`, Properties 37 to 39 |
+| 17 Events and XP | `VideoEvent.snapshot` and `snapshotAt`, `video_events.snapshot_at`, `applySave`, `mergeEvents`, new `merge_video_events`, `useVideoEvents`, Properties 37 to 39 |
 | 18 Secrets and Client requests | `freshCheckSecret`, env example entry, fixed feed host, thumbnail host check, Properties 9, 36 |
 | 19 Verification | Testing Strategy |

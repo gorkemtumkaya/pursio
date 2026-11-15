@@ -3,7 +3,7 @@
  * Default_Config adapter, rate limiter and scheduler. Handlers receive these through
  * `videoRuntime()` and never read runtime config themselves.
  */
-import { createClient } from '@supabase/supabase-js'
+import { createClient, type SupabaseClient } from '@supabase/supabase-js'
 import type { Provider, ProviderConfig } from '../../../shared/types/llm'
 import type { SkillTree } from '../../../shared/types/skill-tree'
 import { isProvider } from '../../../shared/utils/llm'
@@ -15,6 +15,7 @@ import { loadPathForUser, verifyAccessToken } from '../supabase-server'
 import type { DrainDeps, FillDeps, VideosDeps } from './handlers'
 import type { PipelineDeps } from './pipeline'
 import { PostgresPipelineStore } from './pipeline-store-pg'
+import { createQuotaGate, type QuotaGate } from './quota'
 import { createScheduler, currentWindow, fillJobFor, type BackgroundFn, type Scheduler } from './scheduler'
 import { selectVideoProvider } from './select-provider'
 
@@ -28,6 +29,10 @@ export interface VideoRuntime {
   limiter: RateLimiter
   /** Secret for POST /api/videos/drain. Empty when not configured. */
   drainSecret: string
+  /** The service-role client of the pipeline tables; Fresh builds its Postgres store on it. */
+  client: SupabaseClient
+  /** A Quota_Gate over the pipeline store, so Fresh and the pipeline share one Daily_Quota. */
+  quotaGate: () => QuotaGate
 }
 
 /**
@@ -170,6 +175,8 @@ export function videoRuntime(): VideoRuntime | null {
     pipeline,
     limiter,
     drainSecret: str(config.videoDrainSecret),
+    client,
+    quotaGate: () => createQuotaGate(pipeline.store, pipeline.dailyQuota),
   }
   cached = { key, runtime }
   return runtime

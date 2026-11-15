@@ -1,5 +1,6 @@
 import fc from 'fast-check'
 import { describe, expect, it } from 'vitest'
+import type { SaveSnapshot } from '../../shared/types/fresh'
 import type { VideoEvent, VideoSource } from '../../shared/types/video'
 import {
   applyPlay,
@@ -20,6 +21,14 @@ const arbTime = fc.integer({ min: 0, max: 2_000_000_000 })
 const arbSeconds = fc.double({ min: 0, max: 100_000, noNaN: true }).map(n => n + 0)
 const arbSource: fc.Arbitrary<VideoSource> = fc.constantFrom('skill_sheet', 'feed')
 const arbVideoId = fc.string({ minLength: 1, maxLength: 64 })
+const arbSnapshot: fc.Arbitrary<SaveSnapshot> = fc.record({
+  videoId: fc.string({ minLength: 1, maxLength: 64 }),
+  title: fc.string({ maxLength: 80 }),
+  channel: fc.string({ maxLength: 40 }),
+  channelId: fc.option(fc.string({ minLength: 1, maxLength: 64 }), { nil: null }),
+  thumbnailUrl: fc.string({ maxLength: 80 }),
+  durationSeconds: fc.integer({ min: 0, max: 100_000 }),
+})
 
 /** A valid record: no save time means not saved, a played video is not skipped. */
 function arbEvent(source?: fc.Arbitrary<VideoSource>, videoId?: fc.Arbitrary<string>): fc.Arbitrary<VideoEvent> {
@@ -33,12 +42,16 @@ function arbEvent(source?: fc.Arbitrary<VideoSource>, videoId?: fc.Arbitrary<str
       saved: fc.boolean(),
       savedAt: fc.option(arbTime, { nil: null }),
       skipped: fc.boolean(),
+      // snapshot and snapshotAt are both null or both set; few times so equal snapshotAt values occur.
+      snap: fc.option(fc.tuple(arbSnapshot, fc.oneof(fc.integer({ min: 0, max: 3 }), arbTime)), { nil: null }),
       updatedAt: arbTime,
     })
-    .map(r => ({
+    .map(({ snap, ...r }) => ({
       ...r,
       saved: r.savedAt === null ? false : r.saved,
       skipped: r.playedAt === null ? r.skipped : false,
+      snapshot: snap === null ? null : snap[0],
+      snapshotAt: snap === null ? null : snap[1],
     }))
 }
 

@@ -4,6 +4,7 @@ import { formatValidationError, loadSkillTree } from '#shared/utils/skill-tree-l
 import sample from '~~/data/sample-bouldering.json'
 import PathView from '~/components/path/PathView.vue'
 import { getActiveHobbyId, setActiveHobbyId } from '~/utils/active-hobby'
+import { createCloudApi } from '~/utils/cloud-api'
 import { activityTimes, cloudEntries, toHobbyLibrary, type CloudPath } from '~/utils/cloud-library'
 import { DEMO_ACTIVE_ID, demoHobbyEntries } from '~/utils/demo-placeholders'
 import { hobbyPath, NEW_HOBBY_PATH, nextHobbyId, pickHobby, type HobbyLibrary } from '~/utils/hobby-store'
@@ -19,6 +20,9 @@ import { progressStorageKey } from '~/utils/progress-store'
  * a session and for the rows, then picks `?hobby=<id>`, else the Active_Hobby,
  * else the last added hobby (archived hobbies are skipped); an account without
  * paths opens the new hobby page (Req 5.2, 5.11).
+ *
+ * `?skill=<id>` opens that Skill_Sheet once (spec: fresh, Req 13.4), and each open of
+ * a cloud path records its open time for the Fresh checks (spec: fresh, Req 3.10).
  */
 
 // Remount when only the query changes, so switching hobby or to and from ?demo=1 re-chooses.
@@ -28,6 +32,8 @@ useHead({ title: 'Your path · Pursio' })
 
 const route = useRoute()
 const isDemo = route.query.demo === '1'
+/** Skill_Sheet to open from the URL (spec: fresh, Req 13.4). */
+const initialSkillId = typeof route.query.skill === 'string' && route.query.skill !== '' ? route.query.skill : null
 
 const sampleLoaded = isDemo ? loadSkillTree(sample) : null
 
@@ -71,6 +77,24 @@ async function choose(): Promise<void> {
 }
 
 watch(cloud.status, () => void choose(), { immediate: true })
+
+const auth = isDemo ? null : useAuth()
+/** Path_Row ids already touched on this page open: one call per open (spec: fresh, Req 3.10). */
+const touched = new Set<string>()
+
+/** Marks the shown cloud path as opened. Failures change nothing on the page. */
+function touchShown(path: CloudPath | null): void {
+  if (!path || !auth || !import.meta.client || touched.has(path.pathId)) return
+  const client = auth.client()
+  const userId = auth.userId.value
+  if (!client || userId === '') return
+  touched.add(path.pathId)
+  createCloudApi(client, userId).touchPathOpened(path.pathId).catch(() => {
+    // Only the Fresh check schedule depends on it; nothing to show.
+  })
+}
+
+watch(shown, touchShown, { immediate: true })
 
 const hobbies = computed(() => cloudEntries(cloud.paths.value))
 const archived = computed(() => cloudEntries(cloud.paths.value, { archived: true }))
@@ -147,6 +171,7 @@ async function onConfirmReset(): Promise<void> {
       :hobbies="demoChoice.hobbies"
       :archived="[]"
       :active-id="DEMO_ACTIVE_ID"
+      :initial-skill-id="initialSkillId"
     />
     <main v-else class="mx-auto w-full max-w-160">
       <PathStatus state="error" :message="loadError ?? undefined" />
@@ -165,6 +190,7 @@ async function onConfirmReset(): Promise<void> {
       :hobbies="hobbies"
       :archived="archived"
       :active-id="shown.record.id"
+      :initial-skill-id="initialSkillId"
       @archive-hobby="onArchiveHobby"
       @delete-hobby="onDeleteHobby"
       :reset-epoch="cloud.resetEpoch.value"

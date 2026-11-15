@@ -42,6 +42,7 @@ const OLD_VIDEO: PoolVideo = {
   id: 'old1',
   title: 'Old',
   channel: 'Channel',
+  channelId: 'UCfakechannel0000000000',
   thumbnailUrl: 'https://i.ytimg.com/vi/old1/hqdefault.jpg',
   durationSeconds: 300,
   viewCount: 1,
@@ -105,7 +106,7 @@ function makeEnv(options: EnvOptions = {}): Env {
   const clock = { t: NOON }
   const store = new InMemoryPipelineStore(() => clock.t)
   const provider = createFakeVideoProvider({
-    defaultSearch: { ok: [{ id: 'v1', title: 'V1', channel: 'C', thumbnailUrl: 'https://i.ytimg.com/vi/v1/hqdefault.jpg' }] },
+    defaultSearch: { ok: [{ id: 'v1', title: 'V1', channel: 'C', channelId: 'UCfakechannel0000000000', thumbnailUrl: 'https://i.ytimg.com/vi/v1/hqdefault.jpg' }] },
     catalog: [fakeDetails('v1')],
     ...options.provider,
   })

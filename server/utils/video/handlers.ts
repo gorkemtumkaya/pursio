@@ -3,12 +3,20 @@
  * `handleVideosRequest` reads pools and ranks them; it never calls the provider or a model.
  * Work is only queued (as due rows) and only for a Signed_In_User.
  */
-import type { Level, SkillTree } from '../../../shared/types/skill-tree'
+import type { SkillTree } from '../../../shared/types/skill-tree'
 import type { GoalClass, VideosResponse } from '../../../shared/types/video'
 import { parseBearer } from '../../../shared/utils/auth'
 import { languageCode, normalizeText, poolKey } from '../../../shared/utils/video-normalize'
 import { withTimeout, type HandlerResponse } from '../llm-handlers'
 import type { RateLimiter } from '../rate-limiter'
+import {
+  REQUEST_ID_MAX_LENGTH,
+  boundedText,
+  isLevel,
+  rateLimitKey,
+  secretsMatch,
+  verifyRequestToken,
+} from './request-guards'
 import { composeVideos, fallbackApplies } from './compose'
 import type { PipelineStore, PoolRead } from './pipeline-store'
 import { isStale } from './pool'
@@ -26,8 +34,7 @@ import {
 /** Longest accepted hobby and Skill title after trim (Req 10.5). */
 export const VIDEO_TEXT_MAX_LENGTH = 100
 /** Longest accepted path id and Skill id. */
-const ID_MAX_LENGTH = 200
-const LEVELS: readonly Level[] = ['beginner', 'intermediate', 'advanced']
+const ID_MAX_LENGTH = REQUEST_ID_MAX_LENGTH
 
 /** The part of a user's stored path the videos endpoint needs. */
 export interface StoredPath {
@@ -56,17 +63,6 @@ export interface VideosDeps {
 
 function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === 'object' && value !== null && !Array.isArray(value)
-}
-
-function isLevel(value: unknown): value is Level {
-  return typeof value === 'string' && (LEVELS as readonly string[]).includes(value)
-}
-
-/** Trimmed string of 1 to `max` characters, else null. */
-function boundedText(value: unknown, max: number): string | null {
-  if (typeof value !== 'string') return null
-  const text = value.trim()
-  return text.length >= 1 && text.length <= max ? text : null
 }
 
 function invalid(field: string): HandlerResponse<VideosResponse> {
@@ -106,23 +102,10 @@ export async function handleVideosRequest(
   deps: VideosDeps,
 ): Promise<HandlerResponse<VideosResponse>> {
   // 1. Access_Token. A present token that cannot be verified is a 401 before any other work (Req 10.10).
-  const header = typeof input.authorization === 'string' ? input.authorization.trim() : ''
-  const token = parseBearer(header)
-  let userId: string | null = null
-  if (header !== '') {
-    if (token === null) return UNAUTHORIZED
-    let verified: string | null | undefined
-    try {
-      verified = await withTimeout<string | null | undefined>(deps.verifyTimeoutMs, undefined, (signal) =>
-        deps.verifyToken(token, signal),
-      )
-    }
-    catch {
-      verified = null
-    }
-    if (typeof verified !== 'string' || verified === '') return UNAUTHORIZED
-    userId = verified
-  }
+  const auth = await verifyRequestToken(input.authorization, deps)
+  if (auth.kind === 'unauthorized') return UNAUTHORIZED
+  const userId: string | null = auth.kind === 'user' ? auth.userId : null
+  const token: string | null = auth.kind === 'user' ? auth.token : null
   const signedIn = userId !== null && token !== null
 
   // 2. Validation (Req 10.5).
@@ -146,8 +129,7 @@ export async function handleVideosRequest(
   const language = languageCode(typeof body.language === 'string' ? body.language : null)
 
   // 3. Rate limit, before any pool read (Req 10.6).
-  const limitKey = signedIn ? `user:${userId}` : `ip:${input.clientIp?.trim() || 'unknown'}`
-  if (!deps.limiter.tryConsume(limitKey)) return RATE_LIMITED
+  if (!deps.limiter.tryConsume(rateLimitKey(signedIn ? userId : null, input.clientIp))) return RATE_LIMITED
 
   // 4. Read the pools in one call. No provider or model call in this path (Req 10.2).
   const userKey = poolKey({ hobby, skillTitle, level, language })
@@ -317,21 +299,6 @@ export interface DrainDeps {
   now?: () => number
   budgetMs?: number
   log?: (entry: { type: string }) => void
-}
-
-async function sha256(text: string): Promise<Uint8Array> {
-  return new Uint8Array(await crypto.subtle.digest('SHA-256', new TextEncoder().encode(text)))
-}
-
-/**
- * Compares two strings in constant time, whatever their lengths: both are hashed to 32 bytes
- * and every byte is compared with no early exit (no `@types/node`, so no `timingSafeEqual`).
- */
-export async function secretsMatch(given: string, expected: string): Promise<boolean> {
-  const [a, b] = await Promise.all([sha256(given), sha256(expected)])
-  let diff = a.length ^ b.length
-  for (let i = 0; i < a.length; i += 1) diff |= (a[i] ?? 0) ^ (b[i] ?? 0)
-  return diff === 0
 }
 
 /**

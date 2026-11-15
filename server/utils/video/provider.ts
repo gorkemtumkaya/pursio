@@ -20,6 +20,8 @@ export interface SearchHit {
   id: string
   title: string
   channel: string
+  /** null when the provider does not return it. */
+  channelId: string | null
   thumbnailUrl: string
 }
 
@@ -27,6 +29,8 @@ export interface VideoDetails {
   id: string
   title: string
   channel: string
+  /** null when the provider does not return it. */
+  channelId: string | null
   description: string
   thumbnailUrl: string
   /** null when unknown. */

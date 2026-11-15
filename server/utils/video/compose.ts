@@ -14,6 +14,7 @@ function toRanked(v: PoolVideo, poolLanguage: string): RankedVideo {
     id: v.id,
     title: v.title,
     channel: v.channel,
+    channelId: v.channelId ?? null,
     thumbnailUrl: v.thumbnailUrl,
     durationSeconds: v.durationSeconds,
     style: v.style,

@@ -27,6 +27,8 @@ export const ICON_NAMES = [
   'archive',
   'trash',
   'reset',
+  'spark',
+  'bookmark',
 ] as const
 
 export type IconName = (typeof ICON_NAMES)[number]
@@ -150,6 +152,16 @@ export const ICONS: Readonly<Record<IconName, IconDefinition>> = {
     filled: false,
     shapes: [{ tag: 'path', d: 'M4.5 12a7.5 7.5 0 1 0 2.2-5.3L4.5 8.8M4.5 4v4.8h4.8' }],
   },
+  /** Fresh navigation item (spec: fresh, Req 10.1): a four-point spark with a small one beside it. */
+  spark: {
+    filled: false,
+    shapes: [
+      { tag: 'path', d: 'M10 3.5l1.6 4.9 4.9 1.6-4.9 1.6-1.6 4.9-1.6-4.9-4.9-1.6 4.9-1.6z' },
+      { tag: 'path', d: 'M17.5 14.5l.8 2.2 2.2.8-2.2.8-.8 2.2-.8-2.2-2.2-.8 2.2-.8z' },
+    ],
+  },
+  /** Fresh save control (spec: fresh, Req 12.6, 13.2). */
+  bookmark: { filled: false, shapes: [{ tag: 'path', d: 'M7 4h10a1 1 0 0 1 1 1v15l-6-4-6 4V5a1 1 0 0 1 1-1z' }] },
 }
 
 export function isIconName(value: unknown): value is IconName {

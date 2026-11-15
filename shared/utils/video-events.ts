@@ -1,6 +1,8 @@
 import { z } from 'zod'
 
+import type { SaveSnapshot } from '../types/fresh'
 import type { VideoEvent, VideoSource } from '../types/video'
+import { compareCodePoints } from './fresh-keys'
 
 /** Share of the duration that counts as finished (Req 13.3). */
 export const FINISHED_RATIO = 0.8
@@ -16,6 +18,8 @@ export function newEvent(videoId: string, source: VideoSource, now: number): Vid
     saved: false,
     savedAt: null,
     skipped: false,
+    snapshot: null,
+    snapshotAt: null,
     updatedAt: now,
   }
 }
@@ -40,8 +44,15 @@ export function applyProgress(
   return { ...rec, watchedSeconds, finished, updatedAt: now }
 }
 
-/** The only reducer that changes saved and savedAt (Req 13.5, 13.6, 13.19). */
-export function applySave(rec: VideoEvent, saved: boolean, now: number): VideoEvent {
+/**
+ * The only reducer that changes saved, savedAt, the snapshot and snapshotAt (Req 13.5, 13.6, 13.19).
+ * A save with a snapshot replaces it and sets snapshotAt to the Saved_Time; a removal, or a
+ * save without a snapshot, keeps both (Req 17.4).
+ */
+export function applySave(rec: VideoEvent, saved: boolean, now: number, snapshot?: SaveSnapshot | null): VideoEvent {
+  if (saved && snapshot) {
+    return { ...rec, saved, savedAt: now, snapshot: copySnapshot(snapshot), snapshotAt: now, updatedAt: now }
+  }
   return { ...rec, saved, savedAt: now, updatedAt: now }
 }
 
@@ -76,6 +87,50 @@ function pickSaved(
   return a.savedAt > b.savedAt ? a.saved : b.saved
 }
 
+function copySnapshot(s: SaveSnapshot | null): SaveSnapshot | null {
+  if (s === null) return null
+  return {
+    videoId: s.videoId,
+    title: s.title,
+    channel: s.channel,
+    channelId: s.channelId,
+    thumbnailUrl: s.thumbnailUrl,
+    durationSeconds: s.durationSeconds,
+  }
+}
+/** Canonical text of a snapshot: fields joined with U+001F. Same text as the SQL `concat_ws(chr(31), ...)`. */
+export function snapshotCanonical(s: SaveSnapshot): string {
+  return [s.videoId, s.title, s.channel, s.channelId ?? '', s.thumbnailUrl, String(s.durationSeconds)].join('\u001f')
+}
+/**
+ * The kept snapshot with its snapshotAt, chosen apart from saved and savedAt: a present
+ * snapshot beats a missing one, then the later snapshotAt (null earliest), then the smaller
+ * canonical text. A removal never clears it (Req 17.10, decision D2).
+ */
+function pickSnapshot(a: VideoEvent, b: VideoEvent): Pick<VideoEvent, 'snapshot' | 'snapshotAt'> {
+  const keep = (r: VideoEvent) => ({ snapshot: copySnapshot(r.snapshot), snapshotAt: r.snapshotAt })
+  if (a.snapshot === null) return b.snapshot === null ? { snapshot: null, snapshotAt: latest(a.snapshotAt, b.snapshotAt) } : keep(b)
+  if (b.snapshot === null) return keep(a)
+  if (a.snapshotAt !== b.snapshotAt) {
+    if (a.snapshotAt === null) return keep(b)
+    if (b.snapshotAt === null) return keep(a)
+    return a.snapshotAt > b.snapshotAt ? keep(a) : keep(b)
+  }
+  const order = compareCodePoints(snapshotCanonical(a.snapshot), snapshotCanonical(b.snapshot))
+  if (order !== 0) return order < 0 ? keep(a) : keep(b)
+  // Same text from different fields (a field holding U+001F): compare field by field so the pick stays order-free.
+  return compareFields(a.snapshot, b.snapshot) <= 0 ? keep(a) : keep(b)
+}
+
+function compareFields(a: SaveSnapshot, b: SaveSnapshot): number {
+  const fa = [a.videoId, a.title, a.channel, a.channelId ?? '', a.thumbnailUrl]
+  const fb = [b.videoId, b.title, b.channel, b.channelId ?? '', b.thumbnailUrl]
+  for (let i = 0; i < fa.length; i++) {
+    const c = compareCodePoints(fa[i]!, fb[i]!)
+    if (c !== 0) return c
+  }
+  return a.durationSeconds - b.durationSeconds
+}
 /**
  * Merge two records of one user, video and source. Commutative, associative and
  * idempotent. Must stay in step with the SQL function merge_video_events.
@@ -91,6 +146,7 @@ export function mergeEvents(a: VideoEvent, b: VideoEvent): VideoEvent {
     saved: pickSaved(a, b),
     savedAt: latest(a.savedAt, b.savedAt),
     skipped: (a.skipped || b.skipped) && playedAt === null,
+    ...pickSnapshot(a, b),
     updatedAt: Math.max(a.updatedAt, b.updatedAt),
   }
 }
@@ -138,6 +194,14 @@ export function countFeedSkips(recs: readonly VideoEvent[]): number {
 }
 
 const epochMs = z.number().finite()
+const saveSnapshotSchema = z.object({
+  videoId: z.string().min(1).max(64),
+  title: z.string().max(500),
+  channel: z.string().max(200),
+  channelId: z.string().min(1).max(64).nullable(),
+  thumbnailUrl: z.string().max(2048),
+  durationSeconds: z.number().finite().min(0),
+})
 
 const videoEventSchema = z.object({
   videoId: z.string().min(1).max(64),
@@ -148,6 +212,10 @@ const videoEventSchema = z.object({
   saved: z.boolean(),
   savedAt: epochMs.nullable(),
   skipped: z.boolean(),
+  // A missing field (records stored before Fresh) reads as null; a bad shape is dropped to null
+  // so the rest of the record (plays, progress) is kept.
+  snapshot: z.unknown().optional(),
+  snapshotAt: epochMs.nullable().optional(),
   updatedAt: epochMs,
 })
 
@@ -155,7 +223,7 @@ const videoEventSchema = z.object({
  * The payload row for merge_video_events: camelCase keys, times as epoch ms or null.
  * Returns a fresh plain object, safe to JSON.stringify.
  */
-export function serializeEvent(rec: VideoEvent): Record<string, string | number | boolean | null> {
+export function serializeEvent(rec: VideoEvent): Record<string, string | number | boolean | SaveSnapshot | null> {
   return {
     videoId: rec.videoId,
     source: rec.source,
@@ -165,6 +233,8 @@ export function serializeEvent(rec: VideoEvent): Record<string, string | number 
     saved: rec.saved,
     savedAt: rec.savedAt,
     skipped: rec.skipped,
+    snapshot: copySnapshot(rec.snapshot),
+    snapshotAt: rec.snapshotAt,
     updatedAt: rec.updatedAt,
   }
 }
@@ -180,5 +250,10 @@ export function parseEvent(input: unknown): VideoEvent | null {
     }
   }
   const parsed = videoEventSchema.safeParse(value)
-  return parsed.success ? parsed.data : null
+  if (!parsed.success) return null
+  const snap = saveSnapshotSchema.safeParse(parsed.data.snapshot)
+  const snapshot = snap.success ? snap.data : null
+  // A missing snapshotAt reads as null; no snapshot means no snapshot time.
+  const snapshotAt = snapshot === null ? null : (parsed.data.snapshotAt ?? null)
+  return { ...parsed.data, snapshot, snapshotAt }
 }

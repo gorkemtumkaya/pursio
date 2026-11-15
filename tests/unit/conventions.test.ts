@@ -23,6 +23,9 @@ const SCANNED = [
   join(ROOT, 'app/pages/path.vue'),
   ...listFiles(join(ROOT, 'app/components/quests')).filter((file) => /\.(vue|ts)$/.test(file)),
   join(ROOT, 'app/pages/quests.vue'),
+  // spec: fresh, Req 11.8
+  ...listFiles(join(ROOT, 'app/components/fresh')).filter((file) => /\.(vue|ts)$/.test(file)),
+  join(ROOT, 'app/pages/fresh.vue'),
 ].map((path) => ({ name: relative(ROOT, path), source: readFileSync(path, 'utf8') }))
 
 // CSS named colors (CSS Color Module Level 4), excluding keywords like
@@ -219,6 +222,25 @@ describe('path view styling conventions (Req 13.1, 13.5)', () => {
     const names = SCANNED.map((file) => file.name)
     expect(names).toContain('app/pages/quests.vue')
     expect(names.filter((name) => name.startsWith('app/components/quests/')).length).toBeGreaterThan(0)
+  })
+
+  it('scans the Fresh components and page (spec: fresh, Req 11.8)', () => {
+    const names = SCANNED.map((file) => file.name)
+    expect(names).toContain('app/pages/fresh.vue')
+    for (const name of [
+      'FreshHeader',
+      'FreshFilterChips',
+      'FreshHeroCard',
+      'FreshSection',
+      'FreshVideoCard',
+      'FreshSaveButton',
+      'FreshSourcesPanel',
+      'FreshSourcesSheet',
+      'FreshMuteSwitch',
+      'FreshState',
+    ]) {
+      expect(names).toContain(`app/components/fresh/${name}.vue`)
+    }
   })
 
   it('takes colors, fonts, radii and shadows only from theme tokens', () => {

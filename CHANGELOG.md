@@ -6,6 +6,12 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+## [0.4.0] - 2026-11-15
+
+### Added
+
+- A new Fresh page shows new videos every day from good channels for the skills on your paths, plus the best videos for your current skills, so you always have something new to learn from. You can mute channels you don't like and save videos for later. (spec: fresh)
+
 ## [0.3.0] - 2026-11-14
 
 ### Added

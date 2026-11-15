@@ -27,6 +27,37 @@ export function batchIds(ids: readonly string[], size: number = DETAILS_BATCH_SI
   return batches
 }
 
+export type DetailsBatchResult
+  = | { ok: true, details: VideoDetails[] }
+    | { ok: false }
+
+/**
+ * One `getDetails` call for one batch, with quota-exceeded marking (Req 4.5; fresh Req 5.3).
+ * Reserves no quota unit: the caller does that before the call. Details for ids outside the
+ * batch are dropped. Shared by `fetchDetails` and the Fresh check.
+ */
+export async function detailsBatch(
+  deps: DetailsStageDeps,
+  batch: readonly string[],
+): Promise<DetailsBatchResult> {
+  try {
+    const got = await deps.provider.getDetails(batch, { signal: deps.signal })
+    const wanted = new Set(batch)
+    return { ok: true, details: got.filter(d => wanted.has(d.id)) }
+  }
+  catch (err) {
+    if (err instanceof ProviderError && err.kind === 'quota_exceeded') {
+      try {
+        await deps.gate.markExceeded()
+      }
+      catch {
+        // The failure is reported below.
+      }
+    }
+    return { ok: false }
+  }
+}
+
 /**
  * Fetches details for the candidate ids, keeping the input order. An empty id list skips
  * the call (Req 4.6). A failed batch stops the stage and passes no candidates on (Req 4.5).
@@ -41,23 +72,10 @@ export async function fetchDetails(
   const byId = new Map<string, VideoDetails>()
   for (const batch of batchIds(unique)) {
     if (!(await deps.gate.reserveDetails())) return { kind: 'blocked' }
-    try {
-      const got = await deps.provider.getDetails(batch, { signal: deps.signal })
-      const wanted = new Set(batch)
-      for (const d of got) {
-        if (wanted.has(d.id) && !byId.has(d.id)) byId.set(d.id, d)
-      }
-    }
-    catch (err) {
-      if (err instanceof ProviderError && err.kind === 'quota_exceeded') {
-        try {
-          await deps.gate.markExceeded()
-        }
-        catch {
-          // The failure is reported below.
-        }
-      }
-      return { kind: 'provider_failure' }
+    const result = await detailsBatch(deps, batch)
+    if (!result.ok) return { kind: 'provider_failure' }
+    for (const d of result.details) {
+      if (!byId.has(d.id)) byId.set(d.id, d)
     }
   }
 

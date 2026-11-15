@@ -8,7 +8,9 @@ import type {
   ResetSnapshotRow,
   WeeklyReward,
 } from '#shared/types/cloud'
+import type { ChannelMute } from '#shared/types/fresh'
 import type { VideoEvent } from '#shared/types/video'
+import { serializeMute } from '#shared/utils/channel-mutes'
 import { serializeEvent } from '#shared/utils/video-events'
 
 /**
@@ -35,6 +37,10 @@ export interface CloudApi {
   restoreProgress(rows: readonly ResetSnapshotRow[], reward: WeeklyReward | null): Promise<void>
   /** Sends video event records to `merge_video_events`, which merges them with the stored ones. */
   mergeVideoEvents(rows: readonly VideoEvent[]): Promise<void>
+  /** Sends Channel_Mutes to `merge_channel_mutes`; per channel the later change wins (spec: fresh, Req 2.6). */
+  mergeChannelMutes(rows: readonly ChannelMute[]): Promise<void>
+  /** Marks a path as opened; the RPC writes at most once per hour per path (spec: fresh, Req 3.10). */
+  touchPathOpened(pathId: string): Promise<void>
 }
 
 /** A failed call. It carries no Supabase message, so none can reach the screen. */
@@ -134,6 +140,13 @@ export function createCloudApi(client: SupabaseClient, userId: string): CloudApi
     async mergeVideoEvents(rows) {
       if (rows.length === 0) return
       check(await client.rpc('merge_video_events', { p_rows: rows.map(serializeEvent) }))
+    },
+    async mergeChannelMutes(rows) {
+      if (rows.length === 0) return
+      check(await client.rpc('merge_channel_mutes', { p_rows: rows.map(serializeMute) }))
+    },
+    async touchPathOpened(pathId) {
+      check(await client.rpc('touch_path_opened', { p_path_id: pathId }))
     },
   }
 }

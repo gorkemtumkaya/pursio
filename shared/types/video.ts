@@ -1,3 +1,4 @@
+import type { SaveSnapshot } from './fresh'
 import type { Level } from './skill-tree'
 
 export type GoalClass = 'targeted' | 'casual' | 'none'
@@ -8,6 +9,8 @@ export interface PoolVideo {
   id: string
   title: string
   channel: string
+  /** YouTube channel id; old pools read a missing value as null. */
+  channelId: string | null
   thumbnailUrl: string
   durationSeconds: number
   viewCount: number | null
@@ -32,6 +35,7 @@ export interface RankedVideo {
   id: string
   title: string
   channel: string
+  channelId: string | null
   thumbnailUrl: string
   durationSeconds: number
   style: VideoStyle
@@ -77,6 +81,10 @@ export interface VideoEvent {
   /** Saved_Time: time of the last save or unsave; null is earlier than every time. */
   savedAt: number | null
   skipped: boolean
+  /** Save_Snapshot: card details of the last feed save; kept on removal. */
+  snapshot: SaveSnapshot | null
+  /** Epoch ms: the Saved_Time of the save that produced the snapshot; null when there is no snapshot. */
+  snapshotAt: number | null
   /** Epoch ms of the last change. */
   updatedAt: number
 }
