@@ -6,7 +6,7 @@
     { "src": "/icon-halloween-512.png?v=1", "sizes": "512x512", "type": "image/png", "purpose": "any" },
     { "src": "/icon-halloween-512.png?v=1", "sizes": "512x512", "type": "image/png", "purpose": "maskable" }
   ],
-  "theme_color": "#3B1F66",
-  "background_color": "#3B1F66",
+  "theme_color": "#140B24",
+  "background_color": "#140B24",
   "display": "standalone"
 }
