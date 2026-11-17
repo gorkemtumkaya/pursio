@@ -31,7 +31,7 @@ const allA: QuestId[] = [q('a', 0), q('a', 1), q('a', 2)]
 function pathOf(over: Partial<CloudPath> = {}): CloudPath {
   return {
     pathId: 'p1',
-    record: { id: 'h1', tree, model: 'm', addedAt: 0, archived: false },
+    record: { id: 'h1', tree, model: 'm', addedAt: 0, archived: false, colorSlot: 1 },
     level: 'beginner',
     progress: none,
     completedAt: {},

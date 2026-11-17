@@ -1,4 +1,5 @@
 import type { SkillTree } from '#shared/types/skill-tree'
+import { fillColorSlots, isColorSlot, slotForNewPath, type ColorSlot } from '#shared/utils/color-slot'
 import { normalizeHobby } from '#shared/utils/llm'
 import { completionPercent } from '#shared/utils/progress-engine'
 import { loadSkillTree } from '#shared/utils/skill-tree-load'
@@ -15,6 +16,8 @@ export interface HobbyRecord {
   addedAt: number
   /** Hidden from the hobby lists and never picked, but its tree and Progress are kept. */
   archived: boolean
+  /** Picks the hobby's colors. Assigned once when the hobby is added and never changed (spec: fresh-v2, Req 9.5, 9.6). */
+  colorSlot: ColorSlot
 }
 
 export interface HobbyLibrary {
@@ -55,20 +58,32 @@ export function hobbyPath(id: string): string {
   return `/path?hobby=${encodeURIComponent(id)}`
 }
 
-function parseEntry(value: unknown): HobbyRecord | null {
+/** A stored entry; `colorSlot` is null when the entry has none or an invalid one. */
+type ParsedEntry = Omit<HobbyRecord, 'colorSlot'> & { colorSlot: ColorSlot | null }
+
+function parseEntry(value: unknown): ParsedEntry | null {
   if (!isRecord(value)) return null
-  const { model, addedAt, archived } = value
+  const { model, addedAt, archived, colorSlot } = value
   if (typeof model !== 'string' || model.length === 0) return null
   if (typeof addedAt !== 'number' || !Number.isFinite(addedAt)) return null
   const loaded = loadSkillTree(value.tree)
   if (!loaded.ok) return null
   // The id is recomputed from the tree, so it always matches its Progress key.
-  return { id: hobbyId(loaded.value), tree: loaded.value, model, addedAt, archived: archived === true }
+  return {
+    id: hobbyId(loaded.value),
+    tree: loaded.value,
+    model,
+    addedAt,
+    archived: archived === true,
+    colorSlot: isColorSlot(colorSlot) ? colorSlot : null,
+  }
 }
 
 /**
  * `null` gives an empty library. Bad JSON or a wrong top-level shape gives `invalid: true`.
  * Entries the Tree_Loader rejects or without a model are dropped, as are repeated ids (Req 3.5).
+ * An entry stored without a Color_Slot gets one here, in `addedAt` order; nothing is written, and
+ * the same stored value always gives the same slots (spec: fresh-v2, Req 9.7).
  */
 export function parseHobbyLibrary(raw: string | null): { library: HobbyLibrary; invalid: boolean } {
   if (raw === null) return { library: emptyLibrary(), invalid: false }
@@ -80,22 +95,31 @@ export function parseHobbyLibrary(raw: string | null): { library: HobbyLibrary; 
   }
   if (!isRecord(json) || !Array.isArray(json.hobbies)) return { library: emptyLibrary(), invalid: true }
 
-  const hobbies: HobbyRecord[] = []
+  const entries: ParsedEntry[] = []
   const seen = new Set<string>()
   for (const value of json.hobbies) {
     const entry = parseEntry(value)
     if (entry && !seen.has(entry.id)) {
       seen.add(entry.id)
-      hobbies.push(entry)
+      entries.push(entry)
     }
   }
+  const slots = fillColorSlots(entries)
+  const hobbies: HobbyRecord[] = entries.map((entry, index) => ({ ...entry, colorSlot: slots[index] ?? 1 }))
   const activeId = typeof json.activeId === 'string' && seen.has(json.activeId) ? json.activeId : null
   return { library: { hobbies, activeId }, invalid: false }
 }
 
 export function serializeHobbyLibrary(library: HobbyLibrary): string {
   return JSON.stringify({
-    hobbies: library.hobbies.map(({ id, tree, model, addedAt, archived }) => ({ id, tree, model, addedAt, archived })),
+    hobbies: library.hobbies.map(({ id, tree, model, addedAt, archived, colorSlot }) => ({
+      id,
+      tree,
+      model,
+      addedAt,
+      archived,
+      colorSlot,
+    })),
     activeId: library.activeId,
   })
 }
@@ -136,7 +160,7 @@ function migrateLegacy(s: StorageLike, now: number): HobbyLibrary {
   if (!legacy) return emptyLibrary()
   const id = hobbyId(legacy.tree)
   const library: HobbyLibrary = {
-    hobbies: [{ id, tree: legacy.tree, model: legacy.model, addedAt: now, archived: false }],
+    hobbies: [{ id, tree: legacy.tree, model: legacy.model, addedAt: now, archived: false, colorSlot: slotForNewPath([]) }],
     activeId: id,
   }
   try {
@@ -171,8 +195,9 @@ export function loadHobbyLibrary(getStorage: () => StorageLike | null, now: numb
 /**
  * Adds a Generated_Tree and makes it the Active_Hobby (Req 3.1). An entry with
  * the same Hobby_Id gets the new tree and model, keeps its place, is restored
- * if archived, and only its own Progress is reset (Req 3.2, 3.3). Returns the
- * Hobby_Id.
+ * if archived, keeps its Color_Slot, and only its own Progress is reset (Req 3.2,
+ * 3.3). A new entry gets the slot after the latest-added entry's, archived ones
+ * included (spec: fresh-v2, Req 9.5). Returns the Hobby_Id.
  */
 export function addHobby(
   getStorage: () => StorageLike | null,
@@ -188,7 +213,17 @@ export function addHobby(
     ? library.hobbies.map((h) =>
         h.id === id ? { ...h, tree: generated.tree, model: generated.model, archived: false } : h,
       )
-    : [...library.hobbies, { id, tree: generated.tree, model: generated.model, addedAt: now, archived: false }]
+    : [
+        ...library.hobbies,
+        {
+          id,
+          tree: generated.tree,
+          model: generated.model,
+          addedAt: now,
+          archived: false,
+          colorSlot: slotForNewPath(library.hobbies),
+        },
+      ]
   write(s, { hobbies, activeId: id })
   remove(s, hobbyProgressKey(id))
   return id

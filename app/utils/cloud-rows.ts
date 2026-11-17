@@ -12,6 +12,7 @@ import type {
 } from '#shared/types/cloud'
 import type { Progress } from '#shared/types/progress'
 import type { QuestTriple, SkillTree } from '#shared/types/skill-tree'
+import { fillColorSlots, isColorSlot, type ColorSlot } from '#shared/utils/color-slot'
 import { START_LEVELS } from '#shared/utils/llm'
 import { emptyProgress } from '#shared/utils/progress-engine'
 import { loadSkillTree } from '#shared/utils/skill-tree-load'
@@ -26,34 +27,53 @@ const pathRowSchema = z.object({
   model: z.string().min(1),
   archived: z.boolean(),
   created_at: z.string(),
+  // Read on its own below: a missing or bad value never drops the row (spec: fresh-v2).
+  color_slot: z.unknown().optional(),
 })
 
-/**
- * A Path_Row as a CloudPath with empty Progress, or `null` when a column is
- * wrong, the Tree_Loader rejects the tree or the model is empty (Req 5.4). The
- * Hobby_Id is recomputed from the tree, as the Hobby_Library always did.
- */
-export function parsePathRow(raw: unknown): CloudPath | null {
+/** A parsed Path_Row whose Color_Slot may still be missing (a row read before the migration). */
+interface ParsedPathRow {
+  path: CloudPath
+  colorSlot: ColorSlot | null
+}
+
+function readPathRow(raw: unknown): ParsedPathRow | null {
   const row = pathRowSchema.safeParse(raw)
   if (!row.success) return null
   const loaded = loadSkillTree(row.data.tree)
   if (!loaded.ok) return null
   const addedAt = Date.parse(row.data.created_at)
   if (!Number.isFinite(addedAt)) return null
+  const colorSlot = isColorSlot(row.data.color_slot) ? row.data.color_slot : null
   return {
-    pathId: row.data.id,
-    record: {
-      id: hobbyId(loaded.value),
-      tree: loaded.value,
-      model: row.data.model,
-      addedAt,
-      archived: row.data.archived,
+    colorSlot,
+    path: {
+      pathId: row.data.id,
+      record: {
+        id: hobbyId(loaded.value),
+        tree: loaded.value,
+        model: row.data.model,
+        addedAt,
+        archived: row.data.archived,
+        colorSlot: colorSlot ?? 1,
+      },
+      level: row.data.level,
+      progress: emptyProgress(),
+      completedAt: {},
+      ...emptyQuestData(),
     },
-    level: row.data.level,
-    progress: emptyProgress(),
-    completedAt: {},
-    ...emptyQuestData(),
   }
+}
+
+/**
+ * A Path_Row as a CloudPath with empty Progress, or `null` when a column is
+ * wrong, the Tree_Loader rejects the tree or the model is empty (Req 5.4). The
+ * Hobby_Id is recomputed from the tree, as the Hobby_Library always did. A row
+ * without a valid `color_slot` reads as slot 1 here; `buildCloudPaths` gives
+ * such rows their slot in creation order.
+ */
+export function parsePathRow(raw: unknown): CloudPath | null {
+  return readPathRow(raw)?.path ?? null
 }
 
 const progressRowSchema = storedProgressSchema.extend({
@@ -184,7 +204,9 @@ export function parseProfileSettings(row: unknown): { language: string | null; g
 /**
  * Joins Path_Rows with their Progress_Rows. Unusable Path_Rows are left out
  * without an error, as are repeated Hobby_Ids; a path without a Progress_Row
- * has empty Progress.
+ * has empty Progress. Rows without a valid `color_slot` (read before the
+ * migration) get one in creation order, as the migration's backfill does
+ * (spec: fresh-v2, Req 9.7).
  */
 export function buildCloudPaths(pathRows: readonly unknown[], progressRows: readonly unknown[]): CloudPath[] {
   const progressByPath = new Map<string, unknown>()
@@ -192,14 +214,19 @@ export function buildCloudPaths(pathRows: readonly unknown[], progressRows: read
     if (isRecord(row) && typeof row.path_id === 'string') progressByPath.set(row.path_id, row)
   }
   const seen = new Set<string>()
-  const paths: CloudPath[] = []
+  const parsed: ParsedPathRow[] = []
   for (const row of pathRows) {
-    const path = parsePathRow(row)
-    if (!path || seen.has(path.record.id)) continue
-    seen.add(path.record.id)
-    paths.push({ ...path, ...parseProgressRow(progressByPath.get(path.pathId), path.record.tree) })
+    const read = readPathRow(row)
+    if (!read || seen.has(read.path.record.id)) continue
+    seen.add(read.path.record.id)
+    parsed.push(read)
   }
-  return paths
+  const slots = fillColorSlots(parsed.map(({ path, colorSlot }) => ({ addedAt: path.record.addedAt, colorSlot })))
+  return parsed.map(({ path }, index) => ({
+    ...path,
+    record: { ...path.record, colorSlot: slots[index] ?? 1 },
+    ...parseProgressRow(progressByPath.get(path.pathId), path.record.tree),
+  }))
 }
 
 /** The full Path_Row of a CloudPath, with its id and creation time (Undo). */
@@ -216,6 +243,7 @@ export function toPathInsertRow(userId: string, path: CloudPath): PathInsertRow 
     model: record.model,
     archived: record.archived,
     created_at: new Date(record.addedAt).toISOString(),
+    color_slot: record.colorSlot,
   }
 }
 

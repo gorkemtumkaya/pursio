@@ -220,6 +220,8 @@ export function userPath(input: {
     windowSkillIds: windowSkillIds(input.skills, input.currentSkillId),
     skills: input.skills.map((s) => ({ ...s })),
     activeAt: null,
+    colorSlot: 1,
+    completedCount: 0,
   }
   return { path, poolHobby: input.poolHobby ?? input.hobby }
 }

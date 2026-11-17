@@ -6,6 +6,14 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+## [0.5.0] - 2026-11-17
+
+### Added
+- Each hobby keeps its own color across the app's Fresh page (spec: fresh-v2)
+
+### Changed
+- Fresh is grouped by hobby, with a scrolling row per hobby and hobby filters (spec: fresh-v2)
+
 ## [0.4.2] - 2026-11-17
 
 ### Changed

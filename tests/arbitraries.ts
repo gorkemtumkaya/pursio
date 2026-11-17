@@ -5,6 +5,7 @@ import type { CompletedAt, DailyPick, QuestData, QuestTicks } from '../shared/ty
 import type { StartLevel } from '../shared/types/llm'
 import type { Progress, QuestId } from '../shared/types/progress'
 import type { Level, QuestTriple, Section, SkillNode, SkillTree } from '../shared/types/skill-tree'
+import { fillColorSlots, type ColorSlot } from '../shared/utils/color-slot'
 import { normalizeHobby } from '../shared/utils/llm'
 import { localDayKey } from '../shared/utils/streak'
 import { ACTIVITY_STORAGE_KEY } from '../app/utils/activity-store'
@@ -381,6 +382,8 @@ export function arbQuestData(tree: SkillTree, progress: Progress): fc.Arbitrary<
     })
 }
 
+export const arbColorSlot: fc.Arbitrary<ColorSlot> = fc.constantFrom<ColorSlot>(1, 2, 3, 4, 5)
+
 /**
  * One CloudPath: a valid tree, Progress valid for it and Completion_Timestamps
  * for some (not always all) of its completed Nodes, plus quest data consistent
@@ -395,11 +398,12 @@ export const arbCloudPath: fc.Arbitrary<CloudPath> = arbValidTree.chain(tree =>
         model: arbModelId,
         addedAt: arbStamp,
         archived: fc.boolean(),
+        colorSlot: arbColorSlot,
         level: arbStartLevel,
         stamps: fc.array(fc.option(arbStamp, { nil: null }), { minLength: count, maxLength: count }),
         quest: arbQuestData(tree, progress),
       })
-      .map(({ pathId, model, addedAt, archived, level, stamps, quest }): CloudPath => {
+      .map(({ pathId, model, addedAt, archived, colorSlot, level, stamps, quest }): CloudPath => {
         const completedAt: CompletedAt = {}
         progress.completed.forEach((id, index) => {
           const stamp = stamps[index]
@@ -407,7 +411,7 @@ export const arbCloudPath: fc.Arbitrary<CloudPath> = arbValidTree.chain(tree =>
         })
         return {
           pathId,
-          record: { id: normalizeHobby(tree.hobby), tree, model, addedAt, archived },
+          record: { id: normalizeHobby(tree.hobby), tree, model, addedAt, archived, colorSlot },
           level,
           progress,
           completedAt,
@@ -447,6 +451,8 @@ export interface LegacyExpectedEntry {
   archived: boolean
   /** `null` for the earlier Generated_Tree. */
   addedAt: number | null
+  /** The stored entries carry no slot, so each gets one in `addedAt` order; `null` for the earlier Generated_Tree. */
+  colorSlot: ColorSlot | null
   progress: Progress
 }
 
@@ -624,11 +630,17 @@ export const arbLegacyData: fc.Arbitrary<LegacyCase> = fc
           model: seed.model,
           archived: seed.archived === true,
           addedAt: seed.addedAt,
+          colorSlot: null,
           progress: expectedProgress(seed),
         })
         const raw = storedProgress(seed)
         if (raw !== null) storage[hobbyProgressKey(id)] = raw
       }
+      // No stored entry has a slot: reading the library gives each one in `addedAt` order.
+      const filled = fillColorSlots(entries.map(entry => ({ addedAt: entry.addedAt ?? 0, colorSlot: null })))
+      entries.forEach((entry, index) => {
+        entry.colorSlot = filled[index] ?? 1
+      })
       const first = entries[0]
       if (repeatFirst && first) {
         // Same Hobby_Id again, later in the list: only the first one counts.
@@ -680,6 +692,7 @@ export const arbLegacyData: fc.Arbitrary<LegacyCase> = fc
           model: seed.model,
           archived: false,
           addedAt: null,
+          colorSlot: null,
           progress: expectedProgress(seed),
         })
       }

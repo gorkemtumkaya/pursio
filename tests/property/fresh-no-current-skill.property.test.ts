@@ -1,9 +1,11 @@
 // Feature: fresh, Property 41: Paths with no Current_Skill
 // For any response input where some paths have no Current_Skill, those paths have an empty
-// Current_Window, contribute no pool key and no Best_Section or Hero_Card fallback video, still
-// contribute their check keys, Channel_Sources and every Fresh_Item with a Path_Match to one of
-// their Skills, and every such match has a Closeness_Factor of 0.6.
-// Validates: Requirements 8.17, 9.3
+// Current_Window and contribute no pool key. The response still holds their check keys,
+// Channel_Sources and every Fresh_Item with a Path_Match to one of their Skills, and every such
+// match has a Closeness_Factor of 0.6. On the page (spec: fresh-v2, Req 4.8, AS3) such a path
+// has a header-only section, state `finished`, and none of its videos shows in any section or
+// in the Hero_Card.
+// Validates: fresh Requirements 8.17, 9.3; fresh-v2 Requirements 3.1, 4.8
 import fc from 'fast-check'
 import { describe, expect, it } from 'vitest'
 import type { FreshResponseOk } from '../../shared/types/fresh'
@@ -113,12 +115,14 @@ describe('Property 41: Paths with no Current_Skill', () => {
           for (const item of items) {
             for (const m of item.matches.filter((x) => x.pathId === p.id)) expect(closenessFactor(m, rp)).toBe(0.6)
           }
-          // No Best_Section or Hero_Card fallback video from this path, for any chip.
-          const chips: FilterChip[] = [{ kind: 'all' }, { kind: 'path', pathId: p.id }, { kind: 'current' }]
+          // A header-only section and no card or Hero_Card of this path, for any chip.
+          const chips: FilterChip[] = [{ kind: 'all' }, { kind: 'path', pathId: p.id }]
           for (const chip of chips) {
-            const view = buildFreshView({ response, chip, selectedPathId: p.id, mutes: new Map(), events: [], demo: false })
-            expect(view.bestCards.some((b) => b.match.pathId === p.id)).toBe(false)
-            expect(view.hero?.kind === 'pool' && view.hero.match.pathId === p.id).toBe(false)
+            const view = buildFreshView({ response, chip, mutes: new Map(), events: [], demo: false })
+            const section = view.sections.find((s) => s.pathId === p.id)
+            expect(section).toMatchObject({ state: 'finished', cards: [], newCount: 0, currentSkillTitle: null })
+            expect(view.sections.some((s) => s.cards.some((c) => c.match.pathId === p.id))).toBe(false)
+            expect(view.hero?.match.pathId === p.id).toBe(false)
           }
         }
       }),

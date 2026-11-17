@@ -27,7 +27,7 @@ function path(
   const id = hobby.toLowerCase()
   return {
     pathId: `row-${id}`,
-    record: { id, tree: { ...bouldering, hobby }, model: 'm', addedAt: 1, archived: options.archived ?? false },
+    record: { id, tree: { ...bouldering, hobby }, model: 'm', addedAt: 1, archived: options.archived ?? false, colorSlot: 1 },
     level: 'new',
     progress: { completed, quests: options.quests ?? {} },
     completedAt: options.completedAt ?? {},

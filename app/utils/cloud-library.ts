@@ -3,6 +3,7 @@ import type { CompletedAt, DailyPick, QuestData, QuestTicks } from '#shared/type
 import type { StartLevel } from '#shared/types/llm'
 import type { Progress } from '#shared/types/progress'
 import type { QuestTriple, SkillTree } from '#shared/types/skill-tree'
+import { slotForNewPath, type ColorSlot } from '#shared/utils/color-slot'
 import { completionPercent, emptyProgress } from '#shared/utils/progress-engine'
 import { hobbyId, hobbyPath, type HobbyEntry, type HobbyLibrary, type HobbyRecord } from './hobby-store'
 
@@ -112,20 +113,25 @@ export interface GeneratedPath {
 /**
  * Adds a path the Tree_Route just saved. A path with the same Hobby_Id is
  * replaced in place: it keeps `addedAt`, is restored if archived and starts
- * with empty Progress, as the database function does (Req 9.8).
+ * with empty Progress, as the database function does (Req 9.8). A new path gets
+ * the Color_Slot after the latest-created path's, archived ones included, by the
+ * same rule as the database trigger; a replaced path keeps its slot (spec:
+ * fresh-v2, Req 9.5, 9.6).
  */
 export function upsertGenerated(paths: readonly CloudPath[], generated: GeneratedPath, now: number): CloudPath[] {
   const id = hobbyId(generated.tree)
-  const fresh = (addedAt: number): CloudPath => ({
+  const fresh = (addedAt: number, colorSlot: ColorSlot): CloudPath => ({
     pathId: generated.pathId,
-    record: { id, tree: generated.tree, model: generated.model, addedAt, archived: false },
+    record: { id, tree: generated.tree, model: generated.model, addedAt, archived: false, colorSlot },
     level: generated.level,
     progress: emptyProgress(),
     completedAt: {},
     ...emptyQuestData(),
   })
-  if (!paths.some((path) => path.record.id === id)) return [...paths, fresh(now)]
-  return paths.map((path) => (path.record.id === id ? fresh(path.record.addedAt) : path))
+  if (!paths.some((path) => path.record.id === id)) {
+    return [...paths, fresh(now, slotForNewPath(paths.map((path) => path.record)))]
+  }
+  return paths.map((path) => (path.record.id === id ? fresh(path.record.addedAt, path.record.colorSlot) : path))
 }
 
 /** The list without one hobby (delete). */

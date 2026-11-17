@@ -1,6 +1,7 @@
 import type { FreshPathSkill, FreshRequest, FreshRequestPath } from '#shared/types/fresh'
 import type { Progress } from '#shared/types/progress'
 import type { SkillTree } from '#shared/types/skill-tree'
+import type { ColorSlot } from '#shared/utils/color-slot'
 import { findCurrentNodeId } from '#shared/utils/progress-engine'
 import { languageCode } from '#shared/utils/video-normalize'
 import type { HobbyLibrary, HobbyRecord } from './hobby-store'
@@ -19,8 +20,15 @@ function clip(text: string): string {
  * with its section Level, and the Current_Skill from `findCurrentNodeId` (null when every
  * Skill is completed, decision D16). Texts are clipped to the body limits; Skills with an
  * empty title are left out. Returns null when the path cannot be sent (empty hobby or no Skill).
+ * `completedCount` counts the completed Skills among the ones sent, so it never exceeds them
+ * (spec: fresh-v2, Req 9.9).
  */
-export function requestPath(id: string, tree: SkillTree, progress: Progress): FreshRequestPath | null {
+export function requestPath(
+  id: string,
+  tree: SkillTree,
+  progress: Progress,
+  colorSlot: ColorSlot,
+): FreshRequestPath | null {
   const hobby = clip(tree.hobby)
   if (id.length === 0 || hobby.length === 0) return null
   const skills: FreshPathSkill[] = []
@@ -37,7 +45,9 @@ export function requestPath(id: string, tree: SkillTree, progress: Progress): Fr
   if (kept.length === 0) return null
   const current = findCurrentNodeId(tree, progress)
   const currentSkillId = current !== null && kept.some((s) => s.id === current) ? current : null
-  return { id, hobby, skills: kept, currentSkillId }
+  const completed = new Set(progress.completed)
+  const completedCount = kept.filter((s) => completed.has(s.id)).length
+  return { id, hobby, skills: kept, currentSkillId, colorSlot, completedCount }
 }
 
 /**
@@ -67,15 +77,18 @@ export function signedOutBody(
   const paths: FreshRequestPath[] = []
   for (const hobby of orderByLocalActivity(library)) {
     if (paths.length >= FRESH_MAX_PATHS) break
-    const path = requestPath(hobby.id, hobby.tree, progressOf(hobby))
+    const path = requestPath(hobby.id, hobby.tree, progressOf(hobby), hobby.colorSlot)
     if (path) paths.push(path)
   }
   return { language: languageCode(language), paths }
 }
 
-/** Demo_Mode body: the Demo_Paths (the Sample_Tree with its local Progress), never a token (Req 8.15). */
+/**
+ * Demo_Mode body: the Demo_Paths (the Sample_Tree with its local Progress), never a token
+ * (Req 8.15). The Demo_Path uses Color_Slot 1 (spec: fresh-v2, Req 9.9).
+ */
 export function demoBody(id: string, tree: SkillTree, progress: Progress, language: string | null): FreshRequest {
-  const path = requestPath(id, tree, progress)
+  const path = requestPath(id, tree, progress, 1)
   return { language: languageCode(language), paths: path ? [path] : [] }
 }
 

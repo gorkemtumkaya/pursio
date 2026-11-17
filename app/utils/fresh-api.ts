@@ -45,6 +45,10 @@ const pathSchema = z.object({
   windowSkillIds: z.array(z.string()),
   skills: z.array(z.object({ id, title: z.string(), level })),
   activeAt: epochMs.nullable(),
+  // spec: fresh-v2, Req 9.9. A response without them (a server from before fresh-v2) reads
+  // as slot 1 and 0 completed, so the page still shows.
+  colorSlot: z.union([z.literal(1), z.literal(2), z.literal(3), z.literal(4), z.literal(5)]).catch(1),
+  completedCount: z.number().int().min(0).catch(0),
 })
 
 const matchSchema = z.object({ pathId: z.string(), skillId: z.string() })

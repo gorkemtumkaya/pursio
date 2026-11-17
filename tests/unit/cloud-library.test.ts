@@ -35,7 +35,7 @@ const noon = (year: number, month: number, day: number): number => new Date(year
 function cloudPath(pathId: string, tree: SkillTree, addedAt: number, overrides: Partial<CloudPath> = {}): CloudPath {
   return {
     pathId,
-    record: { id: tree.hobby.toLowerCase(), tree, model: 'model-1', addedAt, archived: false },
+    record: { id: tree.hobby.toLowerCase(), tree, model: 'model-1', addedAt, archived: false, colorSlot: 1 },
     level: 'new',
     progress: { completed: [], quests: {} },
     completedAt: {},
@@ -56,7 +56,7 @@ describe('upsertGenerated', () => {
       paths[0],
       {
         pathId: 'p2',
-        record: { id: 'guitar', tree: guitar, model: 'model-2', addedAt: 50, archived: false },
+        record: { id: 'guitar', tree: guitar, model: 'model-2', addedAt: 50, archived: false, colorSlot: 2 },
         level: 'some',
         progress: { completed: [], quests: {} },
         completedAt: {},
@@ -66,6 +66,21 @@ describe('upsertGenerated', () => {
       },
     ])
     expect(paths.length).toBe(1)
+  })
+
+  it('gives a new hobby the slot after the latest-created path, archived ones included (spec: fresh-v2, Req 9.5)', () => {
+    const slot = (pathId: string, tree: SkillTree, addedAt: number, colorSlot: 1 | 2 | 3 | 4 | 5, archived = false): CloudPath => {
+      const path = cloudPath(pathId, tree, addedAt)
+      return { ...path, record: { ...path.record, colorSlot, archived } }
+    }
+    const added = (paths: CloudPath[]): number | undefined =>
+      upsertGenerated(paths, { pathId: 'new', tree: { ...guitar, hobby: 'Piano' }, model: 'm', level: 'new' }, 999).at(-1)?.record
+        .colorSlot
+    expect(added([])).toBe(1)
+    expect(added([slot('p1', bouldering, 1, 1), slot('p2', guitar, 2, 2), slot('p3', { ...guitar, hobby: 'Chess' }, 3, 3)])).toBe(4)
+    expect(added([slot('p1', bouldering, 1, 5)])).toBe(1)
+    // The latest-created path decides, even when it is archived or not last in the list.
+    expect(added([slot('p2', guitar, 20, 3, true), slot('p1', bouldering, 10, 1)])).toBe(4)
   })
 
   it('replaces a path with the same Hobby_Id in place, keeps addedAt and resets Progress and archived (Req 9.8)', () => {
@@ -79,6 +94,8 @@ describe('upsertGenerated', () => {
         dailyBonusCount: 3,
       }),
     )
+    // The replaced path keeps its Color_Slot (spec: fresh-v2, Req 9.6).
+    old.record.colorSlot = 4
     const paths = [cloudPath('p1', bouldering, 10), old, cloudPath('p3', chess, 30)]
     const tree = withHobby('  GUITAR ')
 
@@ -89,7 +106,7 @@ describe('upsertGenerated', () => {
     expect(next[2]).toBe(paths[2])
     expect(next[1]).toEqual({
       pathId: 'p9',
-      record: { id: 'guitar', tree, model: 'model-9', addedAt: 20, archived: false },
+      record: { id: 'guitar', tree, model: 'model-9', addedAt: 20, archived: false, colorSlot: 4 },
       level: 'serious',
       progress: { completed: [], quests: {} },
       completedAt: {},

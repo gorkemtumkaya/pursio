@@ -48,6 +48,24 @@
 
   --pursio-overlay: rgba(42, 35, 30, 0.55);
 
+  /* Hobby colors, one set per Color_Slot: tint (section background), deep (dot, avatar,
+     accent text) and ink (text on deep). */
+  --pursio-hobby-1: #d6e6e3; /* teal */
+  --pursio-hobby-1-deep: #2b6467;
+  --pursio-hobby-1-ink: #ffffff;
+  --pursio-hobby-2: #f5dcd3; /* coral */
+  --pursio-hobby-2-deep: #a83620;
+  --pursio-hobby-2-ink: #ffffff;
+  --pursio-hobby-3: #f5e6c4; /* ochre */
+  --pursio-hobby-3-deep: #7d5a0b;
+  --pursio-hobby-3-ink: #ffffff;
+  --pursio-hobby-4: #dfe9d4; /* green */
+  --pursio-hobby-4-deep: #3f6a2c;
+  --pursio-hobby-4-ink: #ffffff;
+  --pursio-hobby-5: #e9dcea; /* plum */
+  --pursio-hobby-5-deep: #6c3f74;
+  --pursio-hobby-5-ink: #ffffff;
+
   --pursio-radius-node: 46% 54% 42% 58% / 54% 44% 56% 46%;
   --pursio-logo: url("/favicon.svg?v=2");
 
@@ -97,6 +115,24 @@
 
   --pursio-overlay: rgba(22, 33, 27, 0.55);
 
+  /* Hobby colors, one set per Color_Slot: tint (section background), deep (dot, avatar,
+     accent text) and ink (text on deep). */
+  --pursio-hobby-1: #d5ecea; /* teal */
+  --pursio-hobby-1-deep: #17686b;
+  --pursio-hobby-1-ink: #ffffff;
+  --pursio-hobby-2: #ffe4d9; /* coral */
+  --pursio-hobby-2-deep: #b23d16;
+  --pursio-hobby-2-ink: #ffffff;
+  --pursio-hobby-3: #fbeac2; /* ochre */
+  --pursio-hobby-3-deep: #7f5a00;
+  --pursio-hobby-3-ink: #ffffff;
+  --pursio-hobby-4: #dcefd2; /* green */
+  --pursio-hobby-4-deep: #2f6d2a;
+  --pursio-hobby-4-ink: #ffffff;
+  --pursio-hobby-5: #eedff2; /* plum */
+  --pursio-hobby-5-deep: #75397f;
+  --pursio-hobby-5-ink: #ffffff;
+
   --pursio-radius-node: 50%;
   --pursio-logo: url("/favicon.svg?v=2");
 
@@ -145,6 +181,24 @@
   --pursio-banner-muted: #d2b8ff;
 
   --pursio-overlay: rgba(10, 5, 18, 0.72);
+
+  /* Hobby colors, one set per Color_Slot: tint (section background), deep (dot, avatar,
+     accent text) and ink (text on deep). */
+  --pursio-hobby-1: #183a40; /* teal */
+  --pursio-hobby-1-deep: #7fdcd6;
+  --pursio-hobby-1-ink: #0b1f22;
+  --pursio-hobby-2: #47222a; /* coral */
+  --pursio-hobby-2-deep: #ff9f8a;
+  --pursio-hobby-2-ink: #2a0f0a;
+  --pursio-hobby-3: #40300f; /* ochre */
+  --pursio-hobby-3-deep: #f2c45a;
+  --pursio-hobby-3-ink: #2a1a00;
+  --pursio-hobby-4: #21391f; /* green */
+  --pursio-hobby-4-deep: #9fdc82;
+  --pursio-hobby-4-ink: #0f2209;
+  --pursio-hobby-5: #3f2350; /* plum */
+  --pursio-hobby-5-deep: #dcaaf2;
+  --pursio-hobby-5-ink: #22102c;
 
   --pursio-radius-node: 50% 50% 46% 46% / 58% 58% 42% 42%;
   --pursio-logo: url("/favicon-halloween.svg");

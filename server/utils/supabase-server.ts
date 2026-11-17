@@ -4,6 +4,7 @@ import type { ChannelMute, FreshPathSkill } from '../../shared/types/fresh'
 import type { VideoEvent } from '../../shared/types/video'
 import { parseMute } from '../../shared/utils/channel-mutes'
 import { buildSaveArgs } from '../../shared/utils/cloud-path'
+import { fillColorSlots, isColorSlot } from '../../shared/utils/color-slot'
 import { findCurrentNodeId } from '../../shared/utils/progress-engine'
 import { loadSkillTree } from '../../shared/utils/skill-tree-load'
 import { parseEvent } from '../../shared/utils/video-events'
@@ -115,7 +116,8 @@ function eventFromRow(row: Record<string, unknown>): VideoEvent | null {
  * created order, their progress, the profile language, the newest 5000 Video_Events and the
  * Channel_Mutes, in parallel. Per path: Skills in path order, Current_Skill from the progress,
  * Current_Window (empty with no Current_Skill), Goal_Class (`none` when unset) and `activeAt`
- * (later of the last open and the last progress save). A path whose tree cannot be loaded is
+ * (later of the last open and the last progress save), its Color_Slot and the number of its
+ * completed Skills (spec: fresh-v2, Req 4.3, 9.9). A path whose tree cannot be loaded is
  * left out. Throws on any read error, with a fixed label only.
  */
 export async function loadFreshUserData(token: string, userId: string, signal?: AbortSignal): Promise<FreshUserData> {
@@ -132,7 +134,7 @@ export async function loadFreshUserData(token: string, userId: string, signal?: 
     withSignal(
       client
         .from('paths')
-        .select('id, hobby, hobby_id, tree, goal_class, last_opened_at, created_at')
+        .select('id, hobby, hobby_id, tree, goal_class, last_opened_at, created_at, color_slot')
         .eq('user_id', userId)
         .eq('archived', false)
         .order('created_at', { ascending: true }),
@@ -163,8 +165,17 @@ export async function loadFreshUserData(token: string, userId: string, signal?: 
     progressByPath.set(row.path_id, { completed, updatedMs: timeMs(row.updated_at) })
   }
 
+  // The column is `not null` with a 1 to 5 check, so a missing or invalid slot is not
+  // expected. If one shows up, the row gets a slot in creation order instead of failing.
+  const slots = fillColorSlots(
+    pathRows.map((row, index) => ({
+      addedAt: timeMs(row.created_at) ?? index,
+      colorSlot: isColorSlot(row.color_slot) ? row.color_slot : null,
+    })),
+  )
+
   const paths: FreshScopePath[] = []
-  for (const row of pathRows) {
+  for (const [index, row] of pathRows.entries()) {
     if (typeof row.id !== 'string' || typeof row.hobby !== 'string') continue
     const loaded = loadSkillTree(row.tree)
     if (!loaded.ok) continue
@@ -174,6 +185,8 @@ export async function loadFreshUserData(token: string, userId: string, signal?: 
       section.nodes.map((node) => ({ id: node.id, title: node.title, level: section.level })),
     )
     const currentSkillId = findCurrentNodeId(tree, { completed: progress?.completed ?? [], quests: {} })
+    const skillIds = new Set(skills.map((s) => s.id))
+    const completedCount = new Set((progress?.completed ?? []).filter((id) => skillIds.has(id))).size
     const times = [timeMs(row.last_opened_at), progress?.updatedMs ?? null].filter((t): t is number => t !== null)
     paths.push({
       poolHobby: tree.hobby,
@@ -186,6 +199,8 @@ export async function loadFreshUserData(token: string, userId: string, signal?: 
         windowSkillIds: windowSkillIds(skills, currentSkillId),
         skills,
         activeAt: times.length > 0 ? Math.max(...times) : null,
+        colorSlot: slots[index] ?? 1,
+        completedCount,
       },
     })
   }

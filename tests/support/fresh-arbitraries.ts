@@ -1,7 +1,8 @@
 /**
- * Shared fast-check generators for the Fresh view properties (design "Testing Strategy",
- * Properties 24 to 36): random `FreshResponseOk` values with 1 to 3 paths, items, pools,
- * Channel_Sources and check times, plus chips, mute maps and Video_Events with snapshots.
+ * Shared fast-check generators for the Fresh view properties (spec: fresh, Properties 24 to
+ * 36; spec: fresh-v2, Properties 1 to 6 and 11): random `FreshResponseOk` values with paths
+ * (Color_Slot, completed count and Active_Time included), items, pools, Channel_Sources and
+ * check times, plus chips, mute maps and Video_Events with snapshots.
  */
 import fc from 'fast-check'
 import type {
@@ -17,6 +18,8 @@ import type {
 } from '../../shared/types/fresh'
 import type { Level } from '../../shared/types/skill-tree'
 import type { GoalClass, VideoEvent, VideoSource, VideoStyle } from '../../shared/types/video'
+import type { ColorSlot } from '../../shared/utils/color-slot'
+import { FRESH_WINDOW_S, rankFreshItems } from '../../shared/utils/fresh-rank'
 import type { FilterChip, FreshViewInput } from '../../shared/utils/fresh-view'
 
 export const NOW_MS = 1_800_000_000_000
@@ -33,6 +36,12 @@ export const CHANNELS = ['UCa', 'UCb', 'UCc', 'UCd', 'UCe'] as const
 export const VIDEOS: readonly { id: string; channelId: string | null }[] = Array.from({ length: 18 }, (_, i) => ({
   id: `vid${String(i).padStart(8, '0')}`,
   channelId: i % 6 === 5 ? null : CHANNELS[i % CHANNELS.length]!,
+}))
+
+/** A wider id set for the section properties: up to 50 Fresh_Items and 30 pool videos per Skill. */
+export const WIDE_VIDEOS: readonly { id: string; channelId: string | null }[] = Array.from({ length: 90 }, (_, i) => ({
+  id: `wide${String(i).padStart(7, '0')}`,
+  channelId: i % 7 === 6 ? null : CHANNELS[i % CHANNELS.length]!,
 }))
 
 /** Hobby texts, some equal after Normalization ("Guitar" and "guitar!"). */
@@ -53,10 +62,19 @@ export function arbPath(index: number): fc.Arbitrary<FreshPath> {
       currentPick: fc.option(fc.nat(), { nil: null, freq: 4 }),
       windowExtra: fc.integer({ min: 0, max: 2 }),
       goalClass: arbGoal,
-      activeAt: fc.option(fc.integer({ min: NOW_MS - WEEK_MS, max: NOW_MS }), { nil: null }),
+      // A few fixed times, so equal Active_Times happen and the response-order tie-break counts.
+      activeAt: fc.option(
+        fc.oneof(
+          fc.constantFrom(NOW_MS - DAY_MS, NOW_MS - HOUR_MS, NOW_MS),
+          fc.integer({ min: NOW_MS - WEEK_MS, max: NOW_MS }),
+        ),
+        { nil: null },
+      ),
       hobby: fc.constantFrom(...HOBBIES),
+      colorSlot: fc.constantFrom<ColorSlot>(1, 2, 3, 4, 5),
+      completedPick: fc.nat(),
     })
-    .map(({ skillCount, currentPick, windowExtra, goalClass, activeAt, hobby }) => {
+    .map(({ skillCount, currentPick, windowExtra, goalClass, activeAt, hobby, colorSlot, completedPick }) => {
       const id = `path-${index}`
       const skills = Array.from({ length: skillCount }, (_, i) => ({
         id: `${id}-s${i}`,
@@ -74,13 +92,20 @@ export function arbPath(index: number): fc.Arbitrary<FreshPath> {
           currentIndex === null ? [] : skills.slice(currentIndex, currentIndex + 1 + windowExtra).map((s) => s.id),
         skills,
         activeAt,
+        colorSlot,
+        completedCount: completedPick % (skillCount + 1),
       }
     })
 }
 
-export const arbPaths: fc.Arbitrary<FreshPath[]> = fc
-  .integer({ min: 1, max: 3 })
-  .chain((n) => fc.tuple(...Array.from({ length: n }, (_, i) => arbPath(i))))
+/** `min` to `max` paths with the ids `path-0`, `path-1`, ... in response order. */
+export function arbPathsOf(min: number, max: number): fc.Arbitrary<FreshPath[]> {
+  return fc
+    .integer({ min, max })
+    .chain((n) => (n === 0 ? fc.constant([]) : fc.tuple(...Array.from({ length: n }, (_, i) => arbPath(i)))))
+}
+
+export const arbPaths: fc.Arbitrary<FreshPath[]> = arbPathsOf(1, 3)
 
 export function allMatches(paths: readonly FreshPath[]): SkillMatch[] {
   return paths.flatMap((p) => p.skills.map((s) => ({ pathId: p.id, skillId: s.id })))
@@ -116,12 +141,16 @@ export const arbPublished = fc.oneof(
 export const arbFactor = fc.oneof(fc.constantFrom(0, 0.5, 0.8, 1), fc.double({ min: 0, max: 1, noNaN: true }))
 
 /** Fresh_Items with unique video ids; matches on Skills of the given paths. */
-export function arbItems(paths: readonly FreshPath[], maxLength = 30): fc.Arbitrary<FreshItemCard[]> {
+export function arbItems(
+  paths: readonly FreshPath[],
+  maxLength = 30,
+  videos: readonly { id: string; channelId: string | null }[] = VIDEOS,
+): fc.Arbitrary<FreshItemCard[]> {
   const matches = allMatches(paths)
   return fc
     .uniqueArray(
       fc.record({
-        video: arbVideo,
+        video: fc.constantFrom(...videos),
         style: arbStyle,
         level: arbLevel,
         publishedMs: arbPublished,
@@ -148,12 +177,16 @@ export function arbItems(paths: readonly FreshPath[], maxLength = 30): fc.Arbitr
 }
 
 /** One ranked pool per (path, Skill), each with 0 to 6 videos; ids may repeat across pools and items. */
-export function arbPools(paths: readonly FreshPath[]): fc.Arbitrary<FreshSkillPool[]> {
+export function arbPools(
+  paths: readonly FreshPath[],
+  maxPerSkill = 6,
+  videos: readonly { id: string; channelId: string | null }[] = VIDEOS,
+): fc.Arbitrary<FreshSkillPool[]> {
   const skills = allMatches(paths)
   return fc.tuple(
     ...skills.map((m) =>
       fc
-        .uniqueArray(fc.tuple(arbVideo, arbStyle), { maxLength: 6, selector: ([v]) => v.id })
+        .uniqueArray(fc.tuple(fc.constantFrom(...videos), arbStyle), { maxLength: maxPerSkill, selector: ([v]) => v.id })
         .map((videos): FreshSkillPool => ({
           pathId: m.pathId,
           skillId: m.skillId,
@@ -258,7 +291,6 @@ export const arbEvents: fc.Arbitrary<VideoEvent[]> = fc
 /** Any chip, including a path chip for a path that is gone. */
 export function arbChip(paths: readonly FreshPath[]): fc.Arbitrary<FilterChip> {
   return fc.oneof(
-    fc.constant<FilterChip>({ kind: 'current' }),
     fc.constant<FilterChip>({ kind: 'all' }),
     fc.constant<FilterChip>({ kind: 'saved' }),
     fc.constantFrom(...paths.map((p) => p.id), 'path-gone').map((pathId): FilterChip => ({ kind: 'path', pathId })),
@@ -292,29 +324,91 @@ export const arbViewInput: fc.Arbitrary<FreshViewInput> = arbPaths.chain((paths)
       })
       .map((r) => makeResponse({ paths, ...r })),
     chip: arbChip(paths),
-    selectedPathId: fc.constantFrom<string | null>(null, 'path-gone', ...paths.map((p) => p.id)),
     mutes: arbMutes,
     events: arbEvents,
     demo: fc.boolean(),
   }),
 )
 
+/**
+ * A view input for the fresh-v2 section properties: `minPaths` to `maxPaths` paths (some with
+ * no Current_Skill), up to `maxItems` Fresh_Items and up to `maxPool` pool videos per Skill,
+ * with random mutes and no Video_Events (so no Taste_Adjustment), outside Demo_Mode.
+ */
+export function arbSectionInput(
+  opts: { minPaths?: number; maxPaths?: number; maxItems?: number; maxPool?: number } = {},
+): fc.Arbitrary<FreshViewInput> {
+  const { minPaths = 1, maxPaths = 5, maxItems = 50, maxPool = 30 } = opts
+  return arbPathsOf(minPaths, maxPaths).chain((paths) =>
+    fc.record({
+      response: fc
+        .record({
+          language: fc.constantFrom(...LANGUAGES),
+          items: arbItems(paths, maxItems, WIDE_VIDEOS),
+          pools: arbPools(paths, maxPool, WIDE_VIDEOS),
+          sources: arbSources,
+          checkTimes: arbCheckTimes,
+        })
+        .map((r) => makeResponse({ paths, ...r })),
+      chip: fc.constant<FilterChip>({ kind: 'all' }),
+      mutes: arbMutes,
+      events: fc.constant<VideoEvent[]>([]),
+      demo: fc.constant(false),
+    }),
+  )
+}
+
 export function isMuted(mutes: ReadonlyMap<string, boolean>, channelId: string | null): boolean {
   return channelId !== null && mutes.get(channelId) === true
 }
 
-/** The Selected_Path as Req 12.4 and 14.9 define it: the stored one when present, else the first path. */
-export function expectedSelected(paths: readonly FreshPath[], storedId: string | null): FreshPath {
-  return paths.find((p) => p.id === storedId) ?? paths[0]!
+/**
+ * Path_Order as fresh-v2 Req 2.2 defines it, written without `pathOrder`: Active_Time
+ * descending, paths with none after them, ties and the rest in response order.
+ */
+export function expectedPathOrder(paths: readonly FreshPath[]): FreshPath[] {
+  const withTime = paths
+    .map((p, index) => ({ p, index }))
+    .filter(({ p }) => p.activeAt !== null)
+    .sort((a, b) => (b.p.activeAt as number) - (a.p.activeAt as number) || a.index - b.index)
+    .map(({ p }) => p)
+  return [...withTime, ...paths.filter((p) => p.activeAt === null)]
 }
 
-/** The chip the page shows: a hidden or unknown chip falls back to "All skills" (Req 14.1, 14.10, 11.10). */
+/**
+ * The chip the page shows (fresh-v2 Req 2.1, 2.6, 2.9, 11.1): a Hobby_Chip needs 2 or more
+ * paths and a path of the response; "Saved" is hidden in Demo_Mode; anything else is
+ * "All hobbies".
+ */
 export function expectedChip(input: FreshViewInput): FilterChip {
   const { paths } = input.response
-  const selected = expectedSelected(paths, input.selectedPathId)
   const chip = input.chip
-  if (chip.kind === 'current' && selected.currentSkillId === null) return { kind: 'all' }
-  if (chip.kind === 'path' && !paths.some((p) => p.id === chip.pathId)) return { kind: 'all' }
-  if (chip.kind === 'saved' && input.demo) return { kind: 'all' }
-  return chip
+  if (chip.kind === 'path') {
+    return paths.length >= 2 && paths.some((p) => p.id === chip.pathId) ? chip : { kind: 'all' }
+  }
+  if (chip.kind === 'saved') return input.demo ? { kind: 'all' } : chip
+  return { kind: 'all' }
+}
+
+/**
+ * Shown_Items in rank order, one per video id, for an input with no Video_Events: items on a
+ * path with a Current_Skill, not muted and under 7 days old, ranked by `rankFreshItems` over
+ * those paths in Path_Order (fresh-v2 Req 3.1, AS3). Each carries the one path it belongs to.
+ */
+export function expectedRanked(input: FreshViewInput) {
+  const { response, mutes } = input
+  const ordered = expectedPathOrder(response.paths).filter((p) => p.currentSkillId !== null)
+  const minPublished = response.nowMs - FRESH_WINDOW_S * 1000
+  const candidates = response.items.filter((i) => !isMuted(mutes, i.channelId) && i.publishedMs > minPublished)
+  const seen = new Set<string>()
+  return rankFreshItems(candidates, {
+    nowMs: response.nowMs,
+    paths: new Map(ordered.map((p) => [p.id, p])),
+    selectedPathId: expectedPathOrder(response.paths)[0]?.id ?? '',
+    taste: new Map(),
+  }).filter((r) => {
+    if (seen.has(r.item.videoId)) return false
+    seen.add(r.item.videoId)
+    return true
+  })
 }

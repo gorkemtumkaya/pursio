@@ -5,9 +5,12 @@ import { formatDuration } from '#shared/utils/watch-how'
 import { isAllowedThumbnail } from '#shared/utils/fresh-view'
 
 /**
- * Hero_Card (spec: fresh, Req 12.1, 12.2, 12.5, 12.6, 13.8): label, thumbnail with a duration
- * badge, title, channel name, the Why_Line (Fresh_Item only), "Watch" and "Save". "Watch"
- * replaces the thumbnail with the Embed_Player in place. No XP is shown (Req 11.9).
+ * Hero_Card (spec: fresh-v2, Req 3.2, 3.3, 3.8): the badge ("New today", "New this week" or
+ * "Best for your current skill"), a tag with the hobby's avatar, the hobby, the matched skill
+ * and "your current skill" when it is one, the thumbnail with a duration badge, the title,
+ * the channel name, the Why_Line (Fresh_Item only), "Watch" and, outside Demo_Mode, "Save".
+ * "Watch" replaces the thumbnail with the Embed_Player in place. The tag takes its colors
+ * from the path's Color_Slot. Two columns from `lg`, stacked below. No XP is shown.
  */
 const props = defineProps<{
   hero: HeroView
@@ -36,12 +39,19 @@ const poolLabel = computed(() =>
   card.value.poolLanguage !== props.language ? card.value.poolLanguage.toUpperCase() : null,
 )
 const headingId = computed(() => `fresh-hero-${card.value.videoId}`)
+
+const BADGES = {
+  today: 'New today',
+  week: 'New this week',
+  best: 'Best for your current skill',
+} as const
+const badge = computed(() => BADGES[props.hero.badge])
 </script>
 
 <template>
   <article
     :aria-labelledby="headingId"
-    class="overflow-hidden rounded-3xl border-2 border-line bg-surface shadow-raised-line md:grid md:grid-cols-[minmax(0,1fr)_minmax(0,1fr)]"
+    class="overflow-hidden rounded-3xl border-2 border-line bg-surface shadow-raised-line lg:grid lg:grid-cols-[minmax(0,1fr)_minmax(0,1fr)]"
   >
     <div class="relative">
       <div v-if="active" class="p-2">
@@ -74,34 +84,42 @@ const headingId = computed(() => `fresh-hero-${card.value.videoId}`)
         v-if="!active"
         class="pointer-events-none absolute top-3 left-3 rounded-lg bg-surface px-2 py-0.5 font-head text-xs font-extrabold tracking-wider text-accent-text uppercase"
       >
-        {{ hero.label }}
+        {{ badge }}
       </span>
     </div>
 
     <div class="flex flex-col gap-2.5 p-4 lg:p-6">
-      <p v-if="active" class="font-head text-xs font-extrabold tracking-wider text-accent-text uppercase">{{ hero.label }}</p>
-      <p class="flex flex-wrap items-center gap-1.5 text-[13px] font-bold text-muted">
-        <span>{{ card.channel }}</span>
+      <p v-if="active" class="font-head text-xs font-extrabold tracking-wider text-accent-text uppercase">{{ badge }}</p>
+      <p
+        :data-hobby-slot="hero.path.colorSlot"
+        class="flex max-w-full flex-wrap items-center gap-x-1.5 gap-y-0.5 self-start rounded-2xl bg-hobby py-1 pr-3 pl-1 text-[13px] font-bold text-ink"
+      >
+        <FreshHobbyAvatar :letter="hero.path.letter" size="small" />
+        <span>{{ hero.path.hobby }}</span>
         <template v-if="hero.skillTitle">
           <span aria-hidden="true">·</span>
           <NuxtLink
             v-if="skillTo"
             :to="skillTo"
             :aria-label="`Open skill ${hero.skillTitle}`"
-            class="rounded-md underline-offset-2 hover:text-ink hover:underline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink"
+            class="rounded-md font-extrabold text-hobby-deep underline-offset-2 hover:underline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink"
           >
             {{ hero.skillTitle }}
           </NuxtLink>
-          <span v-else>{{ hero.skillTitle }}</span>
+          <span v-else class="font-extrabold text-hobby-deep">{{ hero.skillTitle }}</span>
         </template>
+        <template v-if="hero.isCurrentSkill">
+          <span aria-hidden="true">·</span>
+          <span class="text-muted">your current skill</span>
+        </template>
+      </p>
+      <p class="flex flex-wrap items-center gap-1.5 text-[13px] font-bold text-muted">
+        <span>{{ card.channel }}</span>
         <span
           v-if="poolLabel"
           class="rounded-full border-2 border-line px-2 py-0.5 text-xs font-extrabold text-muted"
         >
           {{ poolLabel }}
-        </span>
-        <span v-if="hero.kind === 'fresh' && hero.isNew" class="rounded-lg bg-primary-soft px-2 py-0.5 font-head text-xs font-extrabold text-accent-text">
-          New
         </span>
       </p>
       <h2 :id="headingId" class="font-display text-2xl leading-tight text-ink lg:text-[28px]">{{ card.title }}</h2>
@@ -110,7 +128,7 @@ const headingId = computed(() => `fresh-hero-${card.value.videoId}`)
         <button
           v-if="!active"
           type="button"
-          class="inline-flex min-h-12 flex-1 items-center justify-center gap-2 rounded-xl bg-primary px-5 font-head text-[15px] font-extrabold text-primary-ink shadow-raised-primary focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink active:translate-y-0.5 md:flex-none"
+          class="inline-flex min-h-12 flex-1 items-center justify-center gap-2 rounded-xl bg-primary px-5 font-head text-[15px] font-extrabold text-primary-ink shadow-raised-primary focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink active:translate-y-0.5 lg:flex-none"
           :aria-label="`Watch ${card.title}`"
           @click="emit('play')"
         >

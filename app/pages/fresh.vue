@@ -5,19 +5,29 @@ import { buildFreshView, type ChipView, type FilterChip } from '#shared/utils/fr
 import { emptyProgress } from '#shared/utils/progress-engine'
 import { loadSkillTree } from '#shared/utils/skill-tree-load'
 import sample from '~~/data/sample-bouldering.json'
-import { getActiveHobbyId } from '~/utils/active-hobby'
 import { createFreshActions, type FreshShownVideo } from '~/utils/fresh-actions'
 import { buildFreshRequest, type FreshRequestSource } from '~/utils/fresh-request'
-import { freshPageState, skillLink, updatedLabel } from '~/utils/fresh-page'
+import {
+  freshPageState,
+  newTodayText,
+  nextOpenGroups,
+  pathLink,
+  skillLink,
+  toggleGroup,
+  updatedLabel,
+} from '~/utils/fresh-page'
 import { HOBBY_LIBRARY_KEY, hobbyProgressKey, parseHobbyLibrary, type HobbyLibrary } from '~/utils/hobby-store'
 import { browserStorage, createProgressStore, progressStorageKey } from '~/utils/progress-store'
 import { effectiveLanguage, loadUserSettings } from '~/utils/user-settings'
 
 /**
- * Fresh_Page (spec: fresh, Req 8.15, 11 to 17). One Fresh_Endpoint request; chips and mutes
- * only recompute `buildFreshView`, so they send no new request (Req 14.8, 15.6). One video
- * plays at a time. Plays, progress, saves and skips go to `useVideoEvents` with Source `feed`
- * and never to the progress engine (Req 17.7).
+ * Fresh_Page (spec: fresh-v2, Req 1 to 11; `fresh` Req 8.15, 17). Top to bottom: header,
+ * chips, the quiet or empty line, the Hero_Card and one Hobby_Section per path (or the
+ * "Saved" grid); the Sources_Panel sits in the right column from `lg` and in a sheet below.
+ * One Fresh_Endpoint request; chips and mutes only recompute `buildFreshView`, so they send
+ * no new request (Req 2.5, 8.6). One video plays at a time, and scrolling a card out of view
+ * in its carousel does not stop it (Req 7.2). Plays, progress, saves and skips go to
+ * `useVideoEvents` with Source `feed` and never to the progress engine.
  *
  * `?demo=1` (decision D13): the request holds the Demo_Paths and no token, and nothing is
  * written: no recorder, no mute store, no switch, save control or "Saved" chip.
@@ -121,15 +131,7 @@ const events = computed<readonly VideoEvent[]>(() => {
   return recorder.mergedEvents(data.events)
 })
 
-/** The stored Selected_Path: the Active_Hobby's path; Demo_Mode uses the first Demo_Path (Req 8.15, 12.4). */
-const selectedPathId = shallowRef<string | null>(null)
-watch(response, (data) => {
-  if (!data || isDemo || !import.meta.client) return
-  const active = getActiveHobbyId()
-  selectedPathId.value = data.paths.find((p) => p.hobbyId === active || p.id === active)?.id ?? null
-})
-
-/** The page opens with "All skills" (decision D10). */
+/** The page opens with "All hobbies" (Req 2.5). */
 const chip = shallowRef<FilterChip>({ kind: 'all' })
 
 const view = computed(() => {
@@ -138,15 +140,14 @@ const view = computed(() => {
   return buildFreshView({
     response: data,
     chip: chip.value,
-    selectedPathId: selectedPathId.value,
     mutes: muteMap.value,
     events: events.value,
     demo: isDemo,
   })
 })
 
-
 const updatedText = computed(() => updatedLabel(view.value?.updatedMs ?? null, fresh.nowMs.value))
+const newToday = computed(() => (view.value?.newToday ? newTodayText(view.value.newToday) : null))
 const page = computed(() => freshPageState(fresh.status.value, view.value, response.value?.paths.length ?? 0))
 
 /** Every video id shown under the chip and mutes, for skips and for stopping a hidden video. */
@@ -159,8 +160,7 @@ const shownIds = computed(() => {
     return ids
   }
   if (v.hero) ids.add(v.hero.card.videoId)
-  for (const c of v.newCards) ids.add(c.card.videoId)
-  for (const c of v.bestCards) ids.add(c.card.videoId)
+  for (const section of v.sections) for (const c of section.cards) ids.add(c.card.videoId)
   return ids
 })
 
@@ -174,22 +174,51 @@ const actions = createFreshActions({
 // A chip or mute change that hides the playing card stops it; its player flushes progress (Req 17.2).
 watch(shownIds, () => actions.syncShown())
 
+/**
+ * Open groups of the Sources_Panel accordion, shared by the desktop panel and the mobile
+ * sheet (Req 8.3, 8.4). When the page opens or a chip is selected, the chip's group (else
+ * the first one) opens; groups the user opened or closed by hand keep their state.
+ */
+const openSources = ref<ReadonlySet<string>>(new Set<string>())
+
+function openDefaultSource(): void {
+  openSources.value = nextOpenGroups(openSources.value, view.value?.defaultOpenSource ?? null)
+}
+
+watch(
+  () => view.value !== null,
+  (ready) => {
+    if (ready) openDefaultSource()
+  },
+  { immediate: true },
+)
+
+function toggleSource(key: string): void {
+  openSources.value = toggleGroup(openSources.value, key, view.value?.sources ?? [])
+}
+
 function selectChip(next: ChipView): void {
   chip.value = next.chip
+  openDefaultSource()
 }
 
 function onMute(channelId: string, muted: boolean): void {
   mutes?.setMuted(channelId, muted)
 }
 
-/** The Path page with the Skill_Sheet open (Req 13.4); `/path?demo=1` in Demo_Mode. */
+/** The Path page with the Skill_Sheet open (Req 7.4); `/path?demo=1` in Demo_Mode. */
 function skillTo(pathId: string, skillId: string): string | null {
   return skillLink(response.value?.paths ?? [], pathId, skillId, isDemo)
 }
 
+/** The Path page of a hobby, which makes it the active hobby (Req 4.7); `/path?demo=1` in Demo_Mode. */
+function pathTo(pathId: string): string | null {
+  return pathLink(response.value?.paths ?? [], pathId, isDemo)
+}
+
 const cardLanguage = computed(() => response.value?.language ?? 'en')
 
-// Mobile Sources sheet (Req 15.5): focus returns to the "Sources" button on close.
+// Mobile Sources sheet (Req 8.8): focus returns to the "Sources" button on close.
 const sourcesOpen = ref(false)
 interface HeaderHandle {
   focusSources(): void
@@ -220,8 +249,8 @@ function shownVideo(video: FreshShownVideo): FreshShownVideo {
       <main class="mx-auto flex w-full max-w-240 min-w-0 flex-col gap-4 px-4 pt-5 pb-26 lg:max-w-none lg:gap-5 lg:px-0 lg:pt-0 lg:pb-12">
         <FreshHeader
           ref="header"
-          :filter-label="view?.headerLabel ?? ''"
           :updated="updatedText"
+          :new-today="page.kind === 'content' || page.kind === 'empty' ? newToday : null"
           :show-sources="page.sources"
           :sources-open="sourcesOpen"
           @open-sources="sourcesOpen = true"
@@ -281,55 +310,36 @@ function shownVideo(video: FreshShownVideo): FreshShownVideo {
               @toggle-save="actions.toggleSave(shownVideo(view.hero.card))"
             />
 
-            <FreshSection v-if="page.newSection" heading="New for your path">
-              <li v-for="entry in view.newCards" :key="entry.card.videoId">
-                <FreshVideoCard
-                  :video="entry.card"
-                  :pool-language="entry.card.poolLanguage"
-                  :language="cardLanguage"
-                  :active="actions.activeVideoId.value === entry.card.videoId"
-                  :why="entry.card.why"
-                  :is-new="entry.isNew"
-                  :skill-title="entry.skillTitle"
-                  :skill-to="skillTo(entry.match.pathId, entry.match.skillId)"
-                  :show-save="!isDemo"
-                  :saved="actions.isSaved(entry.card.videoId)"
-                  @play="actions.play(entry.card.videoId)"
-                  @stop="actions.stop()"
-                  @playing="actions.onPlaying(shownVideo(entry.card))"
-                  @progress="(s) => actions.onProgress(shownVideo(entry.card), s)"
-                  @toggle-save="actions.toggleSave(shownVideo(entry.card))"
-                  @skipped="actions.onSkipped(entry.card.videoId)"
-                />
-              </li>
-            </FreshSection>
-
-            <FreshSection v-if="page.bestSection" heading="Best for your current skills">
-              <li v-for="entry in view.bestCards" :key="entry.card.videoId">
-                <FreshVideoCard
-                  :video="entry.card"
-                  :pool-language="entry.card.poolLanguage"
-                  :language="cardLanguage"
-                  :active="actions.activeVideoId.value === entry.card.videoId"
-                  :skill-title="entry.skillTitle"
-                  :skill-to="skillTo(entry.match.pathId, entry.match.skillId)"
-                  :show-save="!isDemo"
-                  :saved="actions.isSaved(entry.card.videoId)"
-                  @play="actions.play(entry.card.videoId)"
-                  @stop="actions.stop()"
-                  @playing="actions.onPlaying(shownVideo(entry.card))"
-                  @progress="(s) => actions.onProgress(shownVideo(entry.card), s)"
-                  @toggle-save="actions.toggleSave(shownVideo(entry.card))"
-                  @skipped="actions.onSkipped(entry.card.videoId)"
-                />
-              </li>
-            </FreshSection>
+            <FreshHobbySection
+              v-for="section in page.sections ? view.sections : []"
+              :key="section.pathId"
+              :section="section"
+              :path-to="pathTo(section.pathId)"
+              :language="cardLanguage"
+              :active-video-id="actions.activeVideoId.value"
+              :show-save="!isDemo"
+              :is-saved="actions.isSaved"
+              :skill-to="skillTo"
+              @play="(entry) => actions.play(entry.card.videoId)"
+              @stop="actions.stop()"
+              @playing="(entry) => actions.onPlaying(shownVideo(entry.card))"
+              @progress="(entry, s) => actions.onProgress(shownVideo(entry.card), s)"
+              @toggle-save="(entry) => actions.toggleSave(shownVideo(entry.card))"
+              @skipped="(entry) => actions.onSkipped(entry.card.videoId)"
+            />
           </template>
         </template>
       </main>
 
       <aside v-if="view && page.sources" class="sticky top-7 hidden lg:block" aria-label="Sources">
-        <FreshSourcesPanel heading-id="fresh-sources-heading" :groups="view.sources" :demo="isDemo" @mute="onMute" />
+        <FreshSourcesPanel
+          heading-id="fresh-sources-heading"
+          :groups="view.sources"
+          :open="openSources"
+          :demo="isDemo"
+          @mute="onMute"
+          @toggle="toggleSource"
+        />
       </aside>
     </div>
 
@@ -337,9 +347,11 @@ function shownVideo(video: FreshShownVideo): FreshShownVideo {
       v-if="view && page.sources"
       :open="sourcesOpen"
       :groups="view.sources"
+      :open-groups="openSources"
       :demo="isDemo"
       @close="closeSources"
       @mute="onMute"
+      @toggle="toggleSource"
     />
   </AppShell>
 </template>

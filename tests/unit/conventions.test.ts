@@ -238,6 +238,11 @@ describe('path view styling conventions (Req 13.1, 13.5)', () => {
       'FreshSourcesSheet',
       'FreshMuteSwitch',
       'FreshState',
+      // spec: fresh-v2, Req 1.6, 9.3
+      'FreshHobbyAvatar',
+      'FreshCarousel',
+      'FreshHobbySection',
+      'FreshSourcesGroup',
     ]) {
       expect(names).toContain(`app/components/fresh/${name}.vue`)
     }

@@ -90,6 +90,17 @@ function contrastRatio(a: Rgb, b: Rgb): number {
 
 const themes = parseThemes(css)
 
+// spec: fresh-v2, Req 9.1, 9.2, 12.9: every theme defines the three Hobby_Colors of the five
+// Color_Slots, and each text pair reaches 4.5:1.
+const HOBBY_SLOTS = [1, 2, 3, 4, 5] as const
+const HOBBY_TOKENS = HOBBY_SLOTS.flatMap((n) => [`hobby-${n}`, `hobby-${n}-deep`, `hobby-${n}-ink`])
+const HOBBY_PAIRS: ReadonlyArray<readonly [string, string]> = HOBBY_SLOTS.flatMap((n) => [
+  ['ink', `hobby-${n}`] as const,
+  ['muted', `hobby-${n}`] as const,
+  [`hobby-${n}-deep`, `hobby-${n}`] as const,
+  [`hobby-${n}-ink`, `hobby-${n}-deep`] as const,
+])
+
 describe('contrast helpers', () => {
   it('matches the WCAG reference values', () => {
     expect(contrastRatio([0, 0, 0], [255, 255, 255])).toBeCloseTo(21, 5)
@@ -111,8 +122,14 @@ describe('themes.css', () => {
     }
   })
 
+  it.each(THEME_NAMES)('%s defines all 15 hobby color tokens', (name) => {
+    expect(HOBBY_TOKENS).toHaveLength(15)
+    const tokens = themes.get(name)
+    for (const token of HOBBY_TOKENS) expect(tokens?.has(token), `--pursio-${token}`).toBe(true)
+  })
+
   describe.each(THEME_NAMES)('%s theme', (name) => {
-    it.each(PAIRS)('%s on %s reaches 4.5:1', (text, background) => {
+    it.each([...PAIRS, ...HOBBY_PAIRS])('%s on %s reaches 4.5:1', (text, background) => {
       const tokens = themes.get(name)
       const fg = tokens?.get(text)
       const bg = tokens?.get(background)

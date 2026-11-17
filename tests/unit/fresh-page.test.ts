@@ -1,5 +1,6 @@
-// Fresh_Page behavior with the composables and the pure view (spec: fresh, task 16.7;
-// Req 11.8, 19.13, 19.14, 19.19, 19.20, 19.21). No DOM mounting: @vue/test-utils is not installed.
+// Fresh_Page behavior with the composables and the pure view (spec: fresh-v2, task 6.1, Req 1.4,
+// 4.7, 8.3 to 8.5, 10, 11, 12.2, 12.10; spec: fresh, Req 19.13, 19.14, 19.20, 19.21).
+// No DOM mounting: @vue/test-utils is not installed.
 import { readFileSync } from 'node:fs'
 import { describe, expect, it } from 'vitest'
 import type { FreshResponseOk, SaveSnapshot } from '../../shared/types/fresh'
@@ -16,7 +17,16 @@ import { createFreshLoader } from '../../app/composables/useFresh'
 import { ACTIVITY_STORAGE_KEY } from '../../app/utils/activity-store'
 import { CHANNEL_MUTES_KEY } from '../../app/utils/channel-mutes-store'
 import { createFreshActions, type FreshRecorder, type FreshShownVideo } from '../../app/utils/fresh-actions'
-import { freshPageState, skillLink, updatedLabel } from '../../app/utils/fresh-page'
+import {
+  channelCountText,
+  freshPageState,
+  newTodayText,
+  nextOpenGroups,
+  pathLink,
+  skillLink,
+  toggleGroup,
+  updatedLabel,
+} from '../../app/utils/fresh-page'
 import { progressStorageKey, serializeProgress } from '../../app/utils/progress-store'
 import { eventKey, readLocalEvents, VIDEO_EVENTS_KEY, writeLocalEvents } from '../../app/utils/video-events-store'
 import { HOUR, NOW, freshItem, freshPath, freshResponse, memoryStorage, poolCard, type MemoryStorage } from '../support/fresh-client'
@@ -37,7 +47,7 @@ function twoPaths(over: Partial<FreshResponseOk> = {}): FreshResponseOk {
 }
 
 function input(over: Partial<FreshViewInput> = {}): FreshViewInput {
-  return { response: twoPaths(), chip: { kind: 'all' }, selectedPathId: null, mutes: new Map(), events: [], demo: false, ...over }
+  return { response: twoPaths(), chip: { kind: 'all' }, mutes: new Map(), events: [], demo: false, ...over }
 }
 
 /** A recorder over the real reducers and the real local event store. */
@@ -87,8 +97,8 @@ describe('page states (Req 19.13)', () => {
     for (const status of ['loading', 'error'] as const) {
       const page = freshPageState(status, view, 2)
       expect(page.kind).toBe(status)
-      expect([page.chips, page.sources, page.hero, page.newSection, page.bestSection, page.quietLine]).toEqual([
-        false, false, false, false, false, false,
+      expect([page.chips, page.sources, page.hero, page.sections, page.quietLine]).toEqual([
+        false, false, false, false, false,
       ])
     }
   })
@@ -97,22 +107,32 @@ describe('page states (Req 19.13)', () => {
     const view = buildFreshView(input({ response: freshResponse() }))
     const page = freshPageState('ready', view, 0)
     expect(page.kind).toBe('no_paths')
-    expect(page.chips || page.sources || page.hero || page.newSection || page.bestSection).toBe(false)
+    expect(page.chips || page.sources || page.hero || page.sections).toBe(false)
     const state = readFileSync(new URL('../../app/components/fresh/FreshState.vue', import.meta.url), 'utf8')
     expect(state).toContain('Build your first path')
     expect(state).toContain('to="/new"')
   })
 
-  it('pool videos only: the quiet line below the chips (Req 16.2)', () => {
+  it('pool videos only: the quiet line below the chips (Req 10.2)', () => {
     const view = buildFreshView(input())
     const page = freshPageState('ready', view, 2)
-    expect(page).toMatchObject({ kind: 'content', quietLine: true, newSection: false, chips: true, sources: true })
+    expect(page).toEqual({ kind: 'content', quietLine: true, hero: true, sections: true, chips: true, sources: true })
+    const state = readFileSync(new URL('../../app/components/fresh/FreshState.vue', import.meta.url), 'utf8')
+    expect(state).toContain('No new videos today. Here are the best ones for your skills.')
   })
 
-  it('nothing at all: the empty Wick line, chips and sources kept (Req 16.3)', () => {
+  it('a Fresh_Item on the page: no quiet line', () => {
+    const view = buildFreshView(input({ response: twoPaths({ items: [freshItem('n1', 'a', 's1')] }) }))
+    expect(freshPageState('ready', view, 2)).toMatchObject({ kind: 'content', quietLine: false, hero: true, sections: true })
+  })
+
+  it('nothing at all: the empty Wick line, with the header-only sections, chips and sources kept (Req 10.3)', () => {
     const view = buildFreshView(input({ response: twoPaths({ pools: [] }) }))
     const page = freshPageState('ready', view, 2)
-    expect(page).toMatchObject({ kind: 'empty', chips: true, sources: true, hero: false, quietLine: false })
+    expect(page).toEqual({ kind: 'empty', chips: true, sources: true, hero: false, quietLine: false, sections: true })
+    expect(view.sections.map((s) => s.state)).toEqual(['empty', 'empty'])
+    const state = readFileSync(new URL('../../app/components/fresh/FreshState.vue', import.meta.url), 'utf8')
+    expect(state).toContain('No videos yet. Pursio checks for new ones every day.')
   })
 
   it('no successful check time: no "Updated" text (Req 11.6)', () => {
@@ -190,7 +210,7 @@ describe('events (Req 19.14)', () => {
 })
 
 describe('chips, mutes and playback (Req 19.19)', () => {
-  it('opens on "All skills"; chips and a mute change send no new request', async () => {
+  it('opens on "All hobbies"; chips and a mute change send no new request (Req 12.2)', async () => {
     let requests = 0
     const response = twoPaths({
       items: [freshItem('n1', 'a', 's1'), freshItem('n2', 'b', 's2', { channelId: 'UCmute' })],
@@ -208,27 +228,35 @@ describe('chips, mutes and playback (Req 19.19)', () => {
     const storage = memoryStorage()
     const mutes = createMuteController({ storage: () => storage, now: () => NOW, sender: () => null })
     const view = (chip: FilterChip) =>
-      buildFreshView({ response: loader.response.value!, chip, selectedPathId: null, mutes: mutes.muted.value, events: [], demo: false })
+      buildFreshView({ response: loader.response.value!, chip, mutes: mutes.muted.value, events: [], demo: false })
 
     const opening = view({ kind: 'all' })
-    expect(opening.chips.find((c) => c.selected)?.label).toBe('All skills')
+    expect(opening.chips.find((c) => c.selected)?.label).toBe('All hobbies')
     for (const chip of opening.chips) view(chip.chip)
-    const ids = (v: ReturnType<typeof view>) => [v.hero?.card.videoId, ...v.newCards.map((c) => c.card.videoId)]
+    const ids = (v: ReturnType<typeof view>) => [
+      v.hero?.card.videoId,
+      ...v.sections.flatMap((s) => s.cards.map((c) => c.card.videoId)),
+    ]
     expect(ids(view({ kind: 'all' }))).toContain('n2')
+    expect(view({ kind: 'all' }).newToday).toEqual({ videos: 2, hobbies: 2 })
     mutes.setMuted('UCmute', true)
+    // The mute also updates the "new" counts, with no request (Req 8.6).
     expect(ids(view({ kind: 'all' }))).not.toContain('n2')
+    expect(view({ kind: 'all' }).newToday).toEqual({ videos: 1, hobbies: 1 })
+    expect(view({ kind: 'all' }).chips.find((c) => c.key === 'path:b')?.newCount).toBe(0)
     mutes.setMuted('UCmute', false)
     expect(ids(view({ kind: 'all' }))).toContain('n2')
     expect(requests).toBe(1)
   })
 
-  it('hides "For <current skill>" when the Selected_Path has no Current_Skill (Req 14.10)', () => {
-    const response = freshResponse({ paths: [freshPath('a', 'Bouldering', null)] })
-    const v = buildFreshView(input({ response }))
-    expect(v.chips.map((c) => c.chip.kind)).toEqual(['all', 'path', 'saved'])
-    const withCurrent = buildFreshView(input())
-    expect(withCurrent.chips[0]?.label).toBe('All skills')
-    expect(withCurrent.chips[1]?.label).toBe('For Bouldering s1')
+  it('shows the new-today text only with content, and never a "For <current skill>" chip', () => {
+    const v = buildFreshView(input({ response: twoPaths({ items: [freshItem('n1', 'a', 's1')] }) }))
+    expect(v.chips.map((c) => c.label)).toEqual(['All hobbies', 'Guitar', 'Bouldering', 'Saved'])
+    expect(v.newToday && newTodayText(v.newToday)).toBe('1 new video today across 1 hobby')
+    const header = readFileSync(new URL('../../app/components/fresh/FreshHeader.vue', import.meta.url), 'utf8')
+    // Right-aligned from lg, hidden below it and when there is nothing new (Req 1.4, 1.5).
+    expect(header).toMatch(/<p v-if="newToday" class="hidden[^"]*text-right[^"]*lg:block"/)
+    expect(header).toContain('Updated {{ updated }}')
   })
 
   it('"Saved" orders by Saved_Time desc and shows no Hero_Card (Req 14.6, 12.7)', () => {
@@ -241,7 +269,7 @@ describe('chips, mutes and playback (Req 19.19)', () => {
     const v = buildFreshView(input({ chip: { kind: 'saved' }, events }))
     expect(v.hero).toBeNull()
     expect(v.saved.map((s) => s.videoId)).toEqual(['x2', 'x3', 'x1'])
-    expect(freshPageState('ready', v, 2)).toMatchObject({ kind: 'saved', hero: false, newSection: false })
+    expect(freshPageState('ready', v, 2)).toMatchObject({ kind: 'saved', hero: false, sections: false })
   })
 
   it('starting one video stops the other: one active video at a time (Req 13.7)', () => {
@@ -264,11 +292,95 @@ describe('chips, mutes and playback (Req 19.19)', () => {
     expect(actions.activeVideoId.value).toBeNull()
   })
 
-  it('skill tags open the matched Skill_Sheet, demo links keep the demo (Req 13.4)', () => {
+  it('skill tags open the matched Skill_Sheet, demo links keep the demo (Req 7.4)', () => {
     const paths = [{ id: 'uuid-1', hobbyId: 'bouldering' }]
     expect(skillLink(paths, 'uuid-1', 'edge s1', false)).toBe('/path?hobby=bouldering&skill=edge%20s1')
     expect(skillLink(paths, 'uuid-1', 'x', true)).toBe('/path?demo=1&skill=x')
     expect(skillLink(paths, 'missing', 'x', false)).toBeNull()
+  })
+
+  it('"Open path" opens that hobby on the Path page, or the demo path in Demo_Mode (Req 4.7, 11.2)', () => {
+    const paths = [
+      { id: 'uuid-1', hobbyId: 'film photography' },
+      { id: 'guitar', hobbyId: null },
+    ]
+    // A cloud path links by its Hobby_Id, a local one by its id; `/path?hobby=` sets the active hobby.
+    expect(pathLink(paths, 'uuid-1', false)).toBe('/path?hobby=film%20photography')
+    expect(pathLink(paths, 'guitar', false)).toBe('/path?hobby=guitar')
+    expect(pathLink(paths, 'missing', false)).toBeNull()
+    expect(pathLink(paths, 'uuid-1', true)).toBe('/path?demo=1')
+    expect(pathLink([], 'demo', true)).toBe('/path?demo=1')
+  })
+})
+
+describe('Sources_Panel accordion (Req 12.10)', () => {
+  const sources = [
+    { hobby: 'Guitar', language: 'en', channelId: 'UCg1', channelName: 'Strings' },
+    { hobby: 'Guitar', language: 'en', channelId: 'UCg2', channelName: 'Frets' },
+    { hobby: 'Bouldering', language: 'en', channelId: 'UCb1', channelName: 'Climb Coach' },
+  ]
+  // Path_Order: Guitar, Bouldering, then Yoga, which has no channel.
+  const three = (): FreshResponseOk =>
+    twoPaths({
+      paths: [
+        freshPath('a', 'Bouldering', 's1', NOW - 5 * HOUR),
+        freshPath('b', 'Guitar', 's2', NOW - HOUR),
+        freshPath('y', 'Yoga', 's1'),
+      ],
+      sources,
+    })
+  const viewOf = (chip: FilterChip) => buildFreshView(input({ response: three(), chip }))
+
+  it('writes the channel count as "none yet", "1 channel" and "<n> channels"', () => {
+    expect(channelCountText(0)).toBe('none yet')
+    expect(channelCountText(1)).toBe('1 channel')
+    expect(channelCountText(2)).toBe('2 channels')
+    expect(viewOf({ kind: 'all' }).sources.map((g) => [g.hobby, channelCountText(g.entries.length)])).toEqual([
+      ['Guitar', '2 channels'],
+      ['Bouldering', '1 channel'],
+      ['Yoga', 'none yet'],
+    ])
+  })
+
+  it('opens the first group under "All hobbies" and "Saved", and the selected hobby\'s group under its chip', () => {
+    expect(viewOf({ kind: 'all' }).defaultOpenSource).toBe('b')
+    expect(viewOf({ kind: 'saved' }).defaultOpenSource).toBe('b')
+    expect(viewOf({ kind: 'path', pathId: 'a' }).defaultOpenSource).toBe('a')
+    expect([...nextOpenGroups(new Set(), viewOf({ kind: 'all' }).defaultOpenSource)]).toEqual(['b'])
+  })
+
+  it('keeps several groups open together and the user\'s choices across chip changes', () => {
+    const groups = viewOf({ kind: 'all' }).sources
+    let open = nextOpenGroups(new Set<string>(), viewOf({ kind: 'all' }).defaultOpenSource)
+    // The user opens Bouldering too: both stay open.
+    open = toggleGroup(open, 'a', groups)
+    expect([...open].sort()).toEqual(['a', 'b'])
+    // The user closes Guitar; selecting the Bouldering chip keeps that.
+    open = toggleGroup(open, 'b', groups)
+    open = nextOpenGroups(open, viewOf({ kind: 'path', pathId: 'a' }).defaultOpenSource)
+    expect([...open]).toEqual(['a'])
+    // Selecting the Guitar chip opens its group again and keeps Bouldering open.
+    open = nextOpenGroups(open, viewOf({ kind: 'path', pathId: 'b' }).defaultOpenSource)
+    expect([...open].sort()).toEqual(['a', 'b'])
+  })
+
+  it('never opens a group with no Channel_Source', () => {
+    const groups = viewOf({ kind: 'all' }).sources
+    expect([...toggleGroup(new Set(), 'y', groups)]).toEqual([])
+    // Its chip opens nothing, and closes nothing.
+    expect(viewOf({ kind: 'path', pathId: 'y' }).defaultOpenSource).toBeNull()
+    expect([...nextOpenGroups(new Set(['b']), viewOf({ kind: 'path', pathId: 'y' }).defaultOpenSource)]).toEqual(['b'])
+    const group = readFileSync(new URL('../../app/components/fresh/FreshSourcesGroup.vue', import.meta.url), 'utf8')
+    // The header is a button with its expanded state only when there are channels (Req 8.4, 8.5).
+    expect(group).toMatch(/<button\s+v-if="expandable"[^>]*:aria-expanded="expanded"[^>]*:aria-controls="listId"/)
+    expect(group).toContain('<span v-else')
+  })
+
+  it('shows the heading, the subtitle and the closing line (Req 8.1, 8.7)', () => {
+    const panel = readFileSync(new URL('../../app/components/fresh/FreshSourcesPanel.vue', import.meta.url), 'utf8')
+    expect(panel).toContain('Your sources')
+    expect(panel).toContain('The channels Pursio checks every day, grouped by hobby.')
+    expect(panel).toContain('Videos play from YouTube; nothing is copied.')
   })
 })
 
@@ -294,9 +406,19 @@ describe('Demo_Mode (Req 19.20)', () => {
     const page = readFileSync(new URL('../../app/pages/fresh.vue', import.meta.url), 'utf8')
     expect(page).toContain('const recorder = isDemo ? null : useVideoEvents()')
     expect(page).toContain('const mutes = isDemo ? null : useChannelMutes()')
-    expect(page.match(/:show-save="!isDemo"/g)?.length).toBeGreaterThanOrEqual(4)
-    const panel = readFileSync(new URL('../../app/components/fresh/FreshSourcesPanel.vue', import.meta.url), 'utf8')
-    expect(panel).toMatch(/<FreshMuteSwitch\s+v-if="!demo"/)
+    // The saved grid, the Hero_Card and every Hobby_Section get the flag.
+    expect(page.match(/:show-save="!isDemo"/g)?.length).toBe(3)
+    const section = readFileSync(new URL('../../app/components/fresh/FreshHobbySection.vue', import.meta.url), 'utf8')
+    expect(section).toContain(':show-save="showSave"')
+    const card = readFileSync(new URL('../../app/components/fresh/FreshVideoCard.vue', import.meta.url), 'utf8')
+    expect(card).toMatch(/<FreshSaveButton v-if="showSave"/)
+    const hero = readFileSync(new URL('../../app/components/fresh/FreshHeroCard.vue', import.meta.url), 'utf8')
+    expect(hero).toMatch(/<FreshSaveButton v-if="showSave"/)
+    // Groups still open and close in Demo_Mode, with channel names only (Req 11.1).
+    const group = readFileSync(new URL('../../app/components/fresh/FreshSourcesGroup.vue', import.meta.url), 'utf8')
+    expect(group).toMatch(/<FreshMuteSwitch\s+v-if="!demo"/)
+    // Path links keep the demo (Req 11.2).
+    expect(page).toContain('pathLink(response.value?.paths ?? [], pathId, isDemo)')
   })
 
   it('builds the request from the Sample_Tree with no token', () => {

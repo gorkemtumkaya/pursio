@@ -46,12 +46,23 @@ const fontTokens = [
   { name: 'font-body', fontClass: 'font-body', use: 'Everything else' },
 ] as const
 
+/** One row per Color_Slot (spec: fresh-v2, Req 9.1). The slot is chosen by `data-hobby-slot`. */
+const hobbySlots = [1, 2, 3, 4, 5] as const
+const hobbyParts = ['', '-deep', '-ink'] as const
+
 const { theme } = useTheme()
 const values = ref<Record<string, string>>({})
 
 function readValues(): void {
   const styles = getComputedStyle(document.documentElement)
-  const names = [...colorTokens.map((t) => t.name), 'radius-node', 'font-head', 'font-display', 'font-body']
+  const names = [
+    ...colorTokens.map((t) => t.name),
+    ...hobbySlots.flatMap((slot) => hobbyParts.map((part) => `hobby-${slot}${part}`)),
+    'radius-node',
+    'font-head',
+    'font-display',
+    'font-body',
+  ]
   values.value = Object.fromEntries(
     names.map((name) => [name, styles.getPropertyValue(`--pursio-${name}`).trim()]),
   )
@@ -82,6 +93,34 @@ watch(theme, () => nextTick(readValues))
           :swatch-class="token.swatchClass"
           :value="values[token.name] ?? ''"
         />
+      </div>
+    </section>
+
+    <section class="flex flex-col gap-3">
+      <h2 class="font-head text-xl font-semibold">Hobby colors</h2>
+      <p class="text-sm text-muted">
+        One row per color slot: tint, deep, ink on deep, then ink, muted and deep text on the tint.
+      </p>
+      <div class="flex flex-col gap-2">
+        <div
+          v-for="slot in hobbySlots"
+          :key="slot"
+          :data-hobby-slot="slot"
+          class="flex flex-wrap items-center gap-3 rounded-2xl border-2 border-line bg-hobby p-3"
+        >
+          <span class="flex size-10 shrink-0 items-center justify-center rounded-full bg-hobby-deep font-head text-sm font-extrabold text-hobby-ink">
+            {{ slot }}
+          </span>
+          <div class="flex min-w-0 flex-1 flex-col">
+            <p class="font-head text-sm font-semibold text-ink">hobby-{{ slot }} · ink on tint</p>
+            <p class="text-sm text-muted">Muted text on the tint</p>
+            <p class="font-head text-sm font-extrabold text-hobby-deep">Deep text on the tint</p>
+          </div>
+          <span class="rounded-full bg-hobby-deep px-3 py-1 font-head text-xs font-extrabold text-hobby-ink">Ink on deep</span>
+          <p class="w-full truncate font-mono text-xs text-muted">
+            {{ values[`hobby-${slot}`] || '…' }} · {{ values[`hobby-${slot}-deep`] || '…' }} · {{ values[`hobby-${slot}-ink`] || '…' }}
+          </p>
+        </div>
       </div>
     </section>
 

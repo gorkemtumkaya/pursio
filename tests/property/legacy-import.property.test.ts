@@ -9,6 +9,7 @@ import type { ImportApi, ImportPlan, LegacyData } from '../../app/utils/legacy-i
 import type { StorageLike } from '../../app/utils/progress-store'
 import { ARB_TIME_BASE, arbLegacyData } from '../arbitraries'
 import type { LegacyCase } from '../arbitraries'
+import { nextColorSlot, type ColorSlot } from '../../shared/utils/color-slot'
 
 const RUNS = { numRuns: 200 }
 const USER_ID = 'user-1'
@@ -68,7 +69,11 @@ describe('Property 8: The import plan mirrors the valid entries', () => {
         expect(new Set(plan.paths.map(row => row.id)).size).toBe(plan.paths.length)
         expect(plan.paths.map(row => row.id)).toEqual(ctx.made)
 
+        let prevSlot: ColorSlot | null = null
         testCase.entries.forEach((entry, index) => {
+          // A library entry keeps its local slot; the earlier Generated_Tree follows the row before it.
+          const colorSlot: ColorSlot = entry.colorSlot ?? nextColorSlot(prevSlot)
+          prevSlot = colorSlot
           const path = plan.paths[index]
           const progress = plan.progress[index]
           expect(path).toEqual({
@@ -82,6 +87,7 @@ describe('Property 8: The import plan mirrors the valid entries', () => {
             model: entry.model,
             archived: entry.archived,
             created_at: new Date(entry.addedAt ?? NOW).toISOString(),
+            color_slot: colorSlot,
           })
           expect(progress?.path_id).toBe(path?.id)
           expect(progress?.user_id).toBe(USER_ID)

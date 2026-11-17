@@ -111,6 +111,55 @@ describe('parseFreshRequest', () => {
   })
 })
 
+// spec: fresh-v2, Requirements 9.9 and 12.8.
+describe('colorSlot and completedCount of a signed-out body', () => {
+  it('copies valid values into the response path', async () => {
+    const h = createFreshEndpointHarness()
+    const res = ok(await signedOut(h, body({}, { colorSlot: 4, completedCount: 3 })))
+    expect(res.paths.map((p) => [p.colorSlot, p.completedCount])).toEqual([[4, 3]])
+    const edges = ok(await signedOut(h, body({}, { colorSlot: 5, completedCount: SKILLS.length })))
+    expect(edges.paths.map((p) => [p.colorSlot, p.completedCount])).toEqual([[5, SKILLS.length]])
+  })
+
+  it('reads a body with neither field as slot 1 and 0 completed (D-C)', () => {
+    const parsed = parseFreshRequest(body())
+    expect(parsed.ok && [parsed.request.paths[0]?.colorSlot, parsed.request.paths[0]?.completedCount]).toEqual([1, 0])
+  })
+
+  it.each([0, 6, 2.5, -1, '3', null, true, Number.NaN])('rejects colorSlot %j with 400 and the field', async (colorSlot) => {
+    expect(parseFreshRequest(body({}, { colorSlot }))).toEqual({ ok: false, field: 'paths[0].colorSlot' })
+    const h = createFreshEndpointHarness()
+    const res = await signedOut(h, body({}, { colorSlot }))
+    expect(res.status).toBe(400)
+    expect(res.body).toEqual({ error: 'invalid_input', field: 'paths[0].colorSlot' })
+    expect(h.reads).toHaveLength(0)
+  })
+
+  it.each([-1, SKILLS.length + 1, 1.5, '2', null, Number.POSITIVE_INFINITY])(
+    'rejects completedCount %j with 400 and the field',
+    async (completedCount) => {
+      expect(parseFreshRequest(body({}, { completedCount }))).toEqual({ ok: false, field: 'paths[0].completedCount' })
+      const h = createFreshEndpointHarness()
+      const res = await signedOut(h, body({}, { completedCount }))
+      expect(res.status).toBe(400)
+      expect(res.body).toEqual({ error: 'invalid_input', field: 'paths[0].completedCount' })
+    },
+  )
+
+  it('names the path index and reports colorSlot before completedCount', () => {
+    const second = { id: 'guitar', hobby: 'Guitar', skills: SKILLS, currentSkillId: null }
+    const paths = [{ id: 'bouldering', hobby: 'Bouldering', skills: SKILLS, currentSkillId: 'feet' }]
+    expect(parseFreshRequest({ paths: [...paths, { ...second, colorSlot: 9, completedCount: -4 }] })).toEqual({
+      ok: false,
+      field: 'paths[1].colorSlot',
+    })
+    expect(parseFreshRequest({ paths: [...paths, { ...second, colorSlot: 2, completedCount: -4 }] })).toEqual({
+      ok: false,
+      field: 'paths[1].completedCount',
+    })
+  })
+})
+
 describe('Fresh_Endpoint requests', () => {
   it('signed out: Goal_Class none, IP rate limit, window from the body, one read', async () => {
     const h = createFreshEndpointHarness()
@@ -125,6 +174,9 @@ describe('Fresh_Endpoint requests', () => {
         windowSkillIds: ['feet', 'grip', 'rest'],
         skills: SKILLS,
         activeAt: null,
+        // A body without the fresh-v2 fields reads as slot 1 and 0 completed (D-C).
+        colorSlot: 1,
+        completedCount: 0,
       },
     ])
     expect(h.limiterKeys).toEqual([`ip:${IP}`])

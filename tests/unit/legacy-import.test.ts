@@ -115,6 +115,7 @@ describe('readLegacyData', () => {
           model: 'model-1',
           archived: false,
           addedAt: T1,
+          colorSlot: 1,
           progress: { completed: [], quests: {} },
         },
       ],
@@ -143,15 +144,18 @@ describe('readLegacyData', () => {
           model: 'model-1',
           archived: true,
           addedAt: T1,
+          // The stored entries have no slot: each gets one in `addedAt` order.
+          colorSlot: 1,
           progress: { completed: [secondId, firstId], quests: { [firstId]: [true, false, false] } },
         },
-        { id: 'chess', tree: chess, model: 'model-1', archived: false, addedAt: T2, progress: { completed: [], quests: {} } },
+        { id: 'chess', tree: chess, model: 'model-1', archived: false, addedAt: T2, colorSlot: 2, progress: { completed: [], quests: {} } },
         {
           id: 'bouldering',
           tree: bouldering,
           model: 'model-g',
           archived: false,
           addedAt: null,
+          colorSlot: null,
           progress: { completed: [thirdId], quests: {} },
         },
       ],
@@ -203,6 +207,7 @@ describe('planImport', () => {
         model: 'model-1',
         archived: true,
         created_at: new Date(T1).toISOString(),
+        color_slot: 1,
       },
       {
         id: 'path-2',
@@ -215,6 +220,7 @@ describe('planImport', () => {
         model: 'model-1',
         archived: false,
         created_at: new Date(T2).toISOString(),
+        color_slot: 2,
       },
       {
         id: 'path-3',
@@ -226,8 +232,9 @@ describe('planImport', () => {
         mascot_set: bouldering.mascot.set,
         model: 'model-g',
         archived: false,
-        // The earlier Generated_Tree has no stored time.
+        // The earlier Generated_Tree has no stored time and no slot: it follows the row before it.
         created_at: new Date(NOW).toISOString(),
+        color_slot: 3,
       },
     ])
     expect(plan.progress).toEqual([
@@ -269,8 +276,8 @@ describe('planImport', () => {
   it('drops surplus log values and falls back to the first entry without a stored activeId', () => {
     const legacy: LegacyData = {
       entries: [
-        { id: 'guitar', tree: guitar, model: 'm', archived: false, addedAt: T1, progress: { completed: [firstId], quests: {} } },
-        { id: 'chess', tree: chess, model: 'm', archived: false, addedAt: T2, progress: { completed: [], quests: {} } },
+        { id: 'guitar', tree: guitar, model: 'm', archived: false, addedAt: T1, colorSlot: 1, progress: { completed: [firstId], quests: {} } },
+        { id: 'chess', tree: chess, model: 'm', archived: false, addedAt: T2, colorSlot: 2, progress: { completed: [], quests: {} } },
       ],
       activeId: null,
       completions: [9, 7, 8],
@@ -279,6 +286,20 @@ describe('planImport', () => {
     expect(plan.progress.map(row => row.completed_at)).toEqual([{ [firstId]: 7 }, {}])
     expect(plan.activeHobbyId).toBe('guitar')
     expect(legacy.completions).toEqual([9, 7, 8])
+  })
+
+  it('keeps each local Color_Slot on its row (spec: fresh-v2, Req 9.8)', () => {
+    const stored = memoryStorage({
+      [HOBBY_LIBRARY_KEY]: libraryJson([entry(guitar, T1, { colorSlot: 4 }), entry(chess, T2, { colorSlot: 5 })]),
+      [GENERATED_TREE_KEY]: serializeGeneratedTree({ tree: bouldering, model: 'model-g' }),
+    })
+    const plan = planImport(readLegacyData(() => stored) as LegacyData, 0, context())
+    // Guitar and chess keep 4 and 5; the earlier Generated_Tree follows 5 with 1.
+    expect(plan.paths.map((row) => [row.hobby_id, row.color_slot])).toEqual([
+      ['guitar', 4],
+      ['chess', 5],
+      ['bouldering', 1],
+    ])
   })
 
   it('gives an empty plan when every entry is invalid (Req 8.7)', () => {
@@ -349,8 +370,8 @@ function fakeApi(overrides: Partial<ImportApi> = {}): FakeApi {
 function samplePlan(): ImportPlan {
   const legacy: LegacyData = {
     entries: [
-      { id: 'guitar', tree: guitar, model: 'm', archived: false, addedAt: T1, progress: { completed: [firstId], quests: {} } },
-      { id: 'chess', tree: chess, model: 'm', archived: true, addedAt: T2, progress: { completed: [], quests: {} } },
+      { id: 'guitar', tree: guitar, model: 'm', archived: false, addedAt: T1, colorSlot: 1, progress: { completed: [firstId], quests: {} } },
+      { id: 'chess', tree: chess, model: 'm', archived: true, addedAt: T2, colorSlot: 2, progress: { completed: [], quests: {} } },
     ],
     activeId: 'chess',
     completions: [5],

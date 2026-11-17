@@ -2,44 +2,41 @@
 import type { SourceGroupView } from '#shared/utils/fresh-view'
 
 /**
- * "Your sources" (spec: fresh, Req 15.1 to 15.3, 15.7 to 15.10, 11.10): Channel_Sources grouped
- * by hobby, each with a mute switch outside Demo_Mode; muted channels stay listed. A hobby with
- * no source shows "No sources yet for <hobby>.". The fixed note closes the panel.
+ * "Your sources" (spec: fresh-v2, Req 8.1 to 8.7, 11.1): the subtitle, one accordion group
+ * per hobby in Path_Order and the closing line. Which groups are open comes from the page,
+ * so the desktop panel and the mobile sheet share it; several may be open at once.
  */
 defineProps<{
   groups: readonly SourceGroupView[]
+  /** Keys of the open groups. */
+  open: ReadonlySet<string>
   demo: boolean
   headingId: string
   /** No card frame: the sheet already gives one. */
   bare?: boolean
 }>()
 
-const emit = defineEmits<{ mute: [channelId: string, muted: boolean] }>()
-
-const NOTE =
-  'Every day Pursio checks these channels, picks new videos for the skills on your path and checks them for your level. Videos play from YouTube; nothing is copied.'
+const emit = defineEmits<{ mute: [channelId: string, muted: boolean]; toggle: [key: string] }>()
 </script>
 
 <template>
-  <section :aria-labelledby="headingId" class="flex flex-col gap-4" :class="bare ? '' : 'rounded-3xl border-2 border-line bg-surface p-5'">
-    <h2 :id="headingId" class="font-display text-xl text-ink" tabindex="-1">Your sources</h2>
-    <div v-for="group in groups" :key="group.key" class="flex flex-col gap-1.5">
-      <h3 class="font-head text-[13px] font-extrabold tracking-wider text-muted uppercase">{{ group.hobby }}</h3>
-      <p v-if="group.entries.length === 0" class="text-sm text-muted">No sources yet for {{ group.hobby }}.</p>
-      <ul v-else class="flex flex-col">
-        <li v-for="entry in group.entries" :key="entry.channelId" class="flex min-h-11 items-center justify-between gap-3">
-          <span class="min-w-0 font-head text-[15px] leading-tight font-bold break-words" :class="entry.muted ? 'text-muted' : 'text-ink'">
-            {{ entry.channelName }}
-          </span>
-          <FreshMuteSwitch
-            v-if="!demo"
-            :channel-name="entry.channelName"
-            :muted="entry.muted"
-            @change="(muted) => emit('mute', entry.channelId, muted)"
-          />
-        </li>
-      </ul>
+  <section :aria-labelledby="headingId" class="flex flex-col gap-3" :class="bare ? '' : 'rounded-3xl border-2 border-line bg-surface p-5'">
+    <div class="flex flex-col gap-1">
+      <h2 :id="headingId" class="font-display text-xl text-ink" tabindex="-1">Your sources</h2>
+      <p class="text-sm leading-snug text-muted">The channels Pursio checks every day, grouped by hobby.</p>
     </div>
-    <p class="text-sm leading-relaxed text-muted">{{ NOTE }}</p>
+    <div class="flex flex-col">
+      <FreshSourcesGroup
+        v-for="group in groups"
+        :key="group.key"
+        :group="group"
+        :open="open.has(group.key)"
+        :demo="demo"
+        class="border-t-2 border-line first:border-t-0"
+        @toggle="emit('toggle', group.key)"
+        @mute="(id, muted) => emit('mute', id, muted)"
+      />
+    </div>
+    <p class="text-xs leading-relaxed text-muted">Videos play from YouTube; nothing is copied.</p>
   </section>
 </template>

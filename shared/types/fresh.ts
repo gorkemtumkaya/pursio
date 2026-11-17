@@ -1,3 +1,4 @@
+import type { ColorSlot } from '../utils/color-slot'
 import type { Level } from './skill-tree'
 import type { GoalClass, VideoEvent, VideoStyle } from './video'
 
@@ -32,6 +33,10 @@ export interface FreshPath {
   skills: FreshPathSkill[]
   /** Epoch ms, later of last open and last progress save. */
   activeAt: number | null
+  /** Picks the hobby's colors (spec: fresh-v2, Req 9.9). */
+  colorSlot: ColorSlot
+  /** Completed Skills of the path, for "<completed> of <total> done" (spec: fresh-v2, Req 4.3). */
+  completedCount: number
 }
 export interface SkillMatch { pathId: string; skillId: string }
 interface CardBase {
@@ -76,7 +81,16 @@ export interface FreshResponseOk {
 export type FreshResponse =
   | FreshResponseOk
   | { error: 'invalid_input' | 'unauthorized' | 'rate_limited'; field?: string }
-export interface FreshRequestPath { id: string; hobby: string; skills: FreshPathSkill[]; currentSkillId: string | null }
+export interface FreshRequestPath {
+  id: string
+  hobby: string
+  skills: FreshPathSkill[]
+  currentSkillId: string | null
+  /** The local Color_Slot; the Demo_Path sends 1. */
+  colorSlot: ColorSlot
+  /** Completed Skills among `skills`. */
+  completedCount: number
+}
 export interface FreshRequest { language: string; paths: FreshRequestPath[] }
 /** Input of `rankFreshItems`. `paths` iterate in response order (bestMatch tie-break). */
 export interface RankContext {

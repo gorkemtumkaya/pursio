@@ -149,6 +149,7 @@ describe('Fresh request bodies', () => {
       model: 'm',
       addedAt,
       archived,
+      colorSlot: (((addedAt - 1) % 5) + 1) as 1 | 2 | 3 | 4 | 5,
     })
     const library: HobbyLibrary = {
       hobbies: [make('a', 1), make('b', 2), make('c', 3, true), make('d', 4)],
@@ -164,11 +165,31 @@ describe('Fresh request bodies', () => {
     expect(req.token).toBeNull()
     expect(req.body.language).toBe('en')
     expect(req.body.paths.map((p) => p.id)).toEqual(['a', 'd', 'b'])
+    // Each path carries its record's Color_Slot and its completed count (spec: fresh-v2, Req 9.9).
+    expect(req.body.paths.map((p) => [p.id, p.colorSlot, p.completedCount])).toEqual([
+      ['a', 1, 0],
+      ['d', 4, 0],
+      ['b', 2, 0],
+    ])
+  })
+
+  it('counts the completed Skills that are sent, and the Demo_Path uses slot 1 (spec: fresh-v2, Req 9.9)', () => {
+    const ids = tree.sections.flatMap((s) => s.nodes.map((n) => n.id))
+    const progress = { completed: [ids[0]!, ids[1]!, 'not-a-skill', ids[0]!], quests: {} }
+    const path = requestPath('p', tree, progress, 3)
+    expect(path?.colorSlot).toBe(3)
+    expect(path?.completedCount).toBe(2)
+    expect(path?.skills.length).toBe(ids.length)
+    expect(requestPath('p', tree, emptyProgress(), 5)?.completedCount).toBe(0)
+    expect(requestPath('p', tree, { completed: ids, quests: {} }, 1)?.completedCount).toBe(ids.length)
+
+    const demo = demoBody('demo', tree, progress, null)
+    expect(demo.paths.map((p) => [p.colorSlot, p.completedCount])).toEqual([[1, 2]])
   })
 
   it('a completed path has a null Current_Skill (decision D16)', () => {
     const all = tree.sections.flatMap((s) => s.nodes.map((n) => n.id))
-    const path = requestPath('demo', tree, { completed: all, quests: {} })
+    const path = requestPath('demo', tree, { completed: all, quests: {} }, 1)
     expect(path?.currentSkillId).toBeNull()
   })
 
@@ -179,6 +200,7 @@ describe('Fresh request bodies', () => {
       model: 'm',
       addedAt: i,
       archived: false,
+      colorSlot: 1 as const,
     }))
     const body = signedOutBody({ hobbies, activeId: null }, () => emptyProgress(), null)
     expect(body.paths).toHaveLength(10)

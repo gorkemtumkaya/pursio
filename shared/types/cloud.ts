@@ -3,6 +3,7 @@ import type { QuestId } from './progress'
 import type { QuestTriple, SkillTree } from './skill-tree'
 import type { Theme } from './theme'
 import type { GoalClass } from './video'
+import type { ColorSlot } from '../utils/color-slot'
 
 /** What the Tree_Route saves for the verified user. */
 export interface PathSaveInput {
@@ -42,6 +43,8 @@ export interface PathInsertRow {
   archived: boolean
   /** ISO 8601 time. */
   created_at: string
+  /** The path's Color_Slot. Left out, the database trigger assigns the next one (spec: fresh-v2, Req 9.5, 9.8). */
+  color_slot?: ColorSlot
 }
 
 /** Tick_Times: Node id to one time per quest, null when that quest has none. All-null entries are left out. */

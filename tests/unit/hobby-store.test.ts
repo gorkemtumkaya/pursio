@@ -93,6 +93,112 @@ describe('addHobby', () => {
   })
 })
 
+// spec: fresh-v2, Requirements 9.5 to 9.7, 12.8.
+describe('color slots', () => {
+  const names = ['Bouldering', 'Guitar', 'Chess', 'Piano', 'Yoga', 'Juggling', 'Chess boxing']
+  const slotsOf = (storage: StorageLike): [string, number][] =>
+    loadHobbyLibrary(() => storage).hobbies.map((h) => [h.id, h.colorSlot])
+
+  function filled(count: number): StorageLike & { data: Map<string, string> } {
+    const storage = memoryStorage()
+    names.slice(0, count).forEach((name, i) => addHobby(() => storage, { tree: withHobby(name), model: 'm' }, i + 1))
+    return storage
+  }
+
+  it('gives the first hobby slot 1 and each new one the next slot, going from 5 back to 1', () => {
+    expect(slotsOf(filled(1))).toEqual([['bouldering', 1]])
+    expect(slotsOf(filled(4)).map(([, slot]) => slot)).toEqual([1, 2, 3, 4])
+    expect(slotsOf(filled(7)).map(([, slot]) => slot)).toEqual([1, 2, 3, 4, 5, 1, 2])
+  })
+
+  it('counts archived hobbies when it picks the next slot', () => {
+    const storage = filled(3)
+    archiveHobby(() => storage, 'chess')
+    addHobby(() => storage, { tree: withHobby('Piano'), model: 'm' }, 10)
+    expect(slotsOf(storage).at(-1)).toEqual(['piano', 4])
+  })
+
+  it('keeps every slot through archive, restore, remove, undo and a change of the active hobby', () => {
+    const storage = filled(4)
+    const before = new Map(slotsOf(storage))
+    const same = (): void => {
+      for (const [id, slot] of slotsOf(storage)) expect(slot, id).toBe(before.get(id))
+    }
+    archiveHobby(() => storage, 'guitar')
+    same()
+    setActiveHobby(() => storage, 'bouldering')
+    same()
+    restoreHobby(() => storage, 'guitar')
+    same()
+    const { removed } = removeHobby(() => storage, 'chess')
+    same()
+    if (!removed) throw new Error('chess must be removed')
+    undoRemoveHobby(() => storage, removed)
+    same()
+    expect(slotsOf(storage)).toEqual([...before])
+  })
+
+  it('keeps the slot of a hobby that is added again', () => {
+    const storage = filled(3)
+    addHobby(() => storage, { tree: withHobby('GUITAR'), model: 'm9' }, 50)
+    expect(slotsOf(storage)).toEqual([
+      ['bouldering', 1],
+      ['guitar', 2],
+      ['chess', 3],
+    ])
+  })
+
+  it('after a removal, follows the latest hobby that is left', () => {
+    const storage = filled(3)
+    removeHobby(() => storage, 'chess')
+    addHobby(() => storage, { tree: withHobby('Piano'), model: 'm' }, 10)
+    expect(slotsOf(storage)).toEqual([
+      ['bouldering', 1],
+      ['guitar', 2],
+      ['piano', 3],
+    ])
+  })
+
+  it('gives entries stored without a slot one in addedAt order, the same on every read, and writes nothing', () => {
+    const stored = (name: string, addedAt: number, extra: Record<string, unknown> = {}) => ({
+      id: name.toLowerCase(),
+      tree: withHobby(name),
+      model: 'm',
+      addedAt,
+      ...extra,
+    })
+    // Stored out of creation order; chess keeps its valid slot; 0, 6, 1.5 and "2" are not slots.
+    const raw = JSON.stringify({
+      hobbies: [
+        stored('Guitar', 20, { colorSlot: 0 }),
+        stored('Bouldering', 10),
+        stored('Chess', 30, { colorSlot: 5 }),
+        stored('Piano', 40, { colorSlot: 6 }),
+        stored('Yoga', 50, { colorSlot: 1.5 }),
+        stored('Juggling', 60, { colorSlot: '2' }),
+      ],
+      activeId: null,
+    })
+    const storage = memoryStorage({ [HOBBY_LIBRARY_KEY]: raw })
+    const expected = [
+      ['guitar', 2],
+      ['bouldering', 1],
+      ['chess', 5],
+      ['piano', 1],
+      ['yoga', 2],
+      ['juggling', 3],
+    ]
+    expect(slotsOf(storage)).toEqual(expected)
+    expect(slotsOf(storage)).toEqual(expected)
+    expect(storage.data.get(HOBBY_LIBRARY_KEY)).toBe(raw)
+
+    // The next write stores the derived slots, and they stay.
+    setActiveHobby(() => storage, 'guitar')
+    expect(storage.data.get(HOBBY_LIBRARY_KEY)).not.toBe(raw)
+    expect(slotsOf(storage)).toEqual(expected)
+  })
+})
+
 describe('parseHobbyLibrary', () => {
   it.each(['nope', '[]', '{"hobbies":{}}'])('marks %s invalid', (raw) => {
     expect(parseHobbyLibrary(raw)).toEqual({ library: { hobbies: [], activeId: null }, invalid: true })
@@ -123,8 +229,8 @@ describe('parseHobbyLibrary', () => {
   it('round-trips a library', () => {
     const library = {
       hobbies: [
-        { id: 'guitar', tree: guitar, model: 'm', addedAt: 5, archived: false },
-        { id: 'bouldering', tree: bouldering, model: 'm', addedAt: 6, archived: true },
+        { id: 'guitar', tree: guitar, model: 'm', addedAt: 5, archived: false, colorSlot: 4 as const },
+        { id: 'bouldering', tree: bouldering, model: 'm', addedAt: 6, archived: true, colorSlot: 2 as const },
       ],
       activeId: 'guitar',
     }
@@ -151,7 +257,7 @@ describe('legacy migration', () => {
     })
     const library = loadHobbyLibrary(() => storage, 42)
     expect(library).toEqual({
-      hobbies: [{ id: 'guitar', tree: guitar, model: 'old-model', addedAt: 42, archived: false }],
+      hobbies: [{ id: 'guitar', tree: guitar, model: 'old-model', addedAt: 42, archived: false, colorSlot: 1 }],
       activeId: 'guitar',
     })
     expect(storage.data.get(hobbyProgressKey('guitar'))).toBe(progressJson([firstId]))
@@ -317,10 +423,10 @@ describe('archiveHobby and restoreHobby', () => {
 describe('nextHobbyId', () => {
   const library = {
     hobbies: [
-      { id: 'a', tree: bouldering, model: 'm', addedAt: 1, archived: false },
-      { id: 'b', tree: bouldering, model: 'm', addedAt: 2, archived: true },
-      { id: 'c', tree: bouldering, model: 'm', addedAt: 3, archived: false },
-      { id: 'd', tree: bouldering, model: 'm', addedAt: 4, archived: false },
+      { id: 'a', tree: bouldering, model: 'm', addedAt: 1, archived: false, colorSlot: 1 as const },
+      { id: 'b', tree: bouldering, model: 'm', addedAt: 2, archived: true, colorSlot: 2 as const },
+      { id: 'c', tree: bouldering, model: 'm', addedAt: 3, archived: false, colorSlot: 3 as const },
+      { id: 'd', tree: bouldering, model: 'm', addedAt: 4, archived: false, colorSlot: 4 as const },
     ],
     activeId: 'c',
   }

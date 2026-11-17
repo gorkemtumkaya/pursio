@@ -2,14 +2,16 @@
 import { ref } from 'vue'
 
 /**
- * Fresh_Page header (spec: fresh, Req 11.2 to 11.6): the filter label and, when known,
- * "Updated <relative time>" above the title "Fresh". Below `lg` it shows the "Sources" button
- * that opens the Sources sheet; the page moves focus back to it when the sheet closes.
+ * Fresh_Page header (spec: fresh-v2, Req 1.2 to 1.5): the eyebrow "Updated <relative time>"
+ * (hidden when no check time is known) above the title "Fresh". From `lg` up the new-today
+ * text shows right-aligned, and is left out when nothing is new. Below `lg` the "Sources"
+ * button opens the Sources sheet; the page moves focus back to it when the sheet closes.
  */
 defineProps<{
-  filterLabel: string
-  /** "2h ago" style text, or null to hide "Updated" (Req 11.6). */
+  /** "2h ago" style text, or null to hide the eyebrow. */
   updated: string | null
+  /** "4 new videos today across 2 hobbies", or null to hide it (Req 1.5). */
+  newToday: string | null
   /** False while there is nothing to list (no paths, loading, error). */
   showSources: boolean
   sourcesOpen: boolean
@@ -27,20 +29,14 @@ defineExpose({
 </script>
 
 <template>
-  <header class="flex items-start justify-between gap-3">
+  <header class="flex items-end justify-between gap-3">
     <div class="flex min-w-0 flex-col gap-0.5">
-      <p
-        v-if="filterLabel || updated"
-        class="font-head text-[13px] font-extrabold tracking-wider text-muted uppercase"
-      >
-        <span>{{ filterLabel }}</span>
-        <template v-if="updated">
-          <span v-if="filterLabel" aria-hidden="true"> · </span>
-          <span>Updated {{ updated }}</span>
-        </template>
+      <p v-if="updated" class="font-head text-[13px] font-extrabold tracking-wider text-muted uppercase">
+        Updated {{ updated }}
       </p>
       <h1 class="font-display text-4xl leading-none text-ink lg:text-5xl">Fresh</h1>
     </div>
+    <p v-if="newToday" class="hidden text-right text-sm font-bold text-muted lg:block">{{ newToday }}</p>
     <button
       v-if="showSources"
       ref="sourcesButton"

@@ -3,6 +3,7 @@
 import type { CompletedAt, PathInsertRow, ProgressWriteRow } from '#shared/types/cloud'
 import type { Progress } from '#shared/types/progress'
 import type { SkillTree } from '#shared/types/skill-tree'
+import { nextColorSlot, type ColorSlot } from '#shared/utils/color-slot'
 import { normalizeHobby } from '#shared/utils/llm'
 import { ACTIVITY_STORAGE_KEY, parseCompletionLog } from './activity-store'
 import { raceDeadline } from './deadline'
@@ -20,6 +21,8 @@ export interface LegacyEntry {
   archived: boolean
   /** Stored time, or `null` for the earlier Generated_Tree, which has none. */
   addedAt: number | null
+  /** The local Color_Slot, or `null` for the earlier Generated_Tree, which has none. */
+  colorSlot: ColorSlot | null
   progress: Progress
 }
 
@@ -89,6 +92,7 @@ export function readLegacyData(getStorage: GetStorage): LegacyData | null {
     model: record.model,
     archived: record.archived,
     addedAt: record.addedAt,
+    colorSlot: record.colorSlot,
     progress: progressFor(readKey(storage, hobbyProgressKey(record.id)), record.tree),
   }))
 
@@ -102,6 +106,7 @@ export function readLegacyData(getStorage: GetStorage): LegacyData | null {
         model: generated.model,
         archived: false,
         addedAt: null,
+        colorSlot: null,
         progress: progressFor(rawGeneratedProgress, generated.tree),
       })
     }
@@ -121,7 +126,9 @@ function isoTime(ms: number | null, now: number): string {
  * Otherwise: one Path_Row and one Progress_Row per entry, with level `new`
  * (Req 8.1, 8.2). Completion_Timestamps come from the Completion_Log, oldest
  * first, handed out in library order and then completion order; Nodes past the
- * end of the log get none and surplus log values are dropped (Req 8.3).
+ * end of the log get none and surplus log values are dropped (Req 8.3). Each row
+ * keeps its local Color_Slot; the earlier Generated_Tree, which has none, gets
+ * the slot after the row before it (spec: fresh-v2, Req 9.8).
  */
 export function planImport(
   legacy: LegacyData,
@@ -134,9 +141,12 @@ export function planImport(
   let next = 0
   const paths: PathInsertRow[] = []
   const progress: ProgressWriteRow[] = []
+  let prevSlot: ColorSlot | null = null
 
   for (const entry of legacy.entries) {
     const id = ctx.newId()
+    const colorSlot: ColorSlot = entry.colorSlot ?? nextColorSlot(prevSlot)
+    prevSlot = colorSlot
     paths.push({
       id,
       user_id: ctx.userId,
@@ -148,6 +158,7 @@ export function planImport(
       model: entry.model,
       archived: entry.archived,
       created_at: isoTime(entry.addedAt, ctx.now),
+      color_slot: colorSlot,
     })
     const stamps: [string, number][] = []
     for (const nodeId of entry.progress.completed) {

@@ -1,60 +1,44 @@
 <script setup lang="ts">
-import { nextTick, ref } from 'vue'
 import type { ChipView } from '#shared/utils/fresh-view'
 
 /**
- * Filter_Chips with radio-group semantics (spec: fresh, Req 14.1, 14.8, 13.10): exactly one
- * chip is checked; Tab reaches the checked chip, arrow keys move and select, and Enter or Space
- * select the focused chip. Selecting never sends a request.
+ * Filter_Chips (spec: fresh-v2, Req 2.1, 2.3 to 2.5, 2.8): one row that scrolls sideways and
+ * never wraps. Each chip is a toggle button (`aria-pressed`), reached with Tab and activated
+ * with Enter or Space; exactly one is pressed. A Hobby_Chip shows a dot in its hobby color
+ * and, when the hobby has new videos, a badge with their number, which its accessible name
+ * repeats as "<hobby>, <n> new". Selecting never sends a request.
  */
-const props = defineProps<{ chips: readonly ChipView[] }>()
+defineProps<{ chips: readonly ChipView[] }>()
 const emit = defineEmits<{ select: [chip: ChipView] }>()
-
-const buttons = ref<HTMLButtonElement[]>([])
-
-function move(index: number, delta: number): void {
-  const count = props.chips.length
-  if (count === 0) return
-  const next = (index + delta + count) % count
-  const chip = props.chips[next]
-  if (!chip) return
-  emit('select', chip)
-  void nextTick(() => buttons.value[next]?.focus())
-}
-
-function onKeydown(event: KeyboardEvent, index: number): void {
-  if (event.key === 'ArrowRight' || event.key === 'ArrowDown') {
-    event.preventDefault()
-    move(index, 1)
-  } else if (event.key === 'ArrowLeft' || event.key === 'ArrowUp') {
-    event.preventDefault()
-    move(index, -1)
-  } else if (event.key === 'Home') {
-    event.preventDefault()
-    move(0, 0)
-  } else if (event.key === 'End') {
-    event.preventDefault()
-    move(props.chips.length - 1, 0)
-  }
-}
 </script>
 
 <template>
-  <div role="radiogroup" aria-label="Filter videos" class="-mx-4 flex gap-2 overflow-x-auto px-4 pb-1 lg:mx-0 lg:flex-wrap lg:px-0">
+  <div role="group" aria-label="Filter videos" class="scrollbar-themed -mx-4 flex gap-2 overflow-x-auto px-4 pt-1 pb-2 lg:mx-0 lg:px-1">
     <button
-      v-for="(chip, index) in chips"
+      v-for="chip in chips"
       :key="chip.key"
-      ref="buttons"
       type="button"
-      role="radio"
-      :aria-checked="chip.selected"
-      :tabindex="chip.selected ? 0 : -1"
-      class="min-h-11 shrink-0 rounded-full border-2 px-4 font-head text-sm font-extrabold whitespace-nowrap focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink"
+      :aria-pressed="chip.selected"
+      :aria-label="chip.newCount > 0 ? `${chip.label}, ${chip.newCount} new` : undefined"
+      :data-hobby-slot="chip.colorSlot ?? undefined"
+      class="inline-flex min-h-11 shrink-0 items-center gap-2 rounded-full border-2 px-4 font-head text-sm font-extrabold whitespace-nowrap focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink"
       :class="chip.selected ? 'border-ink bg-ink text-surface' : 'border-line bg-surface text-ink hover:bg-surface-2'"
       @click="emit('select', chip)"
-      @keydown="onKeydown($event, index)"
     >
-      {{ chip.label }}
+      <span
+        v-if="chip.colorSlot !== null"
+        class="size-2.5 shrink-0 rounded-full border-2 bg-hobby-deep"
+        :class="chip.selected ? 'border-surface' : 'border-hobby-deep'"
+        aria-hidden="true"
+      />
+      <span>{{ chip.label }}</span>
+      <span
+        v-if="chip.newCount > 0"
+        class="rounded-full bg-primary px-1.5 py-0.5 text-xs leading-none text-primary-ink"
+        aria-hidden="true"
+      >
+        {{ chip.newCount }}
+      </span>
     </button>
   </div>
 </template>

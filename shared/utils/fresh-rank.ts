@@ -16,11 +16,11 @@ import { goalAdjustment } from './video-ranking'
 export const FRESH_WINDOW_S = 604800
 /** "New" badge for items under 24 hours old. */
 export const NEW_BADGE_S = 86400
-export const NEW_MAX = 24
-export const BEST_MAX = 12
+/** Most cards in one Hobby_Section (spec: fresh-v2, Req 5.5). */
+export const SECTION_MAX = 12
 export const VARIETY_WINDOW = 6
 export const VARIETY_MAX_PER_CHANNEL = 2
-/** Most cards of one Skill on the page under "All skills" and the path chips (decision D17). */
+/** Most cards of one Skill across the Hero_Card and all Hobby_Sections (spec: fresh-v2, Req 5.5). */
 export const MAX_PER_SKILL = 3
 export const TASTE_MIN_EVENTS = 10
 export const TASTE_STEP = 0.1

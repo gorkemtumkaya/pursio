@@ -1,7 +1,8 @@
 /**
- * Pure view building for the Fresh_Page (Req 9, 11 to 16, 18.3). Runs on the Client and in tests.
- * `buildFreshView` turns one Fresh_Endpoint response plus the chip, mutes and events into
- * everything the page shows, so a chip change or a mute change is one recompute.
+ * Pure view building for the Fresh_Page (spec: fresh-v2, Req 1 to 5, 8, 10; spec: fresh, Req 9,
+ * 14.6, 18.3). Runs on the Client and in tests. `buildFreshView` turns one Fresh_Endpoint
+ * response plus the chip, mutes and events into everything the page shows, so a chip change or
+ * a mute change is one recompute and sends no request.
  */
 import type {
   FreshItemCard,
@@ -14,13 +15,13 @@ import type {
   SkillMatch,
 } from '../types/fresh'
 import type { VideoEvent } from '../types/video'
+import type { ColorSlot } from './color-slot'
 import { checkKeyId, checkKeysForPath, compareCodePoints } from './fresh-keys'
 import {
-  BEST_MAX,
-  MAX_PER_SKILL,
   FRESH_WINDOW_S,
+  MAX_PER_SKILL,
   NEW_BADGE_S,
-  NEW_MAX,
+  SECTION_MAX,
   arrangeVariety,
   rankFreshItems,
   tasteAdjustments,
@@ -28,17 +29,11 @@ import {
 import { combineSources, mergeEvents } from './video-events'
 import { normalizeText } from './video-normalize'
 
-export type FilterChip =
-  | { kind: 'current' }
-  | { kind: 'all' }
-  | { kind: 'path'; pathId: string }
-  | { kind: 'saved' }
+export type FilterChip = { kind: 'all' } | { kind: 'path'; pathId: string } | { kind: 'saved' }
 
 export interface FreshViewInput {
   response: FreshResponseOk
   chip: FilterChip
-  /** Stored choice; resolved inside (Req 12.4, 14.9). */
-  selectedPathId: string | null
   /** Channel id -> latest muted value. */
   mutes: ReadonlyMap<string, boolean>
   /** Merged: cloud rows + local unsent. */
@@ -47,29 +42,83 @@ export interface FreshViewInput {
 }
 
 export interface ChipView {
-  /** Stable key: 'current', 'all', 'saved' or 'path:<id>'. */
+  /** Stable key: 'all', 'saved' or 'path:<id>'. */
   key: string
   chip: FilterChip
   label: string
   selected: boolean
+  /** Hobby_Chips only: the path's Color_Slot, for the dot (Req 2.3). */
+  colorSlot: ColorSlot | null
+  /** Hobby_Chips only: the path's Shown_New_Items; 0 shows no badge (Req 2.4). */
+  newCount: number
+}
+
+export type HeroBadge = 'today' | 'week' | 'best'
+
+/** The path a Hero_Card belongs to, for its tag (Req 3.3). */
+export interface HeroPathView {
+  pathId: string
+  hobby: string
+  letter: string
+  colorSlot: ColorSlot
 }
 
 export type HeroView =
-  | { kind: 'fresh'; card: FreshItemCard; match: SkillMatch; skillTitle: string; label: string; isNew: boolean }
-  | { kind: 'pool'; card: PoolCard; match: SkillMatch; skillTitle: string; label: string }
+  | {
+      kind: 'fresh'
+      card: FreshItemCard
+      match: SkillMatch
+      skillTitle: string
+      isCurrentSkill: boolean
+      badge: 'today' | 'week'
+      path: HeroPathView
+    }
+  | {
+      kind: 'pool'
+      card: PoolCard
+      match: SkillMatch
+      skillTitle: string
+      isCurrentSkill: true
+      badge: 'best'
+      path: HeroPathView
+    }
 
-export interface NewCardView {
-  card: FreshItemCard
-  match: SkillMatch
-  skillTitle: string
-  /** Published less than 24 h before the response time (Req 13.12). */
-  isNew: boolean
+/** `current`: the path's Current_Skill. `next`: another Skill of its Current_Window. `other`: the rest (Req 5.4). */
+export type SkillTagKind = 'current' | 'next' | 'other'
+
+export type SectionCardView =
+  | {
+      kind: 'fresh'
+      card: FreshItemCard
+      match: SkillMatch
+      skillTitle: string
+      tag: SkillTagKind
+      /** Published less than 24 h before the response time (decision 4). */
+      isNew: boolean
+    }
+  | { kind: 'pool'; card: PoolCard; match: SkillMatch; skillTitle: string; tag: SkillTagKind }
+
+export interface HobbySectionView {
+  pathId: string
+  hobby: string
+  /** First letter of the hobby, upper-cased, for the avatar (Req 4.2). */
+  letter: string
+  colorSlot: ColorSlot
+  /** Null for a finished path (Req 4.8). */
+  currentSkillTitle: string | null
+  completedCount: number
+  totalCount: number
+  /** Shown_New_Items of the path, the Hero_Card video included (Req 4.4, D-A). */
+  newCount: number
+  /** `finished`: no Current_Skill. `empty`: a Current_Skill and no card left (Req 4.8, 4.9). */
+  state: 'cards' | 'finished' | 'empty'
+  cards: SectionCardView[]
 }
 
-export interface BestCardView {
-  card: PoolCard
-  match: SkillMatch
-  skillTitle: string
+/** "<videos> new videos today across <hobbies> hobbies" (Req 1.4). */
+export interface NewToday {
+  videos: number
+  hobbies: number
 }
 
 export interface SavedCardView {
@@ -88,36 +137,38 @@ export interface SourceEntryView {
 }
 
 export interface SourceGroupView {
-  /** Normalized hobby, unique per group. */
+  /** The path id; unique per group. */
   key: string
+  pathId: string
   hobby: string
-  /** Empty means "No sources yet for <hobby>." (Req 15.8). */
+  colorSlot: ColorSlot
+  /** Empty means "none yet": the group cannot open (Req 8.5). */
   entries: SourceEntryView[]
 }
 
 export interface FreshView {
-  /** The chip actually shown as selected (a hidden or unknown chip falls back to "All skills"). */
+  /** The chip actually shown as selected (a hidden or unknown chip falls back to "All hobbies"). */
   chip: FilterChip
-  /** Order and visibility of Req 14.1, 14.10, 11.10. */
+  /** Req 2.1, 2.6, 2.9. */
   chips: ChipView[]
-  /** Req 11.4. */
-  headerLabel: string
-  /** Req 11.5, 11.6. */
+  /** Req 1.2. */
   updatedMs: number | null
-  /** Req 12. */
+  /** Null hides the header text (Req 1.5). */
+  newToday: NewToday | null
+  /** Req 3. */
   hero: HeroView | null
-  /** Req 16.2. */
+  /** One per path in Scope, in Path_Order (Req 4.1). Empty under "Saved". */
+  sections: HobbySectionView[]
+  /** Req 10.2. */
   quietLine: boolean
-  /** Req 13.1, 13.2, 13.12. */
-  newCards: NewCardView[]
-  /** Req 13.5, 13.11. */
-  bestCards: BestCardView[]
-  /** Req 14.6. */
-  saved: SavedCardView[]
-  /** Req 16.3, 14.7. */
+  /** Req 10.3, 2.7. */
   state: 'content' | 'empty' | 'saved_empty'
-  /** Req 15.1, 15.2, 15.7, 15.8. */
+  /** `fresh` Req 14.6. */
+  saved: SavedCardView[]
+  /** One group per path in Path_Order, whichever chip is selected (Req 8.2). */
   sources: SourceGroupView[]
+  /** The group to open when the page opens or a chip is selected, or null (Req 8.3). */
+  defaultOpenSource: string | null
 }
 
 const THUMBNAIL_HOST = 'i.ytimg.com'
@@ -141,10 +192,6 @@ export function relativeTime(nowMs: number, checkMs: number): string {
   return `${Math.floor(seconds / 86400)}d ago`
 }
 
-/** The stored Selected_Path when it is a response path, else the first path (Req 12.4, 14.9). */
-export function resolveSelectedPath(paths: readonly FreshPath[], storedId: string | null): FreshPath | null {
-  return paths.find((p) => p.id === storedId) ?? paths[0] ?? null
-}
 
 function chipKey(chip: FilterChip): string {
   return chip.kind === 'path' ? `path:${chip.pathId}` : chip.kind
@@ -154,44 +201,44 @@ function skillTitleOf(path: FreshPath | undefined, skillId: string): string {
   return path?.skills.find((s) => s.id === skillId)?.title ?? ''
 }
 
+/** Avatar letter: the first code point of the trimmed hobby, upper-cased; "?" for an empty hobby (Req 4.2). */
+export function hobbyLetter(hobby: string): string {
+  const first = [...hobby.trim()][0]
+  return first === undefined ? '?' : first.toLocaleUpperCase()
+}
+
 /**
- * Visible chips in order (Req 14.1): "All skills", "For <current skill>" (hidden without a
- * Current_Skill, Req 14.10), one per path, "Saved" (hidden in Demo_Mode, Req 11.10).
+ * Path_Order (Req 2.2, decision 8): `activeAt` descending; paths with no Active_Time come
+ * after, in response order. Equal times keep response order.
  */
-export function freshChips(
-  paths: readonly FreshPath[],
-  selected: FreshPath | null,
-  demo: boolean,
-): { chip: FilterChip; label: string }[] {
-  if (paths.length === 0) return []
-  const out: { chip: FilterChip; label: string }[] = [{ chip: { kind: 'all' }, label: 'All skills' }]
-  if (selected && selected.currentSkillId !== null) {
-    out.push({ chip: { kind: 'current' }, label: `For ${skillTitleOf(selected, selected.currentSkillId)}` })
+export function pathOrder(paths: readonly FreshPath[]): FreshPath[] {
+  return paths
+    .map((p, index) => ({ p, index }))
+    .sort((a, b) => {
+      const ta = a.p.activeAt
+      const tb = b.p.activeAt
+      if (ta !== tb) {
+        if (ta === null) return 1
+        if (tb === null) return -1
+        return tb - ta
+      }
+      return a.index - b.index
+    })
+    .map(({ p }) => p)
+}
+
+/**
+ * Visible chips in order (Req 2.1, 2.6): "All hobbies", one Hobby_Chip per path in Path_Order
+ * only when there are 2 or more paths, then "Saved" (hidden in Demo_Mode, Req 11.1).
+ * `ordered` is already in Path_Order.
+ */
+export function freshChips(ordered: readonly FreshPath[], demo: boolean): { chip: FilterChip; label: string }[] {
+  const out: { chip: FilterChip; label: string }[] = [{ chip: { kind: 'all' }, label: 'All hobbies' }]
+  if (ordered.length >= 2) {
+    for (const p of ordered) out.push({ chip: { kind: 'path', pathId: p.id }, label: p.hobby })
   }
-  for (const p of paths) out.push({ chip: { kind: 'path', pathId: p.id }, label: p.hobby })
   if (!demo) out.push({ chip: { kind: 'saved' }, label: 'Saved' })
   return out
-}
-
-/** Header filter label (Req 11.4). */
-export function headerLabel(chip: FilterChip, paths: readonly FreshPath[], selected: FreshPath | null): string {
-  switch (chip.kind) {
-    case 'current':
-      return selected?.hobby ?? ''
-    case 'all':
-      return paths.length === 1 ? paths[0]!.hobby : 'All hobbies'
-    case 'path':
-      return paths.find((p) => p.id === chip.pathId)?.hobby ?? ''
-    case 'saved':
-      return 'Saved'
-  }
-}
-
-/** Paths whose Check_Keys count for the "Updated" time (Req 11.5). */
-function pathsInScope(chip: FilterChip, paths: readonly FreshPath[], selected: FreshPath | null): FreshPath[] {
-  if (chip.kind === 'current') return selected ? [selected] : []
-  if (chip.kind === 'path') return paths.filter((p) => p.id === chip.pathId)
-  return [...paths]
 }
 
 /** Latest last successful check time of the Check_Keys of the given paths, or null (Req 11.5, 11.6). */
@@ -209,46 +256,6 @@ export function freshUpdatedMs(response: FreshResponseOk, scopePaths: readonly F
 
 function isMuted(mutes: ReadonlyMap<string, boolean>, channelId: string | null): boolean {
   return channelId !== null && mutes.get(channelId) === true
-}
-
-/**
- * Hero_Card choice (Req 12.1, 12.2, 12.7, decision D7): the first ranked in-scope Fresh_Item, else the
- * first non-muted pool video of the Hero_Path's Current_Skill, else none. `ranked` is already
- * filtered for scope, mutes and the 7-day window.
- */
-export function chooseHero(args: {
-  ranked: readonly RankedFreshItem[]
-  heroPath: FreshPath | null
-  paths: ReadonlyMap<string, FreshPath>
-  pools: readonly FreshSkillPool[]
-  mutes: ReadonlyMap<string, boolean>
-  nowMs: number
-}): HeroView | null {
-  const first = args.ranked[0]
-  if (first) {
-    const skillTitle = skillTitleOf(args.paths.get(first.match.pathId), first.match.skillId)
-    return {
-      kind: 'fresh',
-      card: first.item,
-      match: first.match,
-      skillTitle,
-      label: `New for ${skillTitle}`,
-      isNew: isNewItem(first.item, args.nowMs),
-    }
-  }
-  const path = args.heroPath
-  if (!path || path.currentSkillId === null) return null
-  const skillId = path.currentSkillId
-  const pool = args.pools.find((p) => p.pathId === path.id && p.skillId === skillId)
-  const card = pool?.videos.find((v) => !isMuted(args.mutes, v.channelId))
-  if (!card) return null
-  return {
-    kind: 'pool',
-    card,
-    match: { pathId: path.id, skillId },
-    skillTitle: skillTitleOf(path, skillId),
-    label: 'Best for your current skill',
-  }
 }
 
 function isNewItem(item: FreshItemCard, nowMs: number): boolean {
@@ -287,17 +294,20 @@ export function savedCards(events: readonly VideoEvent[], mutes: ReadonlyMap<str
 }
 
 /**
- * Sources_Panel groups (Req 15.1, 15.2, 15.7, 15.8): one group per hobby in path-chip order, the
- * Channel_Sources of that hobby's Check_Keys, one entry per channel id, sorted by name
- * case-insensitively then id. Muted channels stay listed with `muted` true.
+ * Sources_Panel groups (Req 8.2; `fresh` Req 15.1, 15.2, 15.7): one group per path in
+ * Path_Order, the Channel_Sources of that hobby's Check_Keys, one entry per channel id, sorted
+ * by name case-insensitively then id. Muted channels stay listed with `muted` true.
  */
-export function sourceGroups(response: FreshResponseOk, mutes: ReadonlyMap<string, boolean>): SourceGroupView[] {
+export function sourceGroups(
+  response: FreshResponseOk,
+  mutes: ReadonlyMap<string, boolean>,
+  ordered: readonly FreshPath[] = pathOrder(response.paths),
+): SourceGroupView[] {
   const groups: SourceGroupView[] = []
   const seen = new Set<string>()
-  for (const p of response.paths) {
-    const key = normalizeText(p.hobby)
-    if (seen.has(key)) continue
-    seen.add(key)
+  for (const p of ordered) {
+    if (seen.has(p.id)) continue
+    seen.add(p.id)
     const keyIds = new Set(checkKeysForPath(p.hobby, response.language).map(checkKeyId))
     const candidates = response.sources
       .filter((s) => keyIds.has(checkKeyId({ hobby: normalizeText(s.hobby), language: s.language })))
@@ -313,175 +323,334 @@ export function sourceGroups(response: FreshResponseOk, mutes: ReadonlyMap<strin
       ids.add(s.channelId)
       entries.push({ channelId: s.channelId, channelName: s.channelName, muted: isMuted(mutes, s.channelId) })
     }
-    groups.push({ key, hobby: p.hobby, entries })
+    groups.push({ key: p.id, pathId: p.id, hobby: p.hobby, colorSlot: p.colorSlot, entries })
   }
   return groups
 }
 
-/** Path order of the Best_Section: Selected_Path first, then activeAt desc (null last, then response order). */
-function bestPathOrder(paths: readonly FreshPath[], selected: FreshPath): FreshPath[] {
-  const others = paths
-    .map((p, index) => ({ p, index }))
-    .filter(({ p }) => p.id !== selected.id)
-    .sort((a, b) => {
-      const ta = a.p.activeAt
-      const tb = b.p.activeAt
-      if (ta !== tb) {
-        if (ta === null) return 1
-        if (tb === null) return -1
-        return tb - ta
+function heroPathOf(path: FreshPath): HeroPathView {
+  return { pathId: path.id, hobby: path.hobby, letter: hobbyLetter(path.hobby), colorSlot: path.colorSlot }
+}
+
+/**
+ * Hero_Card choice across the given paths (Req 3.1, 3.2, 3.4, 3.6, decision 6):
+ * - the first ranked item whose matched path is one of `paths` and has a Current_Skill, with
+ *   badge `today` under 24 h, else `week`;
+ * - else, for each of `paths` in order with a Current_Skill, the first pool video of that
+ *   Current_Skill whose channel is not muted, with badge `best`;
+ * - else none.
+ * `ranked` is already filtered for mutes and the 7-day window. `paths` is in Path_Order.
+ */
+export function chooseHeroAcross(
+  ranked: readonly RankedFreshItem[],
+  paths: readonly FreshPath[],
+  pools: readonly FreshSkillPool[],
+  mutes: ReadonlyMap<string, boolean>,
+  nowMs: number,
+): HeroView | null {
+  const scoped = new Map<string, FreshPath>()
+  for (const p of paths) if (p.currentSkillId !== null && !scoped.has(p.id)) scoped.set(p.id, p)
+
+  for (const r of ranked) {
+    const path = scoped.get(r.match.pathId)
+    if (!path) continue
+    return {
+      kind: 'fresh',
+      card: r.item,
+      match: r.match,
+      skillTitle: skillTitleOf(path, r.match.skillId),
+      isCurrentSkill: r.match.skillId === path.currentSkillId,
+      badge: isNewItem(r.item, nowMs) ? 'today' : 'week',
+      path: heroPathOf(path),
+    }
+  }
+  for (const path of scoped.values()) {
+    const skillId = path.currentSkillId
+    if (skillId === null) continue
+    const pool = pools.find((p) => p.pathId === path.id && p.skillId === skillId)
+    const card = pool?.videos.find((v) => !isMuted(mutes, v.channelId))
+    if (!card) continue
+    return {
+      kind: 'pool',
+      card,
+      match: { pathId: path.id, skillId },
+      skillTitle: skillTitleOf(path, skillId),
+      isCurrentSkill: true,
+      badge: 'best',
+      path: heroPathOf(path),
+    }
+  }
+  return null
+}
+
+const skillKey = (pathId: string, skillId: string): string => JSON.stringify([pathId, skillId])
+
+function tagOf(path: FreshPath, skillId: string): SkillTagKind {
+  if (skillId === path.currentSkillId) return 'current'
+  return path.windowSkillIds.includes(skillId) ? 'next' : 'other'
+}
+
+/** One built Hobby_Section with the card order before the variety rule, for tests (D-B). */
+export interface SectionBuild {
+  section: HobbySectionView
+  /** Fresh_Items in rank order, then Video_Pool cards in Current_Window order. */
+  beforeVariety: SectionCardView[]
+  /** Index in `section.cards` from which cards that never fit the variety rule sit. */
+  tailStart: number
+}
+
+export interface BuildSectionsInput {
+  /** The paths to build, in Path_Order. */
+  paths: readonly FreshPath[]
+  /** Shown_Items of every path with a Current_Skill, in rank order, one per video id. */
+  ranked: readonly RankedFreshItem[]
+  hero: HeroView | null
+  pools: readonly FreshSkillPool[]
+  mutes: ReadonlyMap<string, boolean>
+  nowMs: number
+  /**
+   * The New_Items a section may show, or null for any. Under a Hobby_Chip this is the set
+   * shown under "All hobbies", so a "new" count is the same under both chips (D-A).
+   */
+  allowedNew?: ReadonlySet<string> | null
+}
+
+/**
+ * Hobby_Sections (Req 4, 5). For each path in order: its Shown_Items in rank order, then the
+ * Video_Pool videos of its Current_Window in window order, ranked inside each Skill. A video
+ * id shows once on the page: the Hero_Card first, then sections in order. One Skill holds at
+ * most 3 cards across the Hero_Card and all sections, counted in that order, and a section at
+ * most 12 (Req 5.5). The variety rule then runs over the whole section (Req 5.6, D-B).
+ *
+ * A video that is a Shown_Item is never taken as a Video_Pool card, so a new video always
+ * shows as a new video. A path with no Current_Skill gives `finished` and no cards, and its
+ * Fresh_Items show nowhere (Req 4.8, AS3); `ranked` holds none of them.
+ */
+export function buildSections(input: BuildSectionsInput): SectionBuild[] {
+  const { hero, mutes, nowMs } = input
+  const allowedNew = input.allowedNew ?? null
+  const heroId = hero?.card.videoId ?? null
+  const used = new Set<string>()
+  if (heroId !== null) used.add(heroId)
+  const freshIds = new Set(input.ranked.map((r) => r.item.videoId))
+
+  const perSkill = new Map<string, number>()
+  const hasRoom = (match: SkillMatch): boolean =>
+    (perSkill.get(skillKey(match.pathId, match.skillId)) ?? 0) < MAX_PER_SKILL
+  const count = (match: SkillMatch): void => {
+    const key = skillKey(match.pathId, match.skillId)
+    perSkill.set(key, (perSkill.get(key) ?? 0) + 1)
+  }
+  if (hero) count(hero.match)
+
+  const poolMap = new Map<string, PoolCard[]>()
+  for (const pool of input.pools) {
+    const key = skillKey(pool.pathId, pool.skillId)
+    if (!poolMap.has(key)) poolMap.set(key, pool.videos)
+  }
+
+  const out: SectionBuild[] = []
+  for (const path of input.paths) {
+    const cards: SectionCardView[] = []
+    if (path.currentSkillId !== null) {
+      // 1. The path's Shown_Items, in rank order.
+      for (const r of input.ranked) {
+        if (cards.length >= SECTION_MAX) break
+        if (r.match.pathId !== path.id) continue
+        const id = r.item.videoId
+        if (used.has(id)) continue
+        const isNew = isNewItem(r.item, nowMs)
+        if (isNew && allowedNew !== null && !allowedNew.has(id)) continue
+        if (!hasRoom(r.match)) continue
+        used.add(id)
+        count(r.match)
+        cards.push({
+          kind: 'fresh',
+          card: r.item,
+          match: r.match,
+          skillTitle: skillTitleOf(path, r.match.skillId),
+          tag: tagOf(path, r.match.skillId),
+          isNew,
+        })
       }
-      return a.index - b.index
+      // 2. Video_Pool videos of the Current_Window, Current_Skill first.
+      fill: for (const skillId of path.windowSkillIds) {
+        const match: SkillMatch = { pathId: path.id, skillId }
+        for (const card of poolMap.get(skillKey(path.id, skillId)) ?? []) {
+          if (cards.length >= SECTION_MAX) break fill
+          if (!hasRoom(match)) break
+          if (used.has(card.videoId) || freshIds.has(card.videoId) || isMuted(mutes, card.channelId)) continue
+          used.add(card.videoId)
+          count(match)
+          cards.push({ kind: 'pool', card, match, skillTitle: skillTitleOf(path, skillId), tag: tagOf(path, skillId) })
+        }
+      }
+    }
+    const arranged = arrangeVariety(cards, (c) => c.card.channelId)
+    const heroIsNewHere = hero?.kind === 'fresh' && hero.badge === 'today' && hero.match.pathId === path.id
+    const total = path.skills.length
+    out.push({
+      beforeVariety: cards,
+      tailStart: arranged.tailStart,
+      section: {
+        pathId: path.id,
+        hobby: path.hobby,
+        letter: hobbyLetter(path.hobby),
+        colorSlot: path.colorSlot,
+        currentSkillTitle: path.currentSkillId === null ? null : skillTitleOf(path, path.currentSkillId),
+        completedCount: Math.min(total, Math.max(0, path.completedCount)),
+        totalCount: total,
+        newCount: arranged.cards.filter((c) => c.kind === 'fresh' && c.isNew).length + (heroIsNewHere ? 1 : 0),
+        state: path.currentSkillId === null ? 'finished' : arranged.cards.length === 0 ? 'empty' : 'cards',
+        cards: arranged.cards,
+      },
     })
-    .map(({ p }) => p)
-  return [selected, ...others]
+  }
+  return out
 }
 
 const EMPTY_TASTE: ReadonlyMap<string, number> = new Map()
 
-export function buildFreshView(input: FreshViewInput): FreshView {
-  const { response, mutes, demo } = input
-  const paths = response.paths
-  const pathMap = new Map<string, FreshPath>(paths.map((p) => [p.id, p]))
-  const sources = sourceGroups(response, mutes)
+/** Video ids of the New_Items a build shows: the Hero_Card (when new) and the `isNew` cards. */
+function shownNewIds(hero: HeroView | null, sections: readonly HobbySectionView[]): Set<string> {
+  const ids = new Set<string>()
+  if (hero?.kind === 'fresh' && hero.badge === 'today') ids.add(hero.card.videoId)
+  for (const section of sections) {
+    for (const c of section.cards) if (c.kind === 'fresh' && c.isNew) ids.add(c.card.videoId)
+  }
+  return ids
+}
 
-  // 1. Selected_Path and chip resolution (hidden or unknown chips fall back to "All skills").
-  const selected = resolveSelectedPath(paths, input.selectedPathId)
-  const visible = freshChips(paths, selected, demo)
+/** The view plus each shown section's build details (card order before the variety rule). */
+export function buildFreshViewDetails(input: FreshViewInput): { view: FreshView; builds: SectionBuild[] } {
+  const { response, mutes, demo } = input
+  const nowMs = response.nowMs
+
+  // 1. Path_Order, used by the chips, the sections and the Sources_Panel alike (Req 2.2).
+  // A repeated path id keeps its first entry, so every list is keyed by a unique id.
+  const seenPaths = new Set<string>()
+  const ordered = pathOrder(
+    response.paths.filter((p) => {
+      if (seenPaths.has(p.id)) return false
+      seenPaths.add(p.id)
+      return true
+    }),
+  )
+  const sources = sourceGroups(response, mutes, ordered)
+  const firstOpenable = sources.find((g) => g.entries.length > 0)?.key ?? null
+
+  // 2. Chips; a hidden or unknown chip falls back to "All hobbies" (Req 2.9).
+  const visible = freshChips(ordered, demo)
   const requested = chipKey(input.chip)
   const chip: FilterChip = visible.find((c) => chipKey(c.chip) === requested)?.chip ?? { kind: 'all' }
-  const chips: ChipView[] = visible.map((c) => ({
-    key: chipKey(c.chip),
-    chip: c.chip,
-    label: c.label,
-    selected: chipKey(c.chip) === chipKey(chip),
-  }))
-  const label = headerLabel(chip, paths, selected)
-  const updatedMs = freshUpdatedMs(response, pathsInScope(chip, paths, selected))
-  const saved = demo ? [] : savedCards(input.events, mutes)
+  const chipPath = chip.kind === 'path' ? (ordered.find((p) => p.id === chip.pathId) ?? null) : null
 
-  if (!selected) {
-    return { chip, chips, headerLabel: label, updatedMs, hero: null, quietLine: false, newCards: [], bestCards: [], saved, state: 'empty', sources }
-  }
-  if (chip.kind === 'saved') {
-    return {
-      chip, chips, headerLabel: label, updatedMs, hero: null, quietLine: false, newCards: [], bestCards: [], saved,
-      state: saved.length === 0 ? 'saved_empty' : 'content', sources,
-    }
-  }
-
-  const heroPath = chip.kind === 'path' ? (pathMap.get(chip.pathId) ?? null) : selected
-
-  // 2. Scope: Skills shown under the chip, and pool Skills (as pathId -> ordered skill ids).
-  const skillScope = new Set<string>()
-  const poolScope: { path: FreshPath; skillIds: string[] }[] = []
-  const scopeKey = (pathId: string, skillId: string): string => JSON.stringify([pathId, skillId])
-  if (chip.kind === 'current') {
-    if (selected.currentSkillId !== null) {
-      skillScope.add(scopeKey(selected.id, selected.currentSkillId))
-      poolScope.push({ path: selected, skillIds: [selected.currentSkillId] })
-    }
-  } else {
-    const scoped = chip.kind === 'path' ? paths.filter((p) => p.id === chip.pathId) : paths
-    for (const p of scoped) for (const s of p.skills) skillScope.add(scopeKey(p.id, s.id))
-    const scopedIds = new Set(scoped.map((p) => p.id))
-    for (const p of bestPathOrder(paths, selected)) {
-      if (scopedIds.has(p.id)) poolScope.push({ path: p, skillIds: [...p.windowSkillIds] })
-    }
-  }
-
-  // 3. Fresh_Items in scope, not muted, published within 7 days; ranked on in-scope matches only.
-  const minPublished = response.nowMs - FRESH_WINDOW_S * 1000
-  const inScope: FreshItemCard[] = []
-  for (const item of response.items) {
-    if (isMuted(mutes, item.channelId)) continue
-    if (!(item.publishedMs > minPublished)) continue
-    const matches = item.matches.filter((m) => skillScope.has(scopeKey(m.pathId, m.skillId)))
-    if (matches.length > 0) inScope.push({ ...item, matches })
-  }
+  // 3. Shown_Items: matched to a path with a Current_Skill (AS3), not muted, under 7 days.
+  // Ranked once; each item keeps its best match, so it belongs to exactly one path.
+  const scoped = new Map<string, FreshPath>()
+  for (const p of ordered) if (p.currentSkillId !== null && !scoped.has(p.id)) scoped.set(p.id, p)
+  const minPublished = nowMs - FRESH_WINDOW_S * 1000
+  const candidates = response.items.filter((item) => !isMuted(mutes, item.channelId) && item.publishedMs > minPublished)
   const taste = demo ? EMPTY_TASTE : tasteAdjustments(input.events, channelLookup(response))
-  const rankedAll = rankFreshItems(inScope, { nowMs: response.nowMs, paths: pathMap, selectedPathId: selected.id, taste })
   const seenRanked = new Set<string>()
-  const ranked = rankedAll.filter((r) => {
+  const ranked = rankFreshItems(candidates, {
+    nowMs,
+    paths: scoped,
+    selectedPathId: ordered[0]?.id ?? '',
+    taste,
+  }).filter((r) => {
     if (seenRanked.has(r.item.videoId)) return false
     seenRanked.add(r.item.videoId)
     return true
   })
 
-  // 4. Hero_Card.
-  const hero = chooseHero({ ranked, heroPath, paths: pathMap, pools: response.pools, mutes, nowMs: response.nowMs })
-  const heroId = hero?.card.videoId ?? null
+  // 4. The "All hobbies" pass. Every "new" count comes from it (D-A).
+  const allHero = chooseHeroAcross(ranked, ordered, response.pools, mutes, nowMs)
+  const allBuilds = buildSections({ paths: ordered, ranked, hero: allHero, pools: response.pools, mutes, nowMs })
+  const newCountOf = new Map<string, number>(allBuilds.map((b) => [b.section.pathId, b.section.newCount]))
 
-  // Skill cap (decision D17): under "All skills" and the path chips a Skill holds at most
-  // MAX_PER_SKILL cards on the page, counted in display order: Hero_Card, New_Section, Best_Section.
-  const capped = chip.kind !== 'current'
-  const perSkill = new Map<string, number>()
-  const hasRoom = (match: SkillMatch): boolean =>
-    !capped || (perSkill.get(scopeKey(match.pathId, match.skillId)) ?? 0) < MAX_PER_SKILL
-  const count = (match: SkillMatch): void => {
-    const key = scopeKey(match.pathId, match.skillId)
-    perSkill.set(key, (perSkill.get(key) ?? 0) + 1)
-  }
-  if (hero) count(hero.match)
-
-  // 5. New_Section.
-  const newRanked: NewCardView[] = []
-  for (const r of ranked) {
-    if (newRanked.length >= NEW_MAX) break
-    if (r.item.videoId === heroId || !hasRoom(r.match)) continue
-    count(r.match)
-    newRanked.push({
-      card: r.item,
-      match: r.match,
-      skillTitle: skillTitleOf(pathMap.get(r.match.pathId), r.match.skillId),
-      isNew: isNewItem(r.item, response.nowMs),
-    })
-  }
-  const newCards = arrangeVariety(newRanked, (c) => c.card.channelId).cards
-
-  // 6. Best_Section: per path, per window Skill, pool order; no taste involved (Req 9.9).
-  const taken = new Set<string>(newCards.map((c) => c.card.videoId))
-  if (heroId !== null) taken.add(heroId)
-  const poolMap = new Map<string, PoolCard[]>()
-  for (const pool of response.pools) {
-    const key = scopeKey(pool.pathId, pool.skillId)
-    if (!poolMap.has(key)) poolMap.set(key, pool.videos)
-  }
-  const bestRanked: BestCardView[] = []
-  outer: for (const { path, skillIds } of poolScope) {
-    for (const skillId of skillIds) {
-      const videos = poolMap.get(scopeKey(path.id, skillId)) ?? []
-      for (const card of videos) {
-        if (bestRanked.length >= BEST_MAX) break outer
-        const match = { pathId: path.id, skillId }
-        if (!hasRoom(match)) break
-        if (taken.has(card.videoId) || isMuted(mutes, card.channelId)) continue
-        taken.add(card.videoId)
-        count(match)
-        bestRanked.push({ card, match, skillTitle: skillTitleOf(path, skillId) })
-      }
+  // 5. Chip views with the badges of the "All hobbies" pass (Req 2.4).
+  const chips: ChipView[] = visible.map((c) => {
+    const pathId = c.chip.kind === 'path' ? c.chip.pathId : null
+    const path = pathId === null ? undefined : ordered.find((p) => p.id === pathId)
+    return {
+      key: chipKey(c.chip),
+      chip: c.chip,
+      label: c.label,
+      selected: chipKey(c.chip) === chipKey(chip),
+      colorSlot: path?.colorSlot ?? null,
+      newCount: path ? (newCountOf.get(path.id) ?? 0) : 0,
     }
+  })
+
+  const updatedMs = freshUpdatedMs(response, chipPath ? [chipPath] : ordered)
+  const saved = demo ? [] : savedCards(input.events, mutes)
+  const base = { chip, chips, updatedMs, saved, sources }
+
+  // 6. "Saved": the list only, no Hero_Card and no section (Req 2.7, 3.6).
+  if (chip.kind === 'saved') {
+    const view: FreshView = {
+      ...base,
+      newToday: null,
+      hero: null,
+      sections: [],
+      quietLine: false,
+      state: saved.length === 0 ? 'saved_empty' : 'content',
+      defaultOpenSource: firstOpenable,
+    }
+    return { view, builds: [] }
   }
-  const bestCards = arrangeVariety(bestRanked, (c) => c.card.channelId).cards
 
-  // 8. States (Req 16.2, 16.3).
-  const freshShown = hero?.kind === 'fresh' || newCards.length > 0
-  const poolShown = hero?.kind === 'pool' || bestCards.length > 0
-  const state: FreshView['state'] = hero === null && newCards.length === 0 && bestCards.length === 0 ? 'empty' : 'content'
+  // 7. Selected scope. A Hobby_Chip shows its path's hero and its one section, rebuilt with
+  // that hero. It may show only the New_Items shown under "All hobbies", and its "new" count
+  // stays the one of that pass, so the badge is the same under both chips (D-A).
+  let hero = allHero
+  let builds = allBuilds
+  if (chipPath) {
+    hero = chooseHeroAcross(ranked, [chipPath], response.pools, mutes, nowMs)
+    const allowedNew = shownNewIds(
+      allHero,
+      allBuilds.map((b) => b.section),
+    )
+    builds = buildSections({ paths: [chipPath], ranked, hero, pools: response.pools, mutes, nowMs, allowedNew }).map(
+      (b) => ({ ...b, section: { ...b.section, newCount: newCountOf.get(chipPath.id) ?? 0 } }),
+    )
+  }
+  const sections = builds.map((b) => b.section)
 
-  return {
-    chip,
-    chips,
-    headerLabel: label,
-    updatedMs,
+  // 8. Header counts (Req 1.4, 1.5).
+  const videos = shownNewIds(hero, sections).size
+  const hobbies = sections.filter((s) => s.newCount > 0).length
+  const newToday: NewToday | null = videos > 0 ? { videos, hobbies } : null
+
+  // 9. States (Req 10.2, 10.3).
+  const cards = sections.flatMap((s) => s.cards)
+  const freshShown = hero?.kind === 'fresh' || cards.some((c) => c.kind === 'fresh')
+  const poolShown = hero?.kind === 'pool' || cards.some((c) => c.kind === 'pool')
+  const state: FreshView['state'] = hero === null && cards.length === 0 ? 'empty' : 'content'
+
+  // 10. The Sources_Panel default (Req 8.3): the selected Hobby_Chip's group, else the first
+  // group. A group with no channel cannot open (Req 8.5).
+  let defaultOpenSource = firstOpenable
+  if (chipPath) {
+    const group = sources.find((g) => g.pathId === chipPath.id)
+    defaultOpenSource = group && group.entries.length > 0 ? group.key : null
+  }
+
+  const view: FreshView = {
+    ...base,
+    newToday,
     hero,
+    sections,
     quietLine: !freshShown && poolShown,
-    newCards,
-    bestCards,
-    saved,
     state,
-    sources,
+    defaultOpenSource,
   }
+  return { view, builds }
+}
+
+export function buildFreshView(input: FreshViewInput): FreshView {
+  return buildFreshViewDetails(input).view
 }
 
 /** Channel id of a video from the returned items and pools (taste, Req 9.8). */

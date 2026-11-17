@@ -48,6 +48,11 @@
 
   --color-overlay: var(--pursio-overlay);
 
+  /* Hobby colors of the nearest [data-hobby-slot] ancestor (see below). */
+  --color-hobby: var(--pursio-hobby);
+  --color-hobby-deep: var(--pursio-hobby-deep);
+  --color-hobby-ink: var(--pursio-hobby-ink);
+
   --radius-node: var(--pursio-radius-node);
 
   --font-head: var(--pursio-font-head);
@@ -63,6 +68,68 @@
   --shadow-raised-banner: 0 6px 0 var(--pursio-banner-deep);
   /* Surface-colored elements (side quests) rest on the line color. */
   --shadow-raised-line: 0 6px 0 var(--pursio-line);
+}
+
+/*
+ * Hobby colors (spec: fresh-v2). An element sets data-hobby-slot="1".."5" and everything
+ * inside reads that slot through bg-hobby, bg-hobby-deep, text-hobby-deep and text-hobby-ink.
+ * Class names stay static and a theme only changes the values.
+ */
+[data-hobby-slot="1"] {
+  --pursio-hobby: var(--pursio-hobby-1);
+  --pursio-hobby-deep: var(--pursio-hobby-1-deep);
+  --pursio-hobby-ink: var(--pursio-hobby-1-ink);
+}
+[data-hobby-slot="2"] {
+  --pursio-hobby: var(--pursio-hobby-2);
+  --pursio-hobby-deep: var(--pursio-hobby-2-deep);
+  --pursio-hobby-ink: var(--pursio-hobby-2-ink);
+}
+[data-hobby-slot="3"] {
+  --pursio-hobby: var(--pursio-hobby-3);
+  --pursio-hobby-deep: var(--pursio-hobby-3-deep);
+  --pursio-hobby-ink: var(--pursio-hobby-3-ink);
+}
+[data-hobby-slot="4"] {
+  --pursio-hobby: var(--pursio-hobby-4);
+  --pursio-hobby-deep: var(--pursio-hobby-4-deep);
+  --pursio-hobby-ink: var(--pursio-hobby-4-ink);
+}
+[data-hobby-slot="5"] {
+  --pursio-hobby: var(--pursio-hobby-5);
+  --pursio-hobby-deep: var(--pursio-hobby-5-deep);
+  --pursio-hobby-ink: var(--pursio-hobby-5-ink);
+}
+
+/*
+ * Scrollbar of a sideways-scrolling row (Fresh carousels and chips): thin, with no track
+ * and a rounded thumb. Inside a [data-hobby-slot] the thumb takes the hobby's deep color,
+ * elsewhere the muted text color, so it follows the theme. It gets stronger on hover.
+ */
+@utility scrollbar-themed {
+  --scrollbar-thumb: color-mix(in srgb, var(--pursio-hobby-deep, var(--pursio-muted)) 40%, transparent);
+  scrollbar-width: thin;
+  scrollbar-color: var(--scrollbar-thumb) transparent;
+
+  &:hover,
+  &:focus-within {
+    --scrollbar-thumb: color-mix(in srgb, var(--pursio-hobby-deep, var(--pursio-muted)) 75%, transparent);
+  }
+
+  /* Browsers without scrollbar-color (older Safari). */
+  @supports not (scrollbar-color: auto) {
+    &::-webkit-scrollbar {
+      width: 8px;
+      height: 8px;
+    }
+    &::-webkit-scrollbar-track {
+      background: transparent;
+    }
+    &::-webkit-scrollbar-thumb {
+      background: var(--scrollbar-thumb);
+      border-radius: 9999px;
+    }
+  }
 }
 
 /*

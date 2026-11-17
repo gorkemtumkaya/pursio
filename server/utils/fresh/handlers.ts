@@ -24,6 +24,7 @@ import type {
   FreshSkillPool,
 } from '../../../shared/types/fresh'
 import type { VideoEvent, VideoPool } from '../../../shared/types/video'
+import { isColorSlot, type ColorSlot } from '../../../shared/utils/color-slot'
 import { checkKeyId, checkKeysForPath } from '../../../shared/utils/fresh-keys'
 import { languageCode, poolKey } from '../../../shared/utils/video-normalize'
 import { withTimeout, type HandlerResponse } from '../llm-handlers'
@@ -231,8 +232,12 @@ function isRecord(value: unknown): value is Record<string, unknown> {
  * Validates a signed-out body (Req 8.2, 8.3). Returns the request (texts trimmed, language
  * reduced by `languageCode`) or the first invalid field, in the order `body`, `language`,
  * `paths`, then per path `paths.<i>.id`, `.hobby`, `.skills`, `.skills.<j>.id`, `.title`,
- * `.level`, `.currentSkillId`. A missing, null, empty or whitespace-only language is `en`.
+ * `.level`, `.currentSkillId`, then `paths[<i>].colorSlot` and `paths[<i>].completedCount`.
+ * A missing, null, empty or whitespace-only language is `en`.
  * `currentSkillId` must be null or the id of one of the path's Skills.
+ * `colorSlot` must be an integer from 1 to 5 and `completedCount` an integer from 0 to the
+ * path's Skill count; a missing one (a tab opened before fresh-v2) reads as slot 1 and
+ * 0 completed (spec: fresh-v2, Req 9.9, D-C).
  */
 export function parseFreshRequest(body: unknown): FreshParseResult {
   if (!isRecord(body)) return { ok: false, field: 'body' }
@@ -276,7 +281,26 @@ export function parseFreshRequest(body: unknown): FreshParseResult {
       if (!skills.some((s) => s.id === current)) return { ok: false, field: `${at}.currentSkillId` }
       currentSkillId = current
     }
-    paths.push({ id, hobby, skills, currentSkillId })
+    const rawSlot = p.colorSlot
+    let colorSlot: ColorSlot = 1
+    if (rawSlot !== undefined) {
+      if (!isColorSlot(rawSlot)) return { ok: false, field: `paths[${i}].colorSlot` }
+      colorSlot = rawSlot
+    }
+    const rawCompleted = p.completedCount
+    let completedCount = 0
+    if (rawCompleted !== undefined) {
+      if (
+        typeof rawCompleted !== 'number'
+        || !Number.isInteger(rawCompleted)
+        || rawCompleted < 0
+        || rawCompleted > skills.length
+      ) {
+        return { ok: false, field: `paths[${i}].completedCount` }
+      }
+      completedCount = rawCompleted
+    }
+    paths.push({ id, hobby, skills, currentSkillId, colorSlot, completedCount })
   }
   return { ok: true, request: { language, paths } }
 }
@@ -294,6 +318,8 @@ function requestScope(request: FreshRequest): FreshScopePath[] {
       windowSkillIds: windowSkillIds(p.skills, p.currentSkillId),
       skills: p.skills.map((s) => ({ ...s })),
       activeAt: null,
+      colorSlot: p.colorSlot,
+      completedCount: p.completedCount,
     },
   }))
 }

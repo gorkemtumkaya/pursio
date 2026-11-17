@@ -29,8 +29,17 @@ export function memoryStorage(initial: Record<string, string> = {}): MemoryStora
 export const NOW = Date.UTC(2026, 10, 20, 12)
 export const HOUR = 3_600_000
 
-/** A path with Skills `<id>-s1..s3`; the window is the current Skill and `s3`. */
-export function freshPath(id: string, hobby: string, current: string | null, activeAt: number | null = null): FreshPath {
+/**
+ * A path with Skills `<id>-s1..s3`; the window is the current Skill and `s3`. Color_Slot 1
+ * and 0 completed unless `over` says otherwise.
+ */
+export function freshPath(
+  id: string,
+  hobby: string,
+  current: string | null,
+  activeAt: number | null = null,
+  over: Partial<FreshPath> = {},
+): FreshPath {
   const skills = ['s1', 's2', 's3'].map((s) => ({ id: `${id}-${s}`, title: `${hobby} ${s}`, level: 'beginner' as const }))
   return {
     id,
@@ -41,6 +50,9 @@ export function freshPath(id: string, hobby: string, current: string | null, act
     windowSkillIds: current === null ? [] : [`${id}-${current}`, `${id}-s3`],
     skills,
     activeAt,
+    colorSlot: 1,
+    completedCount: 0,
+    ...over,
   }
 }
 
