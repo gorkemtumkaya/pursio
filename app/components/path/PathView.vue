@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { computed, nextTick, onBeforeUnmount, onMounted, ref, shallowRef, useTemplateRef, watch } from 'vue'
 import type { Level, QuestTriple, SkillNode, SkillTree } from '#shared/types/skill-tree'
-import { toWickOutfit } from '~/components/mascot/wick'
+import { toWickOutfit } from '~/utils/wick'
 import MascotWick from '~/components/mascot/wick.vue'
 import { completionPercent } from '#shared/utils/progress-engine'
 import { useActivity } from '~/composables/useActivity'

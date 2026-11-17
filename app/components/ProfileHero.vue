@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import type { XpSummary } from '#shared/utils/xp'
 import MascotWick from '~/components/mascot/wick.vue'
-import type { WickOutfit, WickTheme } from '~/components/mascot/wick'
+import type { WickOutfit, WickTheme } from '~/utils/wick'
 
 /**
  * Top card of the Profile_Page: Wick in the hobby's outfit, the learner's name,

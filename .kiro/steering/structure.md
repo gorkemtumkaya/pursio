@@ -16,7 +16,7 @@ app/plugins/                Nuxt plugins (theme.client.ts syncs saved theme)
 app/utils/                  Pure helpers (auto-imported)
 shared/types/               Types shared by app and server (Theme)
 shared/utils/               Helpers shared by app and server (THEMES, isTheme)
-server/                     Nitro server routes (later)
+server/                     Nitro server routes (api/) and server-only utils
 public/                     Static assets served as-is
 nuxt.config.ts              Nuxt config (Tailwind vite plugin, runtimeConfig)
 tsconfig.json               References the generated .nuxt/tsconfig.*.json

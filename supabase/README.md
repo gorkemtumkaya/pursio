@@ -14,6 +14,9 @@ Apply the files in `supabase/migrations/` in file-name order:
 
 6. `20261110000100_video_pipeline.sql`, `20261110000200_video_events.sql`: video pipeline tables and functions, and per-user video events.
 7. `20261110000300_video_drain_cron.sql`: enables `pg_cron` and `pg_net` and schedules the `video-drain` job (every 20 seconds). See "Video drain job" below for the Vault secrets it needs.
+8. `20261112000000_fresh_tables.sql`: server-only Fresh tables (`fresh_channel_sources`, `fresh_items`, `fresh_check_state`) and their functions, reachable by the service role only.
+9. `20261112000100_fresh_user.sql`: `paths.last_opened_at`, owner-only `channel_mutes`, and save snapshots on `video_events`.
+10. `20261112000200_fresh_check_cron.sql`: schedules the `fresh-check` job (every 15 minutes). See "Fresh check job" below for the Vault secret it needs.
 
 Either run `supabase db push` with the Supabase CLI linked to the project, or paste each file into the dashboard SQL editor and run them in that order.
 
@@ -62,6 +65,20 @@ select vault.create_secret('<same value as NUXT_VIDEO_DRAIN_SECRET on the host>'
 - To change a value, use `vault.update_secret(<id from vault.secrets>, '<new value>')`.
 - Check runs with `select * from cron.job_run_details order by start_time desc limit 5;` and responses with `select * from net._http_response order by created desc limit 5;`.
 - Roll back with `select cron.unschedule('video-drain');`.
+
+### Fresh check job
+
+The `fresh-check` cron job calls `POST <app URL>/api/fresh/check` every 15 minutes with the header `x-fresh-check-secret`. It reuses the `video_drain_app_url` Vault secret and reads its own secret from Vault. Until both exist the job runs and sends nothing.
+
+```sql
+-- Only if the video drain job is not set up yet:
+select vault.create_secret('<app URL, e.g. https://your-domain.example>', 'video_drain_app_url');
+select vault.create_secret('<same value as NUXT_FRESH_CHECK_SECRET on the host>', 'fresh_check_secret');
+```
+
+- `fresh_check_secret` must equal `NUXT_FRESH_CHECK_SECRET` on the host, or the route answers 401. With no `NUXT_FRESH_CHECK_SECRET` on the host the route answers 404.
+- The request timeout is 120 s, matching the function limit (`maxDuration` 120).
+- Roll back with `select cron.unschedule('fresh-check');`. Keep `video_drain_app_url`; the video drain job uses it.
 
 ## 4. Row Level Security checklist
 

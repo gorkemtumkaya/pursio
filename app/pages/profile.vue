@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { computed } from 'vue'
 import { xpSummaryOf } from '#shared/utils/xp'
-import { toWickOutfit, type WickOutfit } from '~/components/mascot/wick'
+import { toWickOutfit, type WickOutfit } from '~/utils/wick'
 import { getActiveHobbyId } from '~/utils/active-hobby'
 import { toHobbyLibrary } from '~/utils/cloud-library'
 import { pickHobby } from '~/utils/hobby-store'

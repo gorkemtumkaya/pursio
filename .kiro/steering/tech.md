@@ -11,5 +11,5 @@
 - Fonts load from Google Fonts via `<link>` in `nuxt.config.ts`.
 - Small, focused components with typed props and emits.
 - No new dependencies without asking first. Pin exact versions.
-- Backend (later): Supabase Auth, Postgres with RLS, Edge Functions, pgvector.
+- Backend: Supabase Auth, Postgres with RLS, pg_cron and pg_net. Migrations in `supabase/migrations/`, setup in `supabase/README.md`.
 - Secrets only in `.env`, never committed. Add new keys to `.env.example` with placeholder values.

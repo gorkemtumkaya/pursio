@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { computed, nextTick, ref, watch } from 'vue'
 import MascotWick from '~/components/mascot/wick.vue'
-import type { WickMood } from '~/components/mascot/wick'
+import type { WickMood } from '~/utils/wick'
 import { getActiveHobbyId } from '~/utils/active-hobby'
 import { cloudEntries, toHobbyLibrary } from '~/utils/cloud-library'
 import { hobbyPath, lastActivePath } from '~/utils/hobby-store'

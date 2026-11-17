@@ -3,7 +3,7 @@
 // Wick, the Pursio mascot.
 // Usage: <Wick theme="boulder" mood="cheer" outfit="photography" :size="160" @cheer-end="..." />
 import { computed, useId } from 'vue'
-import { WICK_PALETTES, type WickMood, type WickOutfit, type WickTheme } from './wick'
+import { WICK_PALETTES, type WickMood, type WickOutfit, type WickTheme } from '~/utils/wick'
 
 const props = withDefaults(
   defineProps<{

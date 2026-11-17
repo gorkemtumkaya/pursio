@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { computed, ref, useId } from 'vue'
 import MascotWick from '~/components/mascot/wick.vue'
-import type { WickOutfit, WickTheme } from '~/components/mascot/wick'
+import type { WickOutfit, WickTheme } from '~/utils/wick'
 import { useFocusTrap } from '~/composables/useFocusTrap'
 
 /**

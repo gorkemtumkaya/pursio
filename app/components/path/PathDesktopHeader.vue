@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import type { XpSummary } from '#shared/utils/xp'
 import MascotWick from '~/components/mascot/wick.vue'
-import type { WickOutfit, WickTheme } from '~/components/mascot/wick'
+import type { WickOutfit, WickTheme } from '~/utils/wick'
 
 /**
  * Desktop header (Req 11.8): "YOUR PATH" eyebrow, the hobby title, then
