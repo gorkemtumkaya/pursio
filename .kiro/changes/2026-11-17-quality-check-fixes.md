@@ -3,7 +3,7 @@
 Fixes from the project-wide quality check on 2026-11-17: a failing config test, missing Fresh setup docs, two build warnings, stale steering, and a new bug ledger.
 
 - **Repos and branches:** `pursio` (current branch)
-- **State:** uncommitted
+- **State:** committed in `dd9c42e`
 - **Size:** 14 files changed (1 moved), 2 added, in 5 groups
 
 ## Review order

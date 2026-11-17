@@ -1,4 +1,4 @@
-import { onScopeDispose, ref, watch, type Ref } from 'vue'
+import { computed, onScopeDispose, ref, watch, type Ref } from 'vue'
 import type { Level } from '#shared/types/skill-tree'
 import type { SkillVideosState } from '#shared/types/video'
 import { fetchVideos, runVideosLoop } from '~/utils/video-api'
@@ -73,17 +73,27 @@ export function useSkillVideos(params: Ref<SkillVideosParams | null>) {
     )
   }
 
+  // Only the request values decide a reload. Callers rebuild params on unrelated changes
+  // (a quest tick rebuilds the sheet's detail), and an equal request must keep the videos.
+  const requestKey = computed(() => {
+    const p = params.value
+    return p === null
+      ? null
+      : JSON.stringify([p.hobby, p.skillTitle, p.level, p.language, p.pathId ?? null, p.skillId ?? null])
+  })
+
   watch(
-    params,
-    (next) => {
-      if (next === null) {
+    requestKey,
+    (key) => {
+      const next = params.value
+      if (key === null || next === null) {
         stop()
         state.value = { kind: 'hidden' }
         return
       }
       void load(next)
     },
-    { immediate: true, deep: true },
+    { immediate: true },
   )
 
   onScopeDispose(stop)

@@ -6,7 +6,9 @@ IDs are `APP-<AREA>-NN` and are never reused. Severity: **Critical** can be expl
 
 ## Bugs with a test
 
-None yet. Bug tests are named `BUG-<ID>: …` and marked `it.fails`; list them with `yarn test -t "BUG-"`.
+Bug tests are named `BUG-<ID>: …` and marked `it.fails`; list them with `yarn test -t "BUG-"`.
+
+None open.
 
 ## Bugs without a test yet
 
@@ -23,4 +25,10 @@ None yet.
 
 ## Fixed
 
-None yet.
+### APP-PATH-01 · High · Ticking a quest reloaded the skill's videos
+- **Introduced:** 9731aae (2026-11-14), shipped in v0.3.0
+- **Fixed in:** pending
+- **Impact while it existed:** each quest tick or untick in the skill sheet or side panel hid the Watch section and the "Watch how" links, stopped a playing video, restarted the "Finding videos" polling, then showed the videos again.
+- **Data / analytics impact:** one extra `/api/videos` request per quest tick; no stored data affected.
+- **Fix:** `useSkillVideos` reloads only when the request values change. Details: `.kiro/changes/2026-11-17-videos-reload-on-quest-tick.md`, G1
+- **Tests:** [tests/unit/use-skill-videos.test.ts](tests/unit/use-skill-videos.test.ts)
