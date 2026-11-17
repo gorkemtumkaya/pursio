@@ -17,6 +17,7 @@ import type { VideoEvent } from '../types/video'
 import { checkKeyId, checkKeysForPath, compareCodePoints } from './fresh-keys'
 import {
   BEST_MAX,
+  MAX_PER_SKILL,
   FRESH_WINDOW_S,
   NEW_BADGE_S,
   NEW_MAX,
@@ -154,8 +155,8 @@ function skillTitleOf(path: FreshPath | undefined, skillId: string): string {
 }
 
 /**
- * Visible chips in order (Req 14.1): "For <current skill>" (hidden without a Current_Skill,
- * Req 14.10), "All skills", one per path, "Saved" (hidden in Demo_Mode, Req 11.10).
+ * Visible chips in order (Req 14.1): "All skills", "For <current skill>" (hidden without a
+ * Current_Skill, Req 14.10), one per path, "Saved" (hidden in Demo_Mode, Req 11.10).
  */
 export function freshChips(
   paths: readonly FreshPath[],
@@ -163,11 +164,10 @@ export function freshChips(
   demo: boolean,
 ): { chip: FilterChip; label: string }[] {
   if (paths.length === 0) return []
-  const out: { chip: FilterChip; label: string }[] = []
+  const out: { chip: FilterChip; label: string }[] = [{ chip: { kind: 'all' }, label: 'All skills' }]
   if (selected && selected.currentSkillId !== null) {
     out.push({ chip: { kind: 'current' }, label: `For ${skillTitleOf(selected, selected.currentSkillId)}` })
   }
-  out.push({ chip: { kind: 'all' }, label: 'All skills' })
   for (const p of paths) out.push({ chip: { kind: 'path', pathId: p.id }, label: p.hobby })
   if (!demo) out.push({ chip: { kind: 'saved' }, label: 'Saved' })
   return out
@@ -412,16 +412,31 @@ export function buildFreshView(input: FreshViewInput): FreshView {
   const hero = chooseHero({ ranked, heroPath, paths: pathMap, pools: response.pools, mutes, nowMs: response.nowMs })
   const heroId = hero?.card.videoId ?? null
 
+  // Skill cap (decision D17): under "All skills" and the path chips a Skill holds at most
+  // MAX_PER_SKILL cards on the page, counted in display order: Hero_Card, New_Section, Best_Section.
+  const capped = chip.kind !== 'current'
+  const perSkill = new Map<string, number>()
+  const hasRoom = (match: SkillMatch): boolean =>
+    !capped || (perSkill.get(scopeKey(match.pathId, match.skillId)) ?? 0) < MAX_PER_SKILL
+  const count = (match: SkillMatch): void => {
+    const key = scopeKey(match.pathId, match.skillId)
+    perSkill.set(key, (perSkill.get(key) ?? 0) + 1)
+  }
+  if (hero) count(hero.match)
+
   // 5. New_Section.
-  const newRanked: NewCardView[] = ranked
-    .filter((r) => r.item.videoId !== heroId)
-    .slice(0, NEW_MAX)
-    .map((r) => ({
+  const newRanked: NewCardView[] = []
+  for (const r of ranked) {
+    if (newRanked.length >= NEW_MAX) break
+    if (r.item.videoId === heroId || !hasRoom(r.match)) continue
+    count(r.match)
+    newRanked.push({
       card: r.item,
       match: r.match,
       skillTitle: skillTitleOf(pathMap.get(r.match.pathId), r.match.skillId),
       isNew: isNewItem(r.item, response.nowMs),
-    }))
+    })
+  }
   const newCards = arrangeVariety(newRanked, (c) => c.card.channelId).cards
 
   // 6. Best_Section: per path, per window Skill, pool order; no taste involved (Req 9.9).
@@ -438,9 +453,12 @@ export function buildFreshView(input: FreshViewInput): FreshView {
       const videos = poolMap.get(scopeKey(path.id, skillId)) ?? []
       for (const card of videos) {
         if (bestRanked.length >= BEST_MAX) break outer
+        const match = { pathId: path.id, skillId }
+        if (!hasRoom(match)) break
         if (taken.has(card.videoId) || isMuted(mutes, card.channelId)) continue
         taken.add(card.videoId)
-        bestRanked.push({ card, match: { pathId: path.id, skillId }, skillTitle: skillTitleOf(path, skillId) })
+        count(match)
+        bestRanked.push({ card, match, skillTitle: skillTitleOf(path, skillId) })
       }
     }
   }

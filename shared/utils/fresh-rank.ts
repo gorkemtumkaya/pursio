@@ -20,6 +20,8 @@ export const NEW_MAX = 24
 export const BEST_MAX = 12
 export const VARIETY_WINDOW = 6
 export const VARIETY_MAX_PER_CHANNEL = 2
+/** Most cards of one Skill on the page under "All skills" and the path chips (decision D17). */
+export const MAX_PER_SKILL = 3
 export const TASTE_MIN_EVENTS = 10
 export const TASTE_STEP = 0.1
 export const TASTE_BOUND = 0.2

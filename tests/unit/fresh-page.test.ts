@@ -227,7 +227,8 @@ describe('chips, mutes and playback (Req 19.19)', () => {
     const v = buildFreshView(input({ response }))
     expect(v.chips.map((c) => c.chip.kind)).toEqual(['all', 'path', 'saved'])
     const withCurrent = buildFreshView(input())
-    expect(withCurrent.chips[0]?.label).toBe('For Bouldering s1')
+    expect(withCurrent.chips[0]?.label).toBe('All skills')
+    expect(withCurrent.chips[1]?.label).toBe('For Bouldering s1')
   })
 
   it('"Saved" orders by Saved_Time desc and shows no Hero_Card (Req 14.6, 12.7)', () => {

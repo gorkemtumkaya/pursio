@@ -6,6 +6,12 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+## [0.4.2] - 2026-11-17
+
+### Changed
+- Fresh now shows at most 3 videos per skill under "All skills" and the hobby chips, with new uploads first, so one skill no longer fills the page. "For <current skill>" still shows everything for that skill. (spec: fresh)
+- "All skills" is now the first chip on Fresh, and the page is centered like Quests and Profile. (spec: fresh)
+
 ## [0.4.1] - 2026-11-17
 
 ### Fixed

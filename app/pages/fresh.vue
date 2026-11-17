@@ -215,8 +215,9 @@ function shownVideo(video: FreshShownVideo): FreshShownVideo {
 
 <template>
   <AppShell>
-    <div class="min-w-0 lg:grid lg:grid-cols-[minmax(0,1fr)_320px] lg:items-start lg:gap-6 lg:px-8 lg:pt-7">
-      <main class="mx-auto flex w-full max-w-240 min-w-0 flex-col gap-4 px-4 pt-5 pb-26 lg:mx-0 lg:gap-5 lg:px-0 lg:pt-0 lg:pb-12">
+    <!-- Same centered container as Quests and Profile (max-w-360); main and Sources share it on desktop. -->
+    <div class="mx-auto w-full max-w-360 min-w-0 lg:grid lg:grid-cols-[minmax(0,1fr)_320px] lg:items-start lg:gap-6 lg:px-8 lg:pt-7">
+      <main class="mx-auto flex w-full max-w-240 min-w-0 flex-col gap-4 px-4 pt-5 pb-26 lg:max-w-none lg:gap-5 lg:px-0 lg:pt-0 lg:pb-12">
         <FreshHeader
           ref="header"
           :filter-label="view?.headerLabel ?? ''"

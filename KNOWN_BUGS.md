@@ -14,9 +14,9 @@ None open.
 
 | ID | Severity | Where | What | Suggested fix |
 |---|---|---|---|---|
-| APP-FRESH-01 | Medium | Fresh feed ranking, variety rule ([shared/utils/fresh-rank.ts](shared/utils/fresh-rank.ts), Req 9.13, 9.14) | Reported by the owner: the Fresh feed does not keep the intended variety. Exact symptom still to be written down. | Reproduce with a failing `BUG-APP-FRESH-01` test, then fix. |
 | APP-FRESH-02 | Low | Fresh video cards ([app/components/fresh/FreshVideoCard.vue](app/components/fresh/FreshVideoCard.vue)) | Reported by the owner: card layout needs fixes. Details still to be written down. | Compare with `dev_docs/Mobile · Fresh@1x.png` and `dev_docs/Desktop · Fresh@1x.png`. |
 | APP-FRESH-03 | Low | Fresh hero card ([app/components/fresh/FreshHeroCard.vue](app/components/fresh/FreshHeroCard.vue)) | Reported by the owner: hero card layout needs fixes. Details still to be written down. | Compare with the same Fresh mockups. |
+| APP-FRESH-06 | Medium | Best_Section order in [shared/utils/fresh-view.ts](shared/utils/fresh-view.ts) (Req 9.11) | Under "All skills" the Selected_Path's window fills the first 8 Best cards; other hobbies get the last 3 or 4. | Mix hobbies; plan `.kiro/changes/2026-11-17-fresh-layout-and-variety.md`, G4. |
 | APP-SEC-01 | Medium | [server/utils/rate-limiter.ts](server/utils/rate-limiter.ts), used by [server/utils/llm-runtime.ts](server/utils/llm-runtime.ts), video and fresh runtimes | Limits are kept in memory per serverless instance, and keyed by user id. Anonymous accounts are free to create, so a script can spread tree generations over new sessions and over Vercel instances and spend the default LLM key beyond 10 per user per hour. The only brake is Supabase's anonymous sign-in limit per IP (documented in `supabase/README.md`). | Move the limit to Postgres (a counter table or function shared by all instances), and add a global daily cap on default-key calls. |
 
 ## Accepted risks
@@ -24,6 +24,30 @@ None open.
 None yet.
 
 ## Fixed
+
+### APP-FRESH-01 · Medium · One skill filled most of the Fresh page
+- **Introduced:** 6b0f02f (2026-11-15), shipped in v0.4.0
+- **Fixed in:** pending
+- **Impact while it existed:** under "All skills" the Best_Section took every pool video of the first window skill before the next, so one skill could show the hero plus 4 or more cards.
+- **Data / analytics impact:** none
+- **Fix:** at most 3 cards per skill on the page, counted Hero, New, Best (decision D17); none under "For <current skill>". Details: `.kiro/changes/2026-11-17-fresh-layout-and-variety.md`, G2
+- **Tests:** [tests/unit/fresh-view-examples.test.ts](tests/unit/fresh-view-examples.test.ts), [tests/property/fresh-sections.property.test.ts](tests/property/fresh-sections.property.test.ts)
+
+### APP-FRESH-04 · Low · "All skills" was not the first Fresh chip
+- **Introduced:** 6b0f02f (2026-11-15), shipped in v0.4.0
+- **Fixed in:** pending
+- **Impact while it existed:** "For <current skill>" sat left of the default chip "All skills".
+- **Data / analytics impact:** none
+- **Fix:** "All skills" comes first (Req 14.1). Details: `.kiro/changes/2026-11-17-fresh-layout-and-variety.md`, G1
+- **Tests:** [tests/unit/fresh-page.test.ts](tests/unit/fresh-page.test.ts), [tests/unit/fresh-view-examples.test.ts](tests/unit/fresh-view-examples.test.ts)
+
+### APP-FRESH-05 · Low · Fresh page was not centered on wide screens
+- **Introduced:** 6b0f02f (2026-11-15), shipped in v0.4.0
+- **Fixed in:** pending
+- **Impact while it existed:** content hugged the left edge with the Sources panel far right, unlike Quests and Profile.
+- **Data / analytics impact:** none
+- **Fix:** same `mx-auto max-w-360` container as Quests and Profile. Details: `.kiro/changes/2026-11-17-fresh-layout-and-variety.md`, G3
+- **Tests:** none (layout); manual check
 
 ### APP-PATH-01 · High · Ticking a quest reloaded the skill's videos
 - **Introduced:** 9731aae (2026-11-14), shipped in v0.3.0

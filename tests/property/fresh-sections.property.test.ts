@@ -11,7 +11,7 @@ import type {
 } from '../../shared/types/fresh'
 import type { Level } from '../../shared/types/skill-tree'
 import type { VideoEvent, VideoStyle } from '../../shared/types/video'
-import { arrangeVariety, BEST_MAX, FRESH_WINDOW_S, NEW_MAX } from '../../shared/utils/fresh-rank'
+import { arrangeVariety, BEST_MAX, FRESH_WINDOW_S, MAX_PER_SKILL, NEW_MAX } from '../../shared/utils/fresh-rank'
 import { buildFreshView, type FilterChip, type FreshView } from '../../shared/utils/fresh-view'
 
 const RUNS = { numRuns: 300 }
@@ -204,21 +204,45 @@ function bestScope(response: FreshResponseOk, chip: FilterChip, selectedPathId: 
   return ordered.map((path) => ({ path, skillIds: [...path.windowSkillIds] }))
 }
 
-/** Req 9.11, 9.12, 13.5: the Best_Section before the variety step. */
+const skillKey = (m: SkillMatch): string => `${m.pathId}\u0000${m.skillId}`
+
+/** Cards per Skill on the page: Hero_Card, New_Section and Best_Section together. */
+function perSkillCounts(view: FreshView): Map<string, number> {
+  const counts = new Map<string, number>()
+  const add = (m: SkillMatch): void => {
+    counts.set(skillKey(m), (counts.get(skillKey(m)) ?? 0) + 1)
+  }
+  if (view.hero) add(view.hero.match)
+  for (const c of view.newCards) add(c.match)
+  for (const c of view.bestCards) add(c.match)
+  return counts
+}
+
+/**
+ * Req 9.11, 9.12, 13.5: the Best_Section before the variety step. `used` holds the cards the
+ * Hero_Card and New_Section already gave each Skill; under a capped chip a Skill stops at
+ * MAX_PER_SKILL (decision D17).
+ */
 function expectedBest(
   response: FreshResponseOk,
   chip: FilterChip,
   selectedPathId: string | null,
   mutes: ReadonlyMap<string, boolean>,
   excluded: ReadonlySet<string>,
+  used: ReadonlyMap<string, number>,
 ): { videoId: string; pathId: string; skillId: string }[] {
   const out: { videoId: string; pathId: string; skillId: string }[] = []
   const seen = new Set(excluded)
+  const counts = new Map(used)
+  const capped = chip.kind !== 'current'
   for (const { path, skillIds } of bestScope(response, chip, selectedPathId)) {
     for (const skillId of skillIds) {
+      const key = skillKey({ pathId: path.id, skillId })
       const pool = response.pools.find((p) => p.pathId === path.id && p.skillId === skillId)
       for (const v of pool?.videos ?? []) {
+        if (capped && (counts.get(key) ?? 0) >= MAX_PER_SKILL) break
         if (seen.has(v.videoId) || isMuted(mutes, v.channelId)) continue
+        counts.set(key, (counts.get(key) ?? 0) + 1)
         seen.add(v.videoId)
         out.push({ videoId: v.videoId, pathId: path.id, skillId })
       }
@@ -254,9 +278,10 @@ describe('Feature: fresh, Property 28: Hero, New and Best dedupe and caps', () =
   it('uses the spec caps', () => {
     expect(NEW_MAX).toBe(24)
     expect(BEST_MAX).toBe(12)
+    expect(MAX_PER_SKILL).toBe(3)
   })
 
-  /** **Validates: Requirements 9.11, 9.12, 12.9, 13.1, 13.5** */
+  /** **Validates: Requirements 9.11, 9.12, 9.16, 12.9, 13.1, 13.5** */
   it('keeps the hero out of both sections, dedupes, caps and orders the Best_Section', () => {
     fc.assert(
       fc.property(arbInput, (input) => {
@@ -278,15 +303,27 @@ describe('Feature: fresh, Property 28: Hero, New and Best dedupe and caps', () =
         expect(fresh.length).toBeLessThanOrEqual(NEW_MAX)
         expect(best.length).toBeLessThanOrEqual(BEST_MAX)
 
-        // Req 13.1: New stops at 24 only when there are more candidates.
+        // Req 13.1: New stops at 24 only when there are more candidates. Under a capped chip the
+        // Skill cap (decision D17) can leave candidates out, so only the upper bound holds there.
         const candidates = newCandidateCount(input.response, view.chip, input.selectedPathId, input.mutes)
         const heroIsFresh = view.hero?.kind === 'fresh' ? 1 : 0
-        expect(fresh.length).toBe(Math.min(NEW_MAX, Math.max(0, candidates - heroIsFresh)))
+        const uncappedNew = Math.min(NEW_MAX, Math.max(0, candidates - heroIsFresh))
+        if (view.chip.kind === 'current') expect(fresh.length).toBe(uncappedNew)
+        else expect(fresh.length).toBeLessThanOrEqual(uncappedNew)
+
+        // Decision D17: at most MAX_PER_SKILL cards per Skill on the page, except under "For <current skill>".
+        if (view.chip.kind !== 'current') {
+          for (const n of perSkillCounts(view).values()) expect(n).toBeLessThanOrEqual(MAX_PER_SKILL)
+        }
 
         // Req 9.11, 9.12, 13.5: Best is the model list, first 12, rearranged only by the variety step.
         const excluded = new Set(fresh)
         if (heroId !== null) excluded.add(heroId)
-        const model = expectedBest(input.response, view.chip, input.selectedPathId, input.mutes, excluded)
+        const used = new Map<string, number>()
+        for (const m of [...(view.hero ? [view.hero.match] : []), ...view.newCards.map((c) => c.match)]) {
+          used.set(skillKey(m), (used.get(skillKey(m)) ?? 0) + 1)
+        }
+        const model = expectedBest(input.response, view.chip, input.selectedPathId, input.mutes, excluded, used)
         const shown = view.bestCards.map((c) => ({ videoId: c.card.videoId, pathId: c.match.pathId, skillId: c.match.skillId }))
         expect([...shown].sort((a, b) => (a.videoId < b.videoId ? -1 : 1))).toEqual(
           [...model].sort((a, b) => (a.videoId < b.videoId ? -1 : 1)),
@@ -300,7 +337,7 @@ describe('Feature: fresh, Property 28: Hero, New and Best dedupe and caps', () =
     )
   })
 
-  /** **Validates: Requirements 9.9** (deferred from task 3.4): no taste value changes the Best_Section. */
+  /** **Validates: Requirements 9.9** (deferred from task 3.4): no taste value changes the Best_Section, except through the Skill cap. */
   it('keeps the Best_Section order whatever the taste-relevant Video_Events are', () => {
     // Pool ids disjoint from item ids, so taste can change New and the hero but not which pool ids Best excludes.
     const itemIds = videoIds('f', 30)
@@ -320,8 +357,15 @@ describe('Feature: fresh, Property 28: Hero, New and Best dedupe and caps', () =
           const a = buildFreshView({ ...base, events: eventsA })
           const b = buildFreshView({ ...base, events: eventsB })
           const none = buildFreshView({ ...base, events: [] })
-          expect(bestIds(a)).toEqual(bestIds(none))
-          expect(bestIds(b)).toEqual(bestIds(none))
+          // Taste reaches the Best_Section only through the Skill cap (decision D17): the Hero_Card and
+          // New_Section use a Skill's slots first. With the same slots used, Best is the same.
+          const slotsBeforeBest = (v: FreshView): string =>
+            JSON.stringify([...(v.hero ? [v.hero.match] : []), ...v.newCards.map((c) => c.match)].map(skillKey).sort())
+          for (const view of [a, b]) {
+            if (view.chip.kind === 'current' || slotsBeforeBest(view) === slotsBeforeBest(none)) {
+              expect(bestIds(view)).toEqual(bestIds(none))
+            }
+          }
         },
       ),
       RUNS,

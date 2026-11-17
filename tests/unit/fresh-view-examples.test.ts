@@ -213,12 +213,52 @@ describe('hero examples (Req 19.11, 19.19)', () => {
     const two = response({ paths: [path('a', 'Bouldering', 's1'), path('b', 'Guitar', null)] })
     const byDefault = buildFreshView(input({ response: two }))
     expect(byDefault.chips.filter((c) => c.selected).map((c) => c.key)).toEqual(['all'])
-    expect(byDefault.chips.map((c) => c.label)).toEqual(['For Bouldering s1', 'All skills', 'Bouldering', 'Guitar', 'Saved'])
+    expect(byDefault.chips.map((c) => c.label)).toEqual(['All skills', 'For Bouldering s1', 'Bouldering', 'Guitar', 'Saved'])
     // Path "b" has no Current_Skill: "For <current skill>" is hidden and falls back to "All skills".
     const hidden = buildFreshView(input({ response: two, selectedPathId: 'b', chip: { kind: 'current' } }))
     expect(hidden.chips.map((c) => c.key)).not.toContain('current')
     expect(hidden.chip).toEqual({ kind: 'all' })
     const unknown = buildFreshView(input({ response: two, chip: { kind: 'path', pathId: 'gone' } }))
     expect(unknown.chip).toEqual({ kind: 'all' })
+  })
+})
+
+describe('Skill cap examples (decision D17, Req 9.16)', () => {
+  // Window of path "a" is a-s1 (current) then a-s3; channels differ so the variety rule changes nothing.
+  const pools = [
+    { pathId: 'a', skillId: 'a-s1', videos: ['p1', 'p2', 'p3', 'p4', 'p5'].map((id) => pool(id, `c-${id}`)) },
+    { pathId: 'a', skillId: 'a-s3', videos: ['q1', 'q2', 'q3', 'q4'].map((id) => pool(id, `c-${id}`)) },
+  ]
+  const s1Items = ['n1', 'n2'].map((id, i) => item(id, `c-${id}`, { publishedMs: NOW - (i + 1) * HOUR }))
+  const ofSkill = (v: ReturnType<typeof buildFreshView>, skillId: string): string[] =>
+    [
+      ...(v.hero ? [v.hero] : []).map((h) => ({ id: h.card.videoId, skillId: h.match.skillId })),
+      ...v.newCards.map((c) => ({ id: c.card.videoId, skillId: c.match.skillId })),
+      ...v.bestCards.map((c) => ({ id: c.card.videoId, skillId: c.match.skillId })),
+    ]
+      .filter((c) => c.skillId === skillId)
+      .map((c) => c.id)
+
+  it('counts in display order: the hero and New use a Skill\'s slots before Best does', () => {
+    const v = buildFreshView(input({ response: response({ items: s1Items, pools }) }))
+    expect(v.hero?.card.videoId).toBe('n1')
+    expect(v.newCards.map((c) => c.card.videoId)).toEqual(['n2'])
+    expect(ofSkill(v, 'a-s1')).toEqual(['n1', 'n2', 'p1'])
+  })
+
+  it('gives the free slots to the next window Skill, up to 3 each', () => {
+    const v = buildFreshView(input({ response: response({ pools }) }))
+    expect(ofSkill(v, 'a-s1')).toEqual(['p1', 'p2', 'p3'])
+    expect(ofSkill(v, 'a-s3')).toEqual(['q1', 'q2', 'q3'])
+  })
+
+  it('applies the cap under a path chip too', () => {
+    const v = buildFreshView(input({ response: response({ pools }), chip: { kind: 'path', pathId: 'a' } }))
+    expect(ofSkill(v, 'a-s1')).toHaveLength(3)
+  })
+
+  it('shows every video of the skill under "For <current skill>"', () => {
+    const v = buildFreshView(input({ response: response({ items: s1Items, pools }), chip: { kind: 'current' } }))
+    expect(ofSkill(v, 'a-s1')).toEqual(['n1', 'n2', 'p1', 'p2', 'p3', 'p4', 'p5'])
   })
 })
