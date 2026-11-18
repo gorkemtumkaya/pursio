@@ -155,6 +155,10 @@ The owner asked for the mascot to follow the new drawings in `dev_docs/wick-v2/W
 - **Watch for:** `cheer` keeps its jump and uses the happy face. The `founding` outfit exists but nothing shows it yet.
 - **Watch for:** the fragments are inserted with `v-html`. They are fixed strings from the generated file, never user input.
 
+## After the commits
+
+- **Transitions (owner, 2026-11-18), uncommitted:** the FAQ chevron turns over 200 ms and the question changes color on hover ([LandingFaq.vue](../../../app/components/landing/LandingFaq.vue)); the header links fade their color and an underline in on hover ([LandingHeader.vue](../../../app/components/landing/LandingHeader.vue)) and scroll to their section smoothly while the landing is shown ([LandingView.vue](../../../app/components/landing/LandingView.vue)); the footer links fade their color ([LandingFooter.vue](../../../app/components/landing/LandingFooter.vue)). The chevron and the scroll stay instant for visitors who ask for reduced motion.
+
 ## Decisions
 
 All decided by the owner on 2026-11-18.

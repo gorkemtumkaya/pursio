@@ -43,7 +43,7 @@ const FOCUS = 'focus-visible:outline-3 focus-visible:outline-offset-2 focus-visi
         v-for="item in NAV"
         :key="item.hash"
         :to="sectionLink(item.hash)"
-        class="flex min-h-11 items-center rounded-lg text-muted hover:text-ink"
+        class="flex min-h-11 items-center rounded-lg text-muted underline decoration-transparent decoration-2 underline-offset-8 transition-colors duration-150 hover:text-ink hover:decoration-primary"
         :class="FOCUS"
       >
         {{ item.label }}

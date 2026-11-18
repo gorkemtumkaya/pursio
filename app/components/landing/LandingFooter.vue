@@ -11,7 +11,7 @@ const LEGAL_LINKS: readonly { to: string; label: string }[] = [
   { to: '/refund', label: LANDING_COPY.refund },
 ]
 const LINK_CLASS =
-  'flex min-h-11 items-center rounded-lg text-muted underline hover:text-ink focus-visible:outline-3 focus-visible:outline-offset-2 focus-visible:outline-primary'
+  'flex min-h-11 items-center rounded-lg text-muted underline transition-colors duration-150 hover:text-ink focus-visible:outline-3 focus-visible:outline-offset-2 focus-visible:outline-primary'
 </script>
 
 <template>

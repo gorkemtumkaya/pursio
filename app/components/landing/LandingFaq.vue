@@ -24,7 +24,7 @@ const headingId = 'landing-faq-heading'
       class="group min-w-0 overflow-hidden rounded-[20px] border-2 border-line bg-surface"
     >
       <summary
-        class="flex min-h-[60px] cursor-pointer list-none items-center justify-between gap-3 rounded-[18px] px-[18px] py-3.5 text-[17px] font-extrabold text-ink focus-visible:outline-3 focus-visible:-outline-offset-3 focus-visible:outline-primary [&::-webkit-details-marker]:hidden"
+        class="flex min-h-[60px] cursor-pointer list-none items-center justify-between gap-3 rounded-[18px] px-[18px] py-3.5 text-[17px] font-extrabold text-ink transition-colors duration-150 hover:text-accent-text focus-visible:outline-3 focus-visible:-outline-offset-3 focus-visible:outline-primary [&::-webkit-details-marker]:hidden"
       >
         <span class="min-w-0">{{ item.question }}</span>
         <svg
@@ -37,7 +37,7 @@ const headingId = 'landing-faq-heading'
           stroke-width="2.6"
           stroke-linecap="round"
           stroke-linejoin="round"
-          class="shrink-0 group-open:rotate-180"
+          class="shrink-0 transition-transform duration-200 ease-out group-open:rotate-180 motion-reduce:transition-none"
         >
           <path d="M6 9l6 6 6-6" />
         </svg>
