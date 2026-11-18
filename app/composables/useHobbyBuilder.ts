@@ -60,6 +60,7 @@ export function useHobbyBuilder() {
   const outfit = ref<WickOutfit>('none')
   const auth = useAuth()
   const cloud = useCloudStore()
+  const { $posthog: posthog } = useNuxtApp()
 
   let hobbyId: string | null = null
   /** True while the token is read, so a second submit does not start a second request. */
@@ -131,6 +132,7 @@ export function useHobbyBuilder() {
         hobbyId = cloud.addGenerated({ pathId, tree: loaded.value, model, level: requestLevel })
         summary.value = summarizeTree(loaded.value)
         outfit.value = toWickOutfit(loaded.value.mascot.set)
+        posthog?.capture('skill_path_generated', { start_level: requestLevel })
         stopTimer()
         state.value = 'ready'
         return

@@ -13,6 +13,14 @@ const googleFontsUrl =
 // Runs in <head> before first paint so a saved theme never flashes the default.
 const themeInitScript = `(function(){try{var t=localStorage.getItem(${JSON.stringify(THEME_STORAGE_KEY)});if(${JSON.stringify(THEMES)}.indexOf(t)>-1)document.documentElement.setAttribute('data-theme',t)}catch(e){}})()`
 
+if (process.env.NODE_ENV !== 'production') {
+  for (const variable of ['NUXT_PUBLIC_POSTHOG_KEY', 'NUXT_PUBLIC_POSTHOG_HOST']) {
+    if (!process.env[variable]) {
+      console.warn(`${variable} variable required by PostHog is missing or un-configured, this causes events to be silently missed. This error stops appearing once ${variable} is configured`)
+    }
+  }
+}
+
 // https://nuxt.com/docs/api/configuration/nuxt-config
 export default defineNuxtConfig({
   compatibilityDate: '2026-11-08',
@@ -58,6 +66,8 @@ export default defineNuxtConfig({
     public: {
       supabaseUrl: '',
       supabaseAnonKey: '',
+      posthogKey: '',
+      posthogHost: '',
     },
   },
   nitro: {

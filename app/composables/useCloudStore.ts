@@ -106,6 +106,7 @@ export function useCloudStore() {
   const auth = useAuth()
   const toast = useToast()
   const { theme, setTheme } = useTheme()
+  const { $posthog: posthog } = useNuxtApp()
 
   const status = computed(() => state.value.status)
   const paths = computed<readonly CloudPath[]>(() => state.value.paths)
@@ -224,6 +225,7 @@ export function useCloudStore() {
       return false
     }
     setPaths(withArchived(state.value.paths, id, archived))
+    posthog?.capture(archived ? 'hobby_archived' : 'hobby_restored')
     return true
   }
 
@@ -246,6 +248,7 @@ export function useCloudStore() {
     }
     queues.delete(path.pathId)
     setPaths(withoutPath(state.value.paths, id))
+    posthog?.capture('hobby_deleted')
     return removed
   }
 

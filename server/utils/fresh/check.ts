@@ -15,6 +15,7 @@
  */
 import { z } from 'zod'
 import type { CheckKey, FeedEntry } from '../../../shared/types/fresh'
+import { createAiObservabilityContext, withAiObservabilityContext } from '../ai-observability'
 import type { ProviderConfig } from '../../../shared/types/llm'
 import { checkKeyId } from '../../../shared/utils/fresh-keys'
 import { toProviderSchema, type JsonSchema } from '../generation-schema'
@@ -221,17 +222,20 @@ async function judge(
 ): Promise<JudgedFresh[]> {
   if (!deps.config) throw new StageFailure('model_failed')
   const videos = sent.map((c) => c.video)
+  const aiContext = createAiObservabilityContext()
   let output: unknown
   try {
     const prompt = deps.judgePrompt ?? (await loadFreshJudgePrompt())
-    const result = await deps.adapter.generateStructured(deps.config, {
-      systemPrompt: prompt,
-      userText: buildFreshJudgeInput({ hobby: key.hobby, language: key.language, skillTitles }, videos),
-      schemaName: 'fresh_verdicts',
-      schema: FRESH_JUDGE_SCHEMA,
-      maxTokens: FRESH_JUDGE_MAX_TOKENS,
-      signal: AbortSignal.any([deps.deadline, timer(FRESH_JUDGE_TIMEOUT_MS)]),
-    })
+    const result = await withAiObservabilityContext(aiContext, () =>
+      deps.adapter.generateStructured(deps.config!, {
+        systemPrompt: prompt,
+        userText: buildFreshJudgeInput({ hobby: key.hobby, language: key.language, skillTitles }, videos),
+        schemaName: 'fresh_verdicts',
+        schema: FRESH_JUDGE_SCHEMA,
+        maxTokens: FRESH_JUDGE_MAX_TOKENS,
+        signal: AbortSignal.any([deps.deadline, timer(FRESH_JUDGE_TIMEOUT_MS)]),
+      }),
+    )
     if (!result.ok) throw new StageFailure('model_failed')
     output = result.value
   } catch {

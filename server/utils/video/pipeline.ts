@@ -5,6 +5,7 @@
  */
 import { z } from 'zod'
 import type { ProviderConfig } from '../../../shared/types/llm'
+import { createAiObservabilityContext, withAiObservabilityContext } from '../ai-observability'
 import type { Level } from '../../../shared/types/skill-tree'
 import { languageCode } from '../../../shared/utils/video-normalize'
 import { toProviderSchema, type JsonSchema } from '../generation-schema'
@@ -100,6 +101,7 @@ export async function runPipeline(
   deps: PipelineDeps,
 ): Promise<PipelineOutcome> {
   const { store } = deps
+  const aiContext = createAiObservabilityContext()
   const fail = async (outcome: PipelineOutcome): Promise<PipelineOutcome> => {
     await release(store, job, runId)
     return outcome
@@ -115,11 +117,13 @@ export async function runPipeline(
       : null
     if (!queries) {
       if (!deps.config) return await fail({ kind: 'model_failure' })
-      const written = await writeSearchQueries(
-        { hobby: job.hobby, skill: job.skillTitle, level: job.level },
-        deps.config,
-        deps.adapter,
-        deps.signal,
+      const written = await withAiObservabilityContext(aiContext, () =>
+        writeSearchQueries(
+          { hobby: job.hobby, skill: job.skillTitle, level: job.level },
+          deps.config!,
+          deps.adapter,
+          deps.signal,
+        ),
       )
       if (!written.ok) return await fail({ kind: 'model_failure' })
       queries = written.queries
@@ -163,23 +167,25 @@ export async function runPipeline(
         try {
           const prompt = deps.judgePrompt ?? (await loadJudgePrompt())
           const timeout = AbortSignal.timeout(JUDGE_TIMEOUT_MS)
-          const result = await deps.adapter.generateStructured(deps.config, {
-            systemPrompt: prompt,
-            userText: buildJudgeInput(
-              {
-                hobby: job.hobby,
-                skillTitle: job.skillTitle,
-                skillDescription: job.skillDescription,
-                questTexts: job.quests,
-                level: job.level,
-              },
-              candidates,
-            ),
-            schemaName: 'video_verdicts',
-            schema: JUDGE_SCHEMA,
-            maxTokens: JUDGE_MAX_TOKENS,
-            signal: deps.signal ? AbortSignal.any([deps.signal, timeout]) : timeout,
-          })
+          const result = await withAiObservabilityContext(aiContext, () =>
+            deps.adapter.generateStructured(deps.config!, {
+              systemPrompt: prompt,
+              userText: buildJudgeInput(
+                {
+                  hobby: job.hobby,
+                  skillTitle: job.skillTitle,
+                  skillDescription: job.skillDescription,
+                  questTexts: job.quests,
+                  level: job.level,
+                },
+                candidates,
+              ),
+              schemaName: 'video_verdicts',
+              schema: JUDGE_SCHEMA,
+              maxTokens: JUDGE_MAX_TOKENS,
+              signal: deps.signal ? AbortSignal.any([deps.signal, timeout]) : timeout,
+            }),
+          )
           if (!result.ok) return await fail({ kind: 'model_failure' })
           judged = applyVerdicts(result.value, candidates, job.quests)
         }

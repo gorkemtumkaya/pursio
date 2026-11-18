@@ -14,6 +14,7 @@ const DELETE_TIMEOUT_MS = 15_000
 export function useAccountActions() {
   const auth = useAuth()
   const router = useRouter()
+  const { $posthog: posthog } = useNuxtApp()
 
   const logoutBusy = ref(false)
   const logoutError = ref<string | null>(null)
@@ -71,6 +72,7 @@ export function useAccountActions() {
       deleteBusy.value = false
       return
     }
+    posthog?.capture('account_deleted')
     await auth.endSessionAfterDelete()
     clearActiveHobbyId()
     clearSavePromptDismissed()

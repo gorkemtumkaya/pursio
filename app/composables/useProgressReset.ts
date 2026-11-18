@@ -12,6 +12,7 @@ export type ResetTarget = { scope: Extract<ResetScope, 'path'>; id: string; hobb
 export function useProgressReset() {
   const cloud = useCloudStore()
   const toast = useToast()
+  const { $posthog: posthog } = useNuxtApp()
 
   const open = ref(false)
   const busy = ref(false)
@@ -41,7 +42,10 @@ export function useProgressReset() {
 
   /** Runs from the app-wide toast, possibly after the page was left: it only uses the store and the toast. */
   async function undo(snapshot: ResetSnapshot): Promise<void> {
-    if (await cloud.undoReset(snapshot)) toast.show('Progress restored')
+    if (await cloud.undoReset(snapshot)) {
+      posthog?.capture('progress_reset_undone')
+      toast.show('Progress restored')
+    }
   }
 
   function showUndo(t: ResetTarget, snapshot: ResetSnapshot | null): void {
@@ -63,6 +67,11 @@ export function useProgressReset() {
       return false
     }
     open.value = false
+    posthog?.capture('progress_reset', {
+      scope: t.scope,
+      reset_mode: mode.value,
+      path_count: t.scope === 'all' ? pathCount.value : 1,
+    })
     showUndo(t, result.snapshot)
     return true
   }

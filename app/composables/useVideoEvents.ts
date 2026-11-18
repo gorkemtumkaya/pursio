@@ -58,6 +58,7 @@ function persist(next: Map<string, VideoEvent>): void {
 export function useVideoEvents() {
   const auth = useAuth()
   const cloud = useCloudStore()
+  const { $posthog: posthog } = useNuxtApp()
 
   function ready(): boolean {
     return cloud.status.value === 'ready' && auth.userId.value !== '' && auth.client() !== null
@@ -106,18 +107,19 @@ export function useVideoEvents() {
     sender().push(batch)
   }
 
-  function update(videoId: string, source: VideoSource, change: (rec: VideoEvent, now: number) => VideoEvent): void {
-    if (!import.meta.client) return
+  function update(videoId: string, source: VideoSource, change: (rec: VideoEvent, now: number) => VideoEvent): boolean {
+    if (!import.meta.client) return false
     const key = eventKey({ videoId, source })
     const now = Date.now()
     const current = known.get(key) ?? pending().get(key) ?? newEvent(videoId, source, now)
     const next = change(current, now)
-    if (next === current) return
+    if (next === current) return false
     known.set(key, next)
     const map = new Map(pending())
     map.set(key, next)
     persist(map)
     flush()
+    return true
   }
 
   // Sign-in, app start and a reload of the cloud store all end in `ready`.
@@ -134,10 +136,16 @@ export function useVideoEvents() {
       source: VideoSource = 'skill_sheet',
     ) => update(videoId, source, (rec, now) => applyProgress(rec, seconds, durationSeconds, now)),
     /** A `feed` save passes the Save_Snapshot of the shown card; a removal keeps the stored one (spec: fresh, Req 17.4). */
-    recordSave: (videoId: string, saved: boolean, source: VideoSource = 'skill_sheet', snapshot?: SaveSnapshot | null) =>
-      update(videoId, source, (rec, now) => applySave(rec, saved, now, snapshot)),
-    recordSkip: (videoId: string, source: VideoSource = 'skill_sheet') =>
-      update(videoId, source, (rec, now) => applySkip(rec, now)),
+    recordSave: (videoId: string, saved: boolean, source: VideoSource = 'skill_sheet', snapshot?: SaveSnapshot | null) => {
+      if (update(videoId, source, (rec, now) => applySave(rec, saved, now, snapshot))) {
+        posthog?.capture('video_save_changed', { saved, source })
+      }
+    },
+    recordSkip: (videoId: string, source: VideoSource = 'skill_sheet') => {
+      if (update(videoId, source, (rec, now) => applySkip(rec, now))) {
+        posthog?.capture('video_skipped', { source })
+      }
+    },
     flush,
     /**
      * The cloud rows (from the Fresh_Endpoint) merged with the local unsent records and

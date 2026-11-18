@@ -1,4 +1,5 @@
 import type { Session, SupabaseClient } from '@supabase/supabase-js'
+import type { PostHog } from 'posthog-js'
 import { computed } from 'vue'
 import { clearActiveHobbyId } from '~/utils/active-hobby'
 import {
@@ -35,6 +36,8 @@ let subscribed = false
 /** True while this module ends the session itself, so the listener stays out of the way. */
 let endingSession = false
 let hydrated: Promise<void> | null = null
+/** The identified account for this page load; prevents duplicate identify calls on token refresh. */
+let identifiedUserId: string | null = null
 
 const LOADING: AuthState = { status: 'loading', user: null }
 
@@ -54,6 +57,26 @@ export function useAuth() {
   const toast = useToast()
   const dialog = useAuthDialog()
 
+  function posthogClient(): PostHog | undefined {
+    return (useNuxtApp() as unknown as { $posthog?: PostHog }).$posthog
+  }
+
+  /** Identifies once after login or on a page refresh with an existing account session. */
+  function identifyAccount(user: Session['user']): void {
+    if (user.id === '' || identifiedUserId === user.id) return
+    const posthog = posthogClient()
+    if (!posthog) return
+    if (identifiedUserId !== null) posthog.reset()
+    const email = user.email?.trim()
+    posthog.identify(user.id, email === '' || email === undefined ? undefined : { email })
+    identifiedUserId = user.id
+  }
+
+  function resetPosthog(): void {
+    posthogClient()?.reset()
+    identifiedUserId = null
+  }
+
   // The session starts after hydration, so the first client render matches the server's loading state.
   if (import.meta.client) hydrated ??= new Promise<void>((resolve) => onNuxtReady(() => resolve()))
 
@@ -70,6 +93,7 @@ export function useAuth() {
       status: isAnon ? 'anonymous' : 'signed_in',
       user: { id: user.id, email: user.email ?? '', isAnonymous: isAnon },
     }
+    if (!isAnon) identifyAccount(user)
   }
 
   function subscribe(supabase: SupabaseClient): void {
@@ -79,6 +103,7 @@ export function useAuth() {
       if (event === 'SIGNED_OUT') {
         // Our own sign-outs are followed up by the code that made them.
         if (inflight || endingSession) return
+        resetPosthog()
         started = false
         state.value = { ...LOADING }
         // Supabase calls must not be awaited inside this callback; start the new session afterwards.
@@ -241,6 +266,7 @@ export function useAuth() {
    */
   async function logout(): Promise<boolean> {
     if (!(await signOutLocal())) return false
+    resetPosthog()
     clearActiveHobbyId()
     started = false
     state.value = { ...LOADING }
@@ -256,6 +282,7 @@ export function useAuth() {
    */
   async function endSessionAfterDelete(): Promise<void> {
     await signOutLocal()
+    resetPosthog()
     started = false
     state.value = { ...LOADING }
   }

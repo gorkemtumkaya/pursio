@@ -4,6 +4,7 @@ import type { SkillTree } from '../../shared/types/skill-tree'
 import { parseBearer } from '../../shared/utils/auth'
 import { DEFAULT_LEVEL, HOBBY_MAX_LENGTH, MODEL_MAX_LENGTH, isProvider, isStartLevel } from '../../shared/utils/llm'
 import type { GoalClass } from '../../shared/types/video'
+import { createAiObservabilityContext, withAiObservabilityContext } from './ai-observability'
 import { classifyGoal } from './goal-classifier'
 import { generateSkillTree, type GenerationResult } from './generator'
 import type { ProviderAdapter } from './providers/types'
@@ -171,6 +172,7 @@ export async function handleTreeRequest(
     verifyReason = 'verify_error'
   }
   if (typeof userId !== 'string' || userId === '') return unauthorized(verifyReason)
+  const aiContext = createAiObservabilityContext(userId)
 
   // 1. Hobby check (Req 1.1, 1.2).
   const body = isRecord(input.body) ? input.body : {}
@@ -224,7 +226,9 @@ export async function handleTreeRequest(
     let thrown = false
     try {
       result = await withTimeout(deps.timeoutMs, timeout, (signal) =>
-        generateSkillTree(hobby, level, config, { adapters: deps.adapters, systemPrompt, signal }),
+        withAiObservabilityContext(aiContext, () =>
+          generateSkillTree(hobby, level, config, { adapters: deps.adapters, systemPrompt, signal }),
+        ),
       )
     } catch {
       result = { kind: 'error', code: 'provider_error' }
@@ -254,7 +258,9 @@ export async function handleTreeRequest(
   // The classifier is not billable and never throws; any failure gives 'none' (Req 1.11, 1.12).
   let goalClass: GoalClass = 'none'
   try {
-    goalClass = await classifyGoal(goal, config, deps.adapters[config.provider])
+    goalClass = await withAiObservabilityContext(aiContext, () =>
+      classifyGoal(goal, config, deps.adapters[config.provider]),
+    )
   } catch {
     goalClass = 'none'
   }
@@ -300,11 +306,14 @@ export async function handleTestRequest(
   if (apiKey === '' || !isProvider(provider) || model === undefined) return invalid
 
   const config: ProviderConfig = { provider, model, apiKey }
+  const aiContext = createAiObservabilityContext()
   type Outcome = 'ok' | 'provider_auth' | 'provider_error' | 'timeout'
   let outcome: Outcome
   try {
     outcome = await withTimeout<Outcome>(deps.timeoutMs, 'timeout', async (signal) => {
-      const result = await deps.adapters[provider].testConnection(config, signal)
+      const result = await withAiObservabilityContext(aiContext, () =>
+        deps.adapters[provider].testConnection(config, signal),
+      )
       if (signal.aborted) return 'timeout'
       if (result.ok) return 'ok'
       // bad_output is not an ErrorCode; anything non-auth is a provider_error.

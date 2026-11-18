@@ -1,5 +1,6 @@
 import type { ProviderConfig, StartLevel } from '../../../shared/types/llm'
 import { levelInstruction } from '../../../shared/utils/llm'
+import { captureAiGeneration } from '../ai-observability'
 
 export type AdapterFailure = 'provider_auth' | 'provider_error' | 'bad_output'
 /** `status` is the provider's numeric HTTP status when the failure carried one. Never a body or message. */
@@ -92,13 +93,17 @@ export async function callProvider(
   body: Record<string, unknown>,
   signal: AbortSignal | undefined,
 ): Promise<{ ok: true; response: unknown } | { ok: false; error: AdapterFailure; status?: number }> {
+  const startedAt = performance.now()
+  let result: { ok: true; response: unknown } | { ok: false; error: AdapterFailure; status?: number }
   try {
     const response = await fetcher(url, { method: 'POST', headers, body, signal, retry: 0 })
-    return { ok: true, response }
+    result = { ok: true, response }
   } catch (error) {
     const status = providerStatus(error)
-    return status === undefined
+    result = status === undefined
       ? { ok: false, error: providerFailure(error) }
       : { ok: false, error: providerFailure(error), status }
   }
+  await captureAiGeneration({ url, body, result, latencySeconds: (performance.now() - startedAt) / 1000 })
+  return result
 }

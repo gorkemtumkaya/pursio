@@ -50,6 +50,7 @@ const auth = isDemo ? null : useAuth()
 const cloud = isDemo ? null : useCloudStore()
 const recorder = isDemo ? null : useVideoEvents()
 const mutes = isDemo ? null : useChannelMutes()
+const { $posthog: posthog } = useNuxtApp()
 
 /** The account's language wins over the browser copy; default `en`. */
 function language(): string | null {
@@ -203,7 +204,9 @@ function selectChip(next: ChipView): void {
 }
 
 function onMute(channelId: string, muted: boolean): void {
-  mutes?.setMuted(channelId, muted)
+  if (mutes?.setMuted(channelId, muted)) {
+    posthog?.capture('feed_channel_mute_changed', { muted })
+  }
 }
 
 /** The Path page with the Skill_Sheet open (Req 7.4); `/path?demo=1` in Demo_Mode. */
