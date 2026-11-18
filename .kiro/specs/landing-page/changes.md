@@ -3,7 +3,7 @@
 A landing page at `/` for visitors without a saved path, three placeholder legal pages, and a hobby handoff into `/new`. Reasoning is in [requirements.md](requirements.md) and [design.md](design.md); the tasks are in [tasks.md](tasks.md).
 
 - **Repos and branches:** `pursio` `main`
-- **State:** uncommitted. Do not stage `CHANGELOG.md` until you want the release: the pre-commit hook releases it.
+- **State:** committed on `main` in `ef6793f` (G10, Wick v2) and `566f73e` (all other groups), released as 0.6.0 (tag `v0.6.0`, not pushed).
 - **Size:** 12 files changed, 28 added, in 10 groups
 - **Design:** the sections follow the mockup in [dev_docs/Landing page · Desktop-html](../../../dev_docs/Landing%20page%20%C2%B7%20Desktop-html/Landing.dc.html) (owner, 2026-11-18). Where it differs from `requirements.md`, the mockup wins; the differences are listed under Decisions, 6.
 
