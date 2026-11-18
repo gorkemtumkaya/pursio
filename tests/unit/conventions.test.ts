@@ -326,8 +326,26 @@ describe('package.json dependencies (Req 14.1, 14.2)', () => {
   })
 
   it('adds no dependency beyond the known set', () => {
-    expect(Object.keys(deps).sort()).toEqual(['@supabase/supabase-js', 'elkjs', 'nuxt', 'vue', 'vue-router', 'zod'])
-    expect(Object.keys(devDeps).sort()).toEqual(['@tailwindcss/vite', 'fast-check', 'tailwindcss', 'typescript', 'vitest', 'vue-tsc'])
+    // posthog-js and posthog-node: product analytics and LLM observability (commit 3b19d5c).
+    expect(Object.keys(deps).sort()).toEqual([
+      '@supabase/supabase-js',
+      'elkjs',
+      'nuxt',
+      'posthog-js',
+      'posthog-node',
+      'vue',
+      'vue-router',
+      'zod',
+    ])
+    expect(Object.keys(devDeps).sort()).toEqual([
+      '@tailwindcss/vite',
+      '@types/node',
+      'fast-check',
+      'tailwindcss',
+      'typescript',
+      'vitest',
+      'vue-tsc',
+    ])
   })
 
   it('pins every dependency exactly', () => {
@@ -337,14 +355,19 @@ describe('package.json dependencies (Req 14.1, 14.2)', () => {
 })
 
 describe('service role key location (spec: accounts-cloud-save, Req 1.5, 9.13)', () => {
-  it('is named only in nuxt.config.ts, server/utils/account-runtime.ts and server/utils/video/runtime.ts', () => {
+  it('is named only in nuxt.config.ts and three server runtime files (account, video, waitlist)', () => {
     const KEY_NAME = ['supabase', 'ServiceRoleKey'].join('')
     const scanned = ['app', 'server', 'shared'].flatMap((dir) => listFiles(join(ROOT, dir)))
     const hits = scanned
       .filter((path) => /\.(vue|ts|js|mjs|json|md)$/.test(path))
       .filter((path) => readFileSync(path, 'utf8').includes(KEY_NAME))
       .map((path) => relative(ROOT, path))
-    expect(hits).toEqual(['server/utils/account-runtime.ts', 'server/utils/video/runtime.ts'])
+    // waitlist-runtime.ts was added with the landing page's waitlist (spec: landing-page).
+    expect(hits.sort()).toEqual([
+      'server/utils/account-runtime.ts',
+      'server/utils/video/runtime.ts',
+      'server/utils/waitlist-runtime.ts',
+    ])
     expect(readFileSync(join(ROOT, 'nuxt.config.ts'), 'utf8')).toContain(`${KEY_NAME}: ''`)
   })
 })

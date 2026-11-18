@@ -1,4 +1,5 @@
 import tailwindcss from '@tailwindcss/vite'
+import { pathHintInitScript } from './shared/utils/path-hint'
 import { THEME_STORAGE_KEY, THEMES } from './shared/utils/theme'
 
 const googleFontsUrl =
@@ -44,7 +45,12 @@ export default defineNuxtConfig({
         { rel: 'preconnect', href: 'https://fonts.gstatic.com', crossorigin: '' },
         { rel: 'stylesheet', href: googleFontsUrl },
       ],
-      script: [{ innerHTML: themeInitScript, tagPosition: 'head' }],
+      script: [
+        { innerHTML: themeInitScript, tagPosition: 'head' },
+        // Landing spec Req 1.5, 1.7: marks <html data-path-hint> before first paint
+        // when this device has a Path_Hint, so `/` opens on the loader.
+        { innerHTML: pathHintInitScript, tagPosition: 'head' },
+      ],
     },
   },
   runtimeConfig: {

@@ -71,6 +71,13 @@
 }
 
 /*
+ * Path_Hint (spec: landing-page). The head script sets data-path-hint on <html> before
+ * first paint when a saved path is likely, so `/` shows the loader instead of the landing
+ * (`hidden path-hint:block`, `path-hint:hidden`). :where() keeps the added specificity at zero.
+ */
+@custom-variant path-hint (&:where(html[data-path-hint] *));
+
+/*
  * Hobby colors (spec: fresh-v2). An element sets data-hobby-slot="1".."5" and everything
  * inside reads that slot through bg-hobby, bg-hobby-deep, text-hobby-deep and text-hobby-ink.
  * Class names stay static and a theme only changes the values.

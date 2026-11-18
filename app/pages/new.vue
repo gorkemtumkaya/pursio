@@ -1,6 +1,8 @@
 <script setup lang="ts">
-import { computed, nextTick, ref, watch } from 'vue'
+import { computed, nextTick, ref, watch, watchEffect } from 'vue'
+import { DEFAULT_LEVEL } from '#shared/utils/llm'
 import MascotWick from '~/components/mascot/wick.vue'
+import { parseHobbyQuery, withoutHobbyQuery } from '~/utils/landing'
 import type { WickMood } from '~/utils/wick'
 import { getActiveHobbyId } from '~/utils/active-hobby'
 import { cloudEntries, toHobbyLibrary } from '~/utils/cloud-library'
@@ -102,6 +104,31 @@ const status = computed(() => {
   }
 })
 
+/**
+ * Hobby handoff from the landing page (spec: landing-page, Req 11). Runs once:
+ * `?hobby=` starts a build at the `new` level as soon as a session is ready,
+ * then leaves the URL without `hobby` so refresh and back start nothing.
+ * `build()` reads hobby and level before its first await, so the replace
+ * right after it does not change the request. A failed build is not retried.
+ */
+const route = useRoute()
+const router = useRouter()
+let handoffDone = false
+watchEffect(() => {
+  if (handoffDone || !import.meta.client) return
+  const value = parseHobbyQuery(route.query.hobby)
+  if (value === null) {
+    handoffDone = true
+    return
+  }
+  if (auth.status.value !== 'anonymous' && auth.status.value !== 'signed_in') return
+  handoffDone = true
+  hobby.value = value
+  level.value = DEFAULT_LEVEL
+  void build()
+  void router.replace({ query: withoutHobbyQuery(route.query) })
+})
+
 watch(state, async (next) => {
   if (next !== 'error') return
   await nextTick()
@@ -113,12 +140,7 @@ watch(state, async (next) => {
   <div class="flex min-h-dvh flex-col">
     <header class="flex items-center justify-between px-7 py-5 max-[700px]:px-4 max-[700px]:py-3">
       <div class="flex items-center gap-2.5 font-head text-[26px] font-bold text-ink max-[700px]:text-[21px]">
-        <span
-          class="grid size-9 place-items-center rounded-full bg-primary text-primary-ink shadow-[0_4px_0_var(--color-primary-deep)]"
-          aria-hidden="true"
-        >
-          <PathIcon name="star" class="size-5" />
-        </span>
+        <span aria-hidden="true" class="size-9 shrink-0 bg-(image:--pursio-logo) bg-contain bg-center bg-no-repeat" />
         <span>Pursio</span>
       </div>
       <div class="flex items-center gap-2">

@@ -18,6 +18,7 @@ Apply the files in `supabase/migrations/` in file-name order:
 9. `20261112000100_fresh_user.sql`: `paths.last_opened_at`, owner-only `channel_mutes`, and save snapshots on `video_events`.
 10. `20261112000200_fresh_check_cron.sql`: schedules the `fresh-check` job (every 15 minutes). See "Fresh check job" below for the Vault secret it needs.
 11. `20261117000000_path_color_slot.sql`: `paths.color_slot` (1 to 5, the hobby's color on the Fresh page). It backfills existing paths per user in creation order and adds the `paths_assign_color_slot` trigger, which gives a new path the slot after the user's latest-created path. `save_generated_path` is unchanged.
+12. `20261118000000_waitlist.sql`: the `waitlist` table behind the landing page's founding section (`email`, `kind`, `created_at`). Row Level Security is on with no policy, so only the server writes to it with the service role key (`POST /api/waitlist`). Until it is applied, the landing page's email forms answer "Could not save that".
 
 Either run `supabase db push` with the Supabase CLI linked to the project, or paste each file into the dashboard SQL editor and run them in that order.
 

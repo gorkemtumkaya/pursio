@@ -1318,7 +1318,7 @@
   resolved "https://registry.yarnpkg.com/@types/estree/-/estree-1.0.10.tgz#8a4a266065af8c2fcf5983153cd97c11b313d0c6"
   integrity sha512-lTyOMnOcmRBzdCv6/4zUZCrEhV0xrqQiUZBZtVcbmLHBXKLnN8q89v/wKRF/Q0HbwVsqbIG3o5HDoFl9sduM+g==
 
-"@types/node@^26.6.6":
+"@types/node@26.6.6":
   version "26.6.6"
   resolved "https://registry.yarnpkg.com/@types/node/-/node-26.6.6.tgz#9ed7b5817e728ed9216ef7c5b7d373fe3b777104"
   integrity sha512-MzQj+8Kx3XI40OmUAE6Qoh58ZMNstNNMwn2nfd3qWsfe7nDNSqJNzes4njhz6AHwrSHOffSLwXU6yb474Q4aog==
@@ -3487,7 +3487,7 @@ postcss@^8.5.32:
     picocolors "^1.1.1"
     source-map-js "^1.2.2"
 
-posthog-js@1:
+posthog-js@1.451.0:
   version "1.451.0"
   resolved "https://registry.yarnpkg.com/posthog-js/-/posthog-js-1.451.0.tgz#5f6618613da5b3c21a78342d0b91c276ec6648d4"
   integrity sha512-n1s5uB45wq4rJFeRO4p9uHPVfCo6Cxo6LSrOd33WCBE0jbGND9otxA7o783YBTpnJ2geXDgpKxB/pYpHBQtjcw==
@@ -3503,7 +3503,7 @@ posthog-js@1:
     web-vitals "^6.2.1"
     web-vitals-soft-navs "npm:web-vitals@6.2.1"
 
-posthog-node@6:
+posthog-node@6.0.3:
   version "6.0.3"
   resolved "https://registry.yarnpkg.com/posthog-node/-/posthog-node-6.0.3.tgz#a6b3d7c64f5892b9ce8974e2048cac1dd158ca2e"
   integrity sha512-nRYHLGCHPya5srUmBETjtcg6rfopsTpCesjRsDKB1oXlbFNmn7z5n0Hu1x60czJr8kGkOysynaoNCogBZCXQhQ==

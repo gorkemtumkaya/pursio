@@ -6,6 +6,16 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+## [0.6.0] - 2026-11-18
+
+### Added
+- A landing page at the home address: type a hobby or pick an example to get a path, see how Pursio works, read the FAQ, and find the Privacy, Terms and Refund pages, which say what Pursio stores, the rules of use and the 30-day refund for founding members. (spec: landing-page)
+- A founding member waitlist and an updates list on the landing page: leave your email to hear when founding spots open or when new features land. (spec: landing-page)
+
+### Changed
+- Wick has a new look, with five new moods and redrawn hobby outfits. (spec: landing-page)
+- The home address now sends returning visitors who have a saved path straight to it, and a link to the new hobby page can carry a hobby and start its path at once. (spec: landing-page)
+
 ## [0.5.0] - 2026-11-17
 
 ### Added

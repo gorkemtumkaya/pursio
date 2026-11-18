@@ -1,0 +1,333 @@
+{
+  "pbtResults": {},
+  "executionHistory": {
+    "1.1 Create `app/utils/analytics.ts`": [
+      {
+        "executionId": "985748ef-3bb8-4775-8d79-e8d0f1c28c7e",
+        "chatSessionId": "sess_20d43975-6b8c-47d3-8387-6c6e7e0ec9eb",
+        "timestamp": 1795025143781
+      },
+      {
+        "executionId": "985748ef-3bb8-4775-8d79-e8d0f1c28c7e",
+        "chatSessionId": "sess_20d43975-6b8c-47d3-8387-6c6e7e0ec9eb",
+        "timestamp": 1795025154530
+      },
+      {
+        "executionId": "985748ef-3bb8-4775-8d79-e8d0f1c28c7e",
+        "chatSessionId": "sess_20d43975-6b8c-47d3-8387-6c6e7e0ec9eb",
+        "timestamp": 1795025278477
+      }
+    ],
+    "1.2 Create `app/utils/landing.ts`": [
+      {
+        "executionId": "985748ef-3bb8-4775-8d79-e8d0f1c28c7e",
+        "chatSessionId": "sess_20d43975-6b8c-47d3-8387-6c6e7e0ec9eb",
+        "timestamp": 1795025143824
+      },
+      {
+        "executionId": "985748ef-3bb8-4775-8d79-e8d0f1c28c7e",
+        "chatSessionId": "sess_20d43975-6b8c-47d3-8387-6c6e7e0ec9eb",
+        "timestamp": 1795025155298
+      },
+      {
+        "executionId": "985748ef-3bb8-4775-8d79-e8d0f1c28c7e",
+        "chatSessionId": "sess_20d43975-6b8c-47d3-8387-6c6e7e0ec9eb",
+        "timestamp": 1795025278948
+      }
+    ],
+    "1.3 Create `app/utils/landing-copy.ts`": [
+      {
+        "executionId": "985748ef-3bb8-4775-8d79-e8d0f1c28c7e",
+        "chatSessionId": "sess_20d43975-6b8c-47d3-8387-6c6e7e0ec9eb",
+        "timestamp": 1795025143853
+      },
+      {
+        "executionId": "985748ef-3bb8-4775-8d79-e8d0f1c28c7e",
+        "chatSessionId": "sess_20d43975-6b8c-47d3-8387-6c6e7e0ec9eb",
+        "timestamp": 1795025156476
+      },
+      {
+        "executionId": "985748ef-3bb8-4775-8d79-e8d0f1c28c7e",
+        "chatSessionId": "sess_20d43975-6b8c-47d3-8387-6c6e7e0ec9eb",
+        "timestamp": 1795025279802
+      }
+    ],
+    "2.1 Create `shared/utils/path-hint.ts`": [
+      {
+        "executionId": "985748ef-3bb8-4775-8d79-e8d0f1c28c7e",
+        "chatSessionId": "sess_20d43975-6b8c-47d3-8387-6c6e7e0ec9eb",
+        "timestamp": 1795025143882
+      },
+      {
+        "executionId": "985748ef-3bb8-4775-8d79-e8d0f1c28c7e",
+        "chatSessionId": "sess_20d43975-6b8c-47d3-8387-6c6e7e0ec9eb",
+        "timestamp": 1795025157141
+      },
+      {
+        "executionId": "985748ef-3bb8-4775-8d79-e8d0f1c28c7e",
+        "chatSessionId": "sess_20d43975-6b8c-47d3-8387-6c6e7e0ec9eb",
+        "timestamp": 1795025280615
+      }
+    ],
+    "2.2 Add the Head_Script in `nuxt.config.ts`": [
+      {
+        "executionId": "985748ef-3bb8-4775-8d79-e8d0f1c28c7e",
+        "chatSessionId": "sess_20d43975-6b8c-47d3-8387-6c6e7e0ec9eb",
+        "timestamp": 1795025143910
+      },
+      {
+        "executionId": "985748ef-3bb8-4775-8d79-e8d0f1c28c7e",
+        "chatSessionId": "sess_20d43975-6b8c-47d3-8387-6c6e7e0ec9eb",
+        "timestamp": 1795025284798
+      },
+      {
+        "executionId": "985748ef-3bb8-4775-8d79-e8d0f1c28c7e",
+        "chatSessionId": "sess_20d43975-6b8c-47d3-8387-6c6e7e0ec9eb",
+        "timestamp": 1795025469780
+      }
+    ],
+    "2.3 Add the CSS variant in `app/assets/css/main.css`": [
+      {
+        "executionId": "985748ef-3bb8-4775-8d79-e8d0f1c28c7e",
+        "chatSessionId": "sess_20d43975-6b8c-47d3-8387-6c6e7e0ec9eb",
+        "timestamp": 1795025143943
+      },
+      {
+        "executionId": "985748ef-3bb8-4775-8d79-e8d0f1c28c7e",
+        "chatSessionId": "sess_20d43975-6b8c-47d3-8387-6c6e7e0ec9eb",
+        "timestamp": 1795025285853
+      },
+      {
+        "executionId": "985748ef-3bb8-4775-8d79-e8d0f1c28c7e",
+        "chatSessionId": "sess_20d43975-6b8c-47d3-8387-6c6e7e0ec9eb",
+        "timestamp": 1795025471085
+      }
+    ],
+    "3. Checkpoint - Ensure all tests pass": [
+      {
+        "executionId": "985748ef-3bb8-4775-8d79-e8d0f1c28c7e",
+        "chatSessionId": "sess_20d43975-6b8c-47d3-8387-6c6e7e0ec9eb",
+        "timestamp": 1795025143965
+      }
+    ],
+    "4.1 Create `LandingHeader.vue`": [
+      {
+        "executionId": "985748ef-3bb8-4775-8d79-e8d0f1c28c7e",
+        "chatSessionId": "sess_20d43975-6b8c-47d3-8387-6c6e7e0ec9eb",
+        "timestamp": 1795025143988
+      },
+      {
+        "executionId": "985748ef-3bb8-4775-8d79-e8d0f1c28c7e",
+        "chatSessionId": "sess_20d43975-6b8c-47d3-8387-6c6e7e0ec9eb",
+        "timestamp": 1795025287061
+      },
+      {
+        "executionId": "985748ef-3bb8-4775-8d79-e8d0f1c28c7e",
+        "chatSessionId": "sess_20d43975-6b8c-47d3-8387-6c6e7e0ec9eb",
+        "timestamp": 1795025472210
+      }
+    ],
+    "4.2 Create `LandingPathPreview.vue`": [
+      {
+        "executionId": "985748ef-3bb8-4775-8d79-e8d0f1c28c7e",
+        "chatSessionId": "sess_20d43975-6b8c-47d3-8387-6c6e7e0ec9eb",
+        "timestamp": 1795025144010
+      },
+      {
+        "executionId": "985748ef-3bb8-4775-8d79-e8d0f1c28c7e",
+        "chatSessionId": "sess_20d43975-6b8c-47d3-8387-6c6e7e0ec9eb",
+        "timestamp": 1795025287846
+      },
+      {
+        "executionId": "985748ef-3bb8-4775-8d79-e8d0f1c28c7e",
+        "chatSessionId": "sess_20d43975-6b8c-47d3-8387-6c6e7e0ec9eb",
+        "timestamp": 1795025473375
+      }
+    ],
+    "4.3 Create `LandingHero.vue`": [
+      {
+        "executionId": "985748ef-3bb8-4775-8d79-e8d0f1c28c7e",
+        "chatSessionId": "sess_20d43975-6b8c-47d3-8387-6c6e7e0ec9eb",
+        "timestamp": 1795025144037
+      },
+      {
+        "executionId": "985748ef-3bb8-4775-8d79-e8d0f1c28c7e",
+        "chatSessionId": "sess_20d43975-6b8c-47d3-8387-6c6e7e0ec9eb",
+        "timestamp": 1795025575163
+      },
+      {
+        "executionId": "985748ef-3bb8-4775-8d79-e8d0f1c28c7e",
+        "chatSessionId": "sess_20d43975-6b8c-47d3-8387-6c6e7e0ec9eb",
+        "timestamp": 1795025653929
+      }
+    ],
+    "4.4 Create `LandingHowItWorks.vue`": [
+      {
+        "executionId": "985748ef-3bb8-4775-8d79-e8d0f1c28c7e",
+        "chatSessionId": "sess_20d43975-6b8c-47d3-8387-6c6e7e0ec9eb",
+        "timestamp": 1795025144062
+      },
+      {
+        "executionId": "985748ef-3bb8-4775-8d79-e8d0f1c28c7e",
+        "chatSessionId": "sess_20d43975-6b8c-47d3-8387-6c6e7e0ec9eb",
+        "timestamp": 1795025288893
+      },
+      {
+        "executionId": "985748ef-3bb8-4775-8d79-e8d0f1c28c7e",
+        "chatSessionId": "sess_20d43975-6b8c-47d3-8387-6c6e7e0ec9eb",
+        "timestamp": 1795025474314
+      }
+    ],
+    "4.5 Create `LandingFreshPreview.vue` and `LandingFresh.vue`": [
+      {
+        "executionId": "985748ef-3bb8-4775-8d79-e8d0f1c28c7e",
+        "chatSessionId": "sess_20d43975-6b8c-47d3-8387-6c6e7e0ec9eb",
+        "timestamp": 1795025144087
+      },
+      {
+        "executionId": "985748ef-3bb8-4775-8d79-e8d0f1c28c7e",
+        "chatSessionId": "sess_20d43975-6b8c-47d3-8387-6c6e7e0ec9eb",
+        "timestamp": 1795025482539
+      },
+      {
+        "executionId": "985748ef-3bb8-4775-8d79-e8d0f1c28c7e",
+        "chatSessionId": "sess_20d43975-6b8c-47d3-8387-6c6e7e0ec9eb",
+        "timestamp": 1795025565037
+      }
+    ],
+    "4.6 Create `LandingChips.vue`": [
+      {
+        "executionId": "985748ef-3bb8-4775-8d79-e8d0f1c28c7e",
+        "chatSessionId": "sess_20d43975-6b8c-47d3-8387-6c6e7e0ec9eb",
+        "timestamp": 1795025144107
+      },
+      {
+        "executionId": "985748ef-3bb8-4775-8d79-e8d0f1c28c7e",
+        "chatSessionId": "sess_20d43975-6b8c-47d3-8387-6c6e7e0ec9eb",
+        "timestamp": 1795025483711
+      },
+      {
+        "executionId": "985748ef-3bb8-4775-8d79-e8d0f1c28c7e",
+        "chatSessionId": "sess_20d43975-6b8c-47d3-8387-6c6e7e0ec9eb",
+        "timestamp": 1795025568311
+      }
+    ],
+    "4.7 Create `LandingFounding.vue` and `LandingFaq.vue`": [
+      {
+        "executionId": "985748ef-3bb8-4775-8d79-e8d0f1c28c7e",
+        "chatSessionId": "sess_20d43975-6b8c-47d3-8387-6c6e7e0ec9eb",
+        "timestamp": 1795025144130
+      },
+      {
+        "executionId": "985748ef-3bb8-4775-8d79-e8d0f1c28c7e",
+        "chatSessionId": "sess_20d43975-6b8c-47d3-8387-6c6e7e0ec9eb",
+        "timestamp": 1795025484911
+      },
+      {
+        "executionId": "985748ef-3bb8-4775-8d79-e8d0f1c28c7e",
+        "chatSessionId": "sess_20d43975-6b8c-47d3-8387-6c6e7e0ec9eb",
+        "timestamp": 1795025566231
+      }
+    ],
+    "4.8 Create `LandingFooter.vue` and `LegalPage.vue`": [
+      {
+        "executionId": "985748ef-3bb8-4775-8d79-e8d0f1c28c7e",
+        "chatSessionId": "sess_20d43975-6b8c-47d3-8387-6c6e7e0ec9eb",
+        "timestamp": 1795025144150
+      },
+      {
+        "executionId": "985748ef-3bb8-4775-8d79-e8d0f1c28c7e",
+        "chatSessionId": "sess_20d43975-6b8c-47d3-8387-6c6e7e0ec9eb",
+        "timestamp": 1795025576160
+      },
+      {
+        "executionId": "985748ef-3bb8-4775-8d79-e8d0f1c28c7e",
+        "chatSessionId": "sess_20d43975-6b8c-47d3-8387-6c6e7e0ec9eb",
+        "timestamp": 1795025655066
+      }
+    ],
+    "4.9 Create `LandingView.vue`": [
+      {
+        "executionId": "985748ef-3bb8-4775-8d79-e8d0f1c28c7e",
+        "chatSessionId": "sess_20d43975-6b8c-47d3-8387-6c6e7e0ec9eb",
+        "timestamp": 1795025144173
+      },
+      {
+        "executionId": "985748ef-3bb8-4775-8d79-e8d0f1c28c7e",
+        "chatSessionId": "sess_20d43975-6b8c-47d3-8387-6c6e7e0ec9eb",
+        "timestamp": 1795025662918
+      }
+    ],
+    "5.1 Update `app/pages/index.vue`": [
+      {
+        "executionId": "985748ef-3bb8-4775-8d79-e8d0f1c28c7e",
+        "chatSessionId": "sess_20d43975-6b8c-47d3-8387-6c6e7e0ec9eb",
+        "timestamp": 1795025144194
+      }
+    ],
+    "5.2 Create `app/pages/privacy.vue`, `terms.vue` and `refund.vue`": [
+      {
+        "executionId": "985748ef-3bb8-4775-8d79-e8d0f1c28c7e",
+        "chatSessionId": "sess_20d43975-6b8c-47d3-8387-6c6e7e0ec9eb",
+        "timestamp": 1795025144217
+      },
+      {
+        "executionId": "985748ef-3bb8-4775-8d79-e8d0f1c28c7e",
+        "chatSessionId": "sess_20d43975-6b8c-47d3-8387-6c6e7e0ec9eb",
+        "timestamp": 1795025663445
+      }
+    ],
+    "5.3 Update `app/pages/new.vue` for the hobby handoff": [
+      {
+        "executionId": "985748ef-3bb8-4775-8d79-e8d0f1c28c7e",
+        "chatSessionId": "sess_20d43975-6b8c-47d3-8387-6c6e7e0ec9eb",
+        "timestamp": 1795025144239
+      },
+      {
+        "executionId": "985748ef-3bb8-4775-8d79-e8d0f1c28c7e",
+        "chatSessionId": "sess_20d43975-6b8c-47d3-8387-6c6e7e0ec9eb",
+        "timestamp": 1795025486142
+      },
+      {
+        "executionId": "985748ef-3bb8-4775-8d79-e8d0f1c28c7e",
+        "chatSessionId": "sess_20d43975-6b8c-47d3-8387-6c6e7e0ec9eb",
+        "timestamp": 1795025567428
+      }
+    ],
+    "6. Checkpoint - Ensure all tests pass": [
+      {
+        "executionId": "985748ef-3bb8-4775-8d79-e8d0f1c28c7e",
+        "chatSessionId": "sess_20d43975-6b8c-47d3-8387-6c6e7e0ec9eb",
+        "timestamp": 1795025144267
+      }
+    ],
+    "7.1 Add the `CHANGELOG.md` entries": [
+      {
+        "executionId": "985748ef-3bb8-4775-8d79-e8d0f1c28c7e",
+        "chatSessionId": "sess_20d43975-6b8c-47d3-8387-6c6e7e0ec9eb",
+        "timestamp": 1795025144297
+      }
+    ],
+    "7.2 Write `.kiro/specs/landing-page/changes.md`": [
+      {
+        "executionId": "985748ef-3bb8-4775-8d79-e8d0f1c28c7e",
+        "chatSessionId": "sess_20d43975-6b8c-47d3-8387-6c6e7e0ec9eb",
+        "timestamp": 1795025144319
+      }
+    ],
+    "1. Pure modules: analytics, landing logic and copy": [
+      {
+        "executionId": "985748ef-3bb8-4775-8d79-e8d0f1c28c7e",
+        "chatSessionId": "sess_20d43975-6b8c-47d3-8387-6c6e7e0ec9eb",
+        "timestamp": 1795025279831
+      }
+    ],
+    "2. Path_Hint before first paint": [
+      {
+        "executionId": "985748ef-3bb8-4775-8d79-e8d0f1c28c7e",
+        "chatSessionId": "sess_20d43975-6b8c-47d3-8387-6c6e7e0ec9eb",
+        "timestamp": 1795025471115
+      }
+    ]
+  }
+}

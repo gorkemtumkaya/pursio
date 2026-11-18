@@ -43,9 +43,19 @@ describe('Fresh configuration', () => {
     const pkg: { dependencies?: Record<string, string>; devDependencies?: Record<string, string> } = JSON.parse(
       readFileSync(join(ROOT, 'package.json'), 'utf8'),
     )
-    expect(Object.keys(pkg.dependencies ?? {}).sort()).toEqual(['@supabase/supabase-js', 'elkjs', 'nuxt', 'vue', 'vue-router', 'zod'])
+    expect(Object.keys(pkg.dependencies ?? {}).sort()).toEqual([
+      '@supabase/supabase-js',
+      'elkjs',
+      'nuxt',
+      'posthog-js',
+      'posthog-node',
+      'vue',
+      'vue-router',
+      'zod',
+    ])
     expect(Object.keys(pkg.devDependencies ?? {}).sort()).toEqual([
       '@tailwindcss/vite',
+      '@types/node',
       'fast-check',
       'tailwindcss',
       'typescript',
