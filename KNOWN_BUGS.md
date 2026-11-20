@@ -61,7 +61,7 @@ None yet.
 
 ### APP-PATH-03 · High · A generated path could not be drawn
 - **Introduced:** 5e87939 (2026-11-08), shipped in v0.2.0 (the layout rule); reachable since generated trees exist
-- **Fixed in:** pending
+- **Fixed in:** 3fb52f4, v0.6.2
 - **Impact while it existed:** a generated path where a main skill needs a side quest, or where a side quest was listed before the skill it needs, showed only "This path could not be drawn." and could not be used. Seen by the owner 2026-11-20 on "Walking" (`route-planning` requires `first-30-minute-walk`).
 - **Data / analytics impact:** none; the saved tree and progress were never changed
 - **Fix:** the layout accepts a side quest that needs a later skill and a main skill that needs a side quest drawn above it; generation rejects trees with a bad main-skill order. Details: `.kiro/changes/2026-11-20-path-could-not-be-drawn.md`, G1

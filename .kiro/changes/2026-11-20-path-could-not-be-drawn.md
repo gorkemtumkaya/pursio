@@ -3,7 +3,7 @@
 On 2026-11-20 the owner's generated "Walking" path showed only "This path could not be drawn." The console said `unsupported_order`: `route-planning` requires `first-30-minute-walk`. The owner asked to plan and fix it without a review stop ("plan and fix it, i will be afk").
 
 - **Repos and branches:** `pursio` `main`
-- **State:** uncommitted
+- **State:** committed in `3fb52f4` (v0.6.2); the owner confirmed on 2026-11-20 that "Walking" opens
 - **Status:** 1 of 1 done
 - **Size:** 10 files changed, 2 added, in 1 group
 - **Update, same day:** the first version of this fix (S1) did not open "Walking"; the owner reloaded and got the same error. So `route-planning` is a main skill that needs a side quest. S5 was added for it.
