@@ -3,7 +3,7 @@
 The owner reported on 2026-11-20 (screenshot, desktop, center column about 454 px) that texts and nodes overlap on the path wherever a side quest hangs off the trail.
 
 - **Repos and branches:** `pursio` `main`
-- **State:** uncommitted
+- **State:** committed in `e2b28c2` (v0.6.1)
 - **Status:** 1 of 1 done
 - **Size:** 8 files changed, 1 added, in 1 group
 

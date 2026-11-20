@@ -22,4 +22,14 @@ export interface VideoFieldsError {
   issues: string[]
 }
 
-export type ValidationError = SchemaError | GraphError | VideoFieldsError
+/**
+ * A generated tree has a prerequisite the path cannot be drawn with (generation only):
+ * a main skill that needs a side quest or a later skill. See `findPathOrderViolation`.
+ */
+export interface PathOrderError {
+  kind: 'path_order'
+  nodeId: string
+  prerequisiteId: string
+}
+
+export type ValidationError = SchemaError | GraphError | VideoFieldsError | PathOrderError

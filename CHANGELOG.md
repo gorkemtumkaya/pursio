@@ -6,6 +6,11 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+## [0.6.2] - 2026-11-20
+
+### Fixed
+- Paths that showed only "This path could not be drawn" open again: a side quest may now come before the skill it builds on, and new paths are checked so they can always be drawn. (spec: skill-path-ui)
+
 ## [0.6.1] - 2026-11-20
 
 ### Fixed

@@ -30,6 +30,41 @@ afterEach(() => {
   vi.mocked(validateSkillTree).mockClear()
 })
 
+describe('loadSkillTree with requirePathOrder (APP-PATH-03)', () => {
+  const side = (id: string, prerequisites: string[]): SkillNode => ({ ...node(id, prerequisites), optional: true })
+
+  it('rejects a main skill that needs a side quest', () => {
+    const input = tree(node('a'), side('s', ['a']), node('b', ['s']))
+    const expected: ValidationError[] = [{ kind: 'path_order', nodeId: 'b', prerequisiteId: 's' }]
+    expect(loadSkillTree(input, { requirePathOrder: true })).toEqual({ ok: false, errors: expected })
+    expect(loadSkillTree(input)).toEqual({ ok: true, value: input })
+  })
+
+  it('rejects a main skill that needs a later main skill', () => {
+    const input = tree(node('a', ['b']), node('b'))
+    expect(loadSkillTree(input, { requirePathOrder: true })).toEqual({
+      ok: false,
+      errors: [{ kind: 'path_order', nodeId: 'a', prerequisiteId: 'b' }],
+    })
+  })
+
+  it('accepts a side quest listed before the skill it needs', () => {
+    const input = tree(node('a'), side('s', ['b']), node('b', ['a']))
+    expect(loadSkillTree(input, { requirePathOrder: true })).toEqual({ ok: true, value: input })
+  })
+
+  it('reports graph errors alone when the graph is unsound', () => {
+    const input = tree(node('a', ['missing']))
+    const result = loadSkillTree(input, { requirePathOrder: true })
+    expect(result.ok ? [] : result.errors.map(e => e.kind)).toEqual(['missing_prerequisite'])
+  })
+
+  it('formats the error for the retry note', () => {
+    expect(formatValidationError({ kind: 'path_order', nodeId: 'b', prerequisiteId: 's' }))
+      .toBe('"b" cannot need "s": a main skill can only need a main skill that comes before it')
+  })
+})
+
 describe('loadSkillTree', () => {
   it('returns a valid tree unchanged after running the validator once', () => {
     const input = tree(node('a'), node('b', ['a']))

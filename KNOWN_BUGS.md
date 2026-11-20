@@ -53,11 +53,19 @@ None yet.
 
 ### APP-PATH-02 · Medium · Side quests and labels overlapped on the path
 - **Introduced:** 5e87939 (2026-11-08), shipped in v0.2.0
-- **Fixed in:** pending
+- **Fixed in:** e2b28c2, v0.6.1
 - **Impact while it existed:** next to a side quest, the side quest's title covered the next skill's title, a second side quest sat on the first one's "Side quest" line, and trail dots sat on a skill's status line. Reported by the owner 2026-11-20 (desktop, 454 px column).
 - **Data / analytics impact:** none
 - **Fix:** a skill with side quests gets a taller gap below it, sized for the side quests and their labels; titles are clamped. Details: `.kiro/changes/2026-11-20-path-label-overlap.md`, G1
 - **Tests:** [tests/unit/path-layout.test.ts](tests/unit/path-layout.test.ts), [tests/property/path-layout.property.test.ts](tests/property/path-layout.property.test.ts) (Properties 16, 17, 19, 21)
+
+### APP-PATH-03 · High · A generated path could not be drawn
+- **Introduced:** 5e87939 (2026-11-08), shipped in v0.2.0 (the layout rule); reachable since generated trees exist
+- **Fixed in:** pending
+- **Impact while it existed:** a generated path where a main skill needs a side quest, or where a side quest was listed before the skill it needs, showed only "This path could not be drawn." and could not be used. Seen by the owner 2026-11-20 on "Walking" (`route-planning` requires `first-30-minute-walk`).
+- **Data / analytics impact:** none; the saved tree and progress were never changed
+- **Fix:** the layout accepts a side quest that needs a later skill and a main skill that needs a side quest drawn above it; generation rejects trees with a bad main-skill order. Details: `.kiro/changes/2026-11-20-path-could-not-be-drawn.md`, G1
+- **Tests:** [tests/unit/path-layout.test.ts](tests/unit/path-layout.test.ts), [tests/unit/skill-tree-load.test.ts](tests/unit/skill-tree-load.test.ts)
 
 ### APP-PATH-01 · High · Ticking a quest reloaded the skill's videos
 - **Introduced:** 9731aae (2026-11-14), shipped in v0.3.0

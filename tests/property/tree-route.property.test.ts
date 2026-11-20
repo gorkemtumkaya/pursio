@@ -6,7 +6,7 @@ import type { SkillTree } from '../../shared/types/skill-tree'
 import { loadSkillTree } from '../../shared/utils/skill-tree-load'
 import { handleTreeRequest } from '../../server/utils/llm-handlers'
 import { cacheKey } from '../../server/utils/tree-cache'
-import { arbValidTree } from '../arbitraries'
+import { arbPathTree } from '../arbitraries'
 import { DEFAULTS, fakeTreeDeps, never, treeOutput, withVideoFields, type FakeTreeOptions } from '../support/tree-deps'
 import type { AdapterResult } from '../../server/utils/providers/types'
 
@@ -64,11 +64,13 @@ function headerKey(config: ConfigChoice): string | undefined {
   return config.kind === 'user' ? config.key : undefined
 }
 
-const arbVideoTree = arbValidTree.map(withVideoFields)
+// Generation accepts only trees the path can be drawn from (bug APP-PATH-03), so the
+// adapter answers come from `arbPathTree`.
+const arbVideoTree = arbPathTree.map(withVideoFields)
 
 function loaded(tree: SkillTree): SkillTree {
   const result = loadSkillTree(tree)
-  if (!result.ok) throw new Error('arbValidTree gave a tree the Tree_Loader rejects')
+  if (!result.ok) throw new Error('arbPathTree gave a tree the Tree_Loader rejects')
   return result.value
 }
 

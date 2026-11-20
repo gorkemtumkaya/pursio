@@ -30,7 +30,10 @@ The Tree_Validator accepts a prerequisite that points to a later Node (Req 2.6).
 The design adds a layout-only check, `checkPathOrder`:
 
 - **P1**: every prerequisite of a Main_Node is a Main_Node that comes earlier in document order (Section order, then Node order).
-- **P2**: every prerequisite of a Side_Quest_Node comes earlier in document order (any Node type).
+- **P1b** (since 2026-11-20, bug APP-PATH-03): or a Side_Quest_Node that is drawn above the Main_Node, that is, one that hangs from an earlier Main_Node (or from none, in the same or an earlier Section). Side quests no longer stack into the fixed Main_Node spacing, so the old reason against this is gone. Tree generation does not allow P1b (`strict`); it exists for paths saved before generation checked the order. Such a side quest is required in practice: the Main_Node stays locked until it is completed.
+- **P2**: every prerequisite of a Side_Quest_Node is a Node of the tree (any Node type, anywhere in document order). Until 2026-11-20 it had to come earlier; generated trees list a side quest before the Section's milestone it needs, and such paths could not be drawn (bug APP-PATH-03). A side quest is placed below the Main_Node it hangs from, so its document position does not matter.
+
+The check lives in `shared/utils/path-order.ts` (`findPathOrderViolation`), so tree generation runs it too: a generated tree that fails it is rejected with a `path_order` Validation_Error and goes through the generator's retry.
 
 A tree that fails P1 or P2 is still valid data, but `Path_Layout` returns a `LayoutError` of kind `unsupported_order` and the Path_View shows "This path could not be drawn" (Req 5.12). The Sample_Tree satisfies P1 and P2. Layout properties (Req 5.8–5.10) are generated over trees that satisfy P1 and P2.
 
@@ -591,7 +594,7 @@ Generators referenced below live in `tests/arbitraries.ts`:
 
 - `arbShapeTree`: shape-valid Skill_Trees with arbitrary prerequisite strings (may break graph rules).
 - `arbValidTree`: 1–3 Sections, 1–15 Nodes each, unique ids, prerequisites drawn from Nodes earlier in a random topological order, then Node positions shuffled across Sections so prerequisites can point later. Random `optional` and `milestone` flags.
-- `arbPathTree`: like `arbValidTree` but satisfying P1 and P2 (document order is topological; Main_Node prerequisites are earlier Main_Nodes). Milestones sit last in some Sections. Several side quests may share an anchor.
+- `arbPathTree`: like `arbValidTree` but satisfying P1 and the old, stricter P2 (document order is topological; Main_Node prerequisites are earlier Main_Nodes). A side quest listed before its prerequisite is covered by a unit example. Milestones sit last in some Sections. Several side quests may share an anchor.
 - `arbLinearMainTree`: `arbValidTree` restricted so no Main_Node has a Side_Quest_Node among its direct or indirect prerequisites.
 - `arbProgress(tree)`: a subset of the tree's ids as `completed` plus random quest triples for random ids.
 

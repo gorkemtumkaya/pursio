@@ -75,7 +75,7 @@ export async function generateSkillTree(
     const unwrapped = unwrapGenerationOutput(result.value)
     if (unwrapped.kind === 'not_a_hobby') return { kind: 'not_a_hobby' }
 
-    const loaded = loadSkillTree(unwrapped.value, { requireVideoFields: true })
+    const loaded = loadSkillTree(unwrapped.value, { requireVideoFields: true, requirePathOrder: true })
     if (loaded.ok) return { kind: 'tree', tree: loaded.value, model: config.model }
     note = retryNote(loaded.errors)
     detail = rejectionDetail(loaded.errors)

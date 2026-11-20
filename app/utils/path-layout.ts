@@ -9,6 +9,7 @@ import type { ElkExtendedEdge, ElkNode } from 'elkjs/lib/elk-api'
 import type { SkillNode, SkillTree } from '#shared/types/skill-tree'
 import type { Result } from '#shared/types/validation'
 import type { ViewportClass } from '#shared/types/viewport'
+import { findPathOrderViolation } from '#shared/utils/path-order'
 
 // ---------------------------------------------------------------------------
 // Types
@@ -153,21 +154,15 @@ function uniqueNodes(tree: SkillTree): SkillNode[] {
 
 /**
  * Checks the layout-only precondition (design "Path order precondition"):
- * - P1: every prerequisite of a Main_Node is an earlier Main_Node.
- * - P2: every prerequisite of a Side_Quest_Node is an earlier Node.
+ * - P1: every prerequisite of a Main_Node is an earlier Main_Node, or a
+ *   Side_Quest_Node that is drawn above it.
+ * - P2: every prerequisite of a Side_Quest_Node is a Node of the tree; it may
+ *   come later in document order.
  * Returns the first offending (node, prerequisite) pair in document order, or null.
  */
 export function checkPathOrder(tree: SkillTree): LayoutError | null {
-  const earlier = new Map<string, SkillNode>()
-  for (const node of uniqueNodes(tree)) {
-    for (const prerequisiteId of node.prerequisites) {
-      const prerequisite = earlier.get(prerequisiteId)
-      const ok = prerequisite !== undefined && (node.optional || !prerequisite.optional)
-      if (!ok) return { kind: 'unsupported_order', nodeId: node.id, prerequisiteId }
-    }
-    earlier.set(node.id, node)
-  }
-  return null
+  const violation = findPathOrderViolation(tree)
+  return violation ? { kind: 'unsupported_order', ...violation } : null
 }
 
 // ---------------------------------------------------------------------------
@@ -230,12 +225,14 @@ export function trailDots(a: Point, b: Point): [Point, Point, Point] {
 /**
  * Where a Trail_Segment starts. The branch from a Main_Node to a
  * Side_Quest_Node starts at the Main_Node's lower edge, so its dots run below
- * the Main_Node's label instead of through it. Every other segment starts at
- * the center.
+ * the Main_Node's label instead of through it. The way back from a
+ * Side_Quest_Node to a Main_Node that needs it starts at the side quest's left
+ * edge, beside its label. Every other segment starts at the center.
  */
 export function trailStart(a: NodePlacement, b: NodePlacement): Point {
-  const branch = a.kind !== 'side' && b.kind === 'side'
-  return { x: a.cx, y: branch ? a.cy + a.size / 2 : a.cy }
+  if (a.kind !== 'side' && b.kind === 'side') return { x: a.cx, y: a.cy + a.size / 2 }
+  if (a.kind === 'side' && b.kind !== 'side') return { x: a.cx - a.size / 2, y: a.cy }
+  return { x: a.cx, y: a.cy }
 }
 
 /**

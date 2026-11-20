@@ -1,5 +1,6 @@
 import type { SkillTree } from '../types/skill-tree'
 import type { Result, ValidationError, VideoFieldsError } from '../types/validation'
+import { findPathOrderViolation } from './path-order'
 import { repairSearchQueries, validateSearchQueries } from './search-queries'
 import { parseSkillTree } from './skill-tree-schema'
 import { validateSkillTree } from './skill-tree-validate'
@@ -7,6 +8,8 @@ import { validateSkillTree } from './skill-tree-validate'
 export interface LoadSkillTreeOptions {
   /** Generation only: every skill must carry valid `searchQueries` and a boolean `quickTip`. */
   requireVideoFields?: boolean
+  /** Generation only: the tree must be drawable as a path (see `findPathOrderViolation`). */
+  requirePathOrder?: boolean
 }
 
 /** Video field errors for every skill of a parsed tree (Req 1.10, 1.15). */
@@ -38,6 +41,7 @@ function videoFieldErrors(tree: SkillTree): VideoFieldsError[] {
  * Loads unknown input as a Skill_Tree. Runs the schema first and returns its errors
  * without running the graph validator; otherwise returns the validator's errors or the tree.
  * With `requireVideoFields`, video field errors are added after the graph check.
+ * With `requirePathOrder`, a tree with a sound graph also gets the path order check.
  */
 export function loadSkillTree(
   input: unknown,
@@ -47,6 +51,10 @@ export function loadSkillTree(
   if (!parsed.ok) return parsed
   const tree = options.requireVideoFields === true ? withRepairedQueries(parsed.value) : parsed.value
   const errors: ValidationError[] = validateSkillTree(tree)
+  if (options.requirePathOrder === true && errors.length === 0) {
+    const violation = findPathOrderViolation(tree, { strict: true })
+    if (violation) errors.push({ kind: 'path_order', ...violation })
+  }
   if (options.requireVideoFields === true) errors.push(...videoFieldErrors(tree))
   if (errors.length > 0) return { ok: false, errors }
   return { ok: true, value: tree }
@@ -87,6 +95,8 @@ export function formatValidationError(error: ValidationError): string {
       const loop = error.nodeIds[0] === undefined ? error.nodeIds : [...error.nodeIds, error.nodeIds[0]]
       return `Prerequisite loop: ${loop.join(' → ')}`
     }
+    case 'path_order':
+      return `"${error.nodeId}" cannot need "${error.prerequisiteId}": a main skill can only need a main skill that comes before it`
     case 'video_fields':
       if (error.field === 'quickTip') return `"${error.nodeId}": quickTip must be true or false`
       return `"${error.nodeId}": searchQueries invalid (${error.issues.join(', ')})`

@@ -59,14 +59,29 @@ describe('checkPathOrder', () => {
     expect(checkPathOrder(t)).toEqual({ kind: 'unsupported_order', nodeId: 'a', prerequisiteId: 'b' })
   })
 
-  it('rejects a Main_Node depending on a Side_Quest_Node (P1)', () => {
+  it('lets a Main_Node depend on a Side_Quest_Node that is drawn above it (P1b, APP-PATH-03)', () => {
     const t = tree([node('a'), node('s', ['a'], { optional: true }), node('b', ['s'])])
-    expect(checkPathOrder(t)).toEqual({ kind: 'unsupported_order', nodeId: 'b', prerequisiteId: 's' })
+    expect(checkPathOrder(t)).toBeNull()
+    // A side quest with no prerequisite sits at the top of its Section.
+    const loose = tree([node('s', [], { optional: true }), node('a', ['s'])])
+    expect(checkPathOrder(loose)).toBeNull()
   })
 
-  it('rejects a Side_Quest_Node depending on a later Node (P2)', () => {
+  it('rejects a Main_Node depending on a Side_Quest_Node that is drawn below it (P1b)', () => {
+    const t = tree([node('a'), node('b', ['s']), node('c', ['a']), node('s', ['c'], { optional: true })])
+    expect(checkPathOrder(t)).toEqual({ kind: 'unsupported_order', nodeId: 'b', prerequisiteId: 's' })
+    const later = tree([node('a', ['s'])], [node('s', [], { optional: true }), node('b', ['a'])])
+    expect(checkPathOrder(later)).toEqual({ kind: 'unsupported_order', nodeId: 'a', prerequisiteId: 's' })
+  })
+
+  it('lets a Side_Quest_Node depend on a later Node (P2, APP-PATH-03)', () => {
     const t = tree([node('a'), node('s', ['b'], { optional: true })], [node('b', ['a'])])
-    expect(checkPathOrder(t)).toEqual({ kind: 'unsupported_order', nodeId: 's', prerequisiteId: 'b' })
+    expect(checkPathOrder(t)).toBeNull()
+  })
+
+  it('rejects a Side_Quest_Node depending on a Node that is not in the tree (P2)', () => {
+    const t = tree([node('a'), node('s', ['x'], { optional: true })])
+    expect(checkPathOrder(t)).toEqual({ kind: 'unsupported_order', nodeId: 's', prerequisiteId: 'x' })
   })
 
   it('lets a Side_Quest_Node depend on an earlier Side_Quest_Node (P2)', () => {
@@ -244,6 +259,53 @@ describe('computePathLayout', () => {
     }
   })
 
+  it('draws a side quest that is listed before the milestone it needs (APP-PATH-03)', async () => {
+    // The shape of the generated "Walking" path: the milestone is last in its Section,
+    // so a side quest that needs it comes earlier in the document.
+    const t = tree(
+      [node('a'), node('b', ['a']), node('s', ['m'], { optional: true }), node('m', ['b'], { milestone: true })],
+      [node('c', ['m'])],
+    )
+    for (const viewport of ['mobile', 'desktop'] as const) {
+      const cfg = LAYOUT_CONFIG[viewport]
+      const result = await computePathLayout(t, viewport, new ELK())
+      if (!result.ok) throw new Error(JSON.stringify(result.errors))
+      const { nodes, headers, mainOrder, segments } = result.value
+      expect(mainOrder).toEqual(['a', 'b', 'm', 'c'])
+      const { m, s } = nodes
+      const next = headers[1]
+      if (!m || !s || !next) throw new Error('missing placements')
+      // Below the milestone's label, and with its own label above the next Section_Header.
+      expect(s.cy).toBe(m.cy + cfg.mainLabelReach + cfg.size.side / 2)
+      expect(s.cy + s.size / 2 + cfg.sideLabelReserve).toBeLessThanOrEqual(next.top)
+      expect(segments.map(seg => [seg.fromId, seg.toId])).toContainEqual(['m', 's'])
+    }
+  })
+
+  it('draws a Main_Node that needs a side quest, below that side quest (APP-PATH-03)', async () => {
+    // An optional milestone is a side quest; the next Section's first skill needs it.
+    const t = tree(
+      [node('a'), node('b', ['a']), node('s', ['b'], { optional: true, milestone: true })],
+      [node('c', ['s']), node('d', ['c'])],
+    )
+    for (const viewport of ['mobile', 'desktop'] as const) {
+      const cfg = LAYOUT_CONFIG[viewport]
+      const result = await computePathLayout(t, viewport, new ELK())
+      if (!result.ok) throw new Error(JSON.stringify(result.errors))
+      const { nodes, headers, mainOrder, segments } = result.value
+      expect(mainOrder).toEqual(['a', 'b', 'c', 'd'])
+      const { b, c, s } = nodes
+      const next = headers[1]
+      if (!b || !c || !s || !next) throw new Error('missing placements')
+      expect(s.kind).toBe('side')
+      expect(s.cy).toBe(b.cy + cfg.mainLabelReach + cfg.size.side / 2)
+      expect(s.cy + s.size / 2 + cfg.sideLabelReserve).toBeLessThanOrEqual(next.top)
+      expect(c.cy).toBeGreaterThan(s.cy)
+      const back = segments.find(seg => seg.fromId === 's' && seg.toId === 'c')
+      expect(back).toBeDefined()
+    }
+  })
+
   it('returns unsupported_order before calling elkjs', async () => {
     const t = tree([node('a', ['b']), node('b')])
     const elk = { layout: () => Promise.reject(new Error('should not run')) }
@@ -305,6 +367,7 @@ describe('bandAwareTrailDots', () => {
     expect(trailStart(a, side)).toEqual({ x: 0, y: 36 })
     expect(trailStart(a, b)).toEqual({ x: 0, y: 0 })
     expect(trailStart(side, below)).toEqual({ x: 110, y: 72 })
+    expect(trailStart(side, b)).toEqual({ x: 110 - 32, y: 72 })
     expect(bandAwareTrailDots(a, side, [])).toEqual(trailDots({ x: 0, y: 36 }, { x: 110, y: 72 }))
   })
 
