@@ -218,14 +218,15 @@ export function trailDots(a: Point, b: Point): [Point, Point, Point]   // 28%, 5
 | Key | Mobile | Desktop | Source |
 |---|---|---|---|
 | `windingOffsets` | 0, -60, -90, -60 | 0, -90, -135, -90 | Req 5.2 |
-| `rowGap` | 112 | 124 | Req 5.4 |
+| `rowGap` (no side quest in between) | 112 | 124 | Req 5.4 |
 | `sideX` | +110 | +170 | Req 5.5 |
 | `size.main / milestone / side` | 72 / 84 / 64 | 80 / 92 / 70 | Req 5.6 |
 | `headerHeight` | 104 | 120 | fixed band, fits Banner and Divider styles |
 | `headerTop` (first header) | 16 | 8 | reference spacing |
 | `sectionLead` (header bottom → first Main_Node center) | 92 | 104 | room for NEXT UP tag (44/50 px above node top) |
 | `sectionTail` (last Main_Node center → next header top) | 76 | 84 | node half + shadow + label |
-| `sideLabelReserve` (below side quest box) | 40 | 44 | label under side quest |
+| `sideLabelReserve` (below side quest box) | 64 | 72 | label under side quest: gap 10/12, title clamped to 2 lines, status line |
+| `mainLabelReach` (above and below a Main_Node center) | 40 | 42 | half of a Main_Node label with the title clamped to 3 lines |
 | `sideGap` (min space between side footprints) | 12 | 12 | |
 | `bottomPadding` | 120 | 64 | mobile clears the 80 px bottom nav (Req 12.2) |
 | `dotDiameter` | 8 | 10 | Req 6.1 |
@@ -238,16 +239,18 @@ Header bands have a fixed height per viewport, so switching a header between Ban
 **`placePath`** steps:
 
 1. Read elkjs `y` per id. Sort Main_Nodes by `(y, document position)`. If that order differs from document order, or any id is missing from the result, return `layout_failed`. With P1 and trail edges this never happens; the check guards against elkjs surprises.
-2. Walk Sections. For Section s: header band `[cursor, cursor + headerHeight]`; `cursor = band bottom + sectionLead` is the first Main_Node center; each next Main_Node is `+ rowGap`. Main_Node `i` (global index) gets `cx = windingOffsets[i % 4]`. After the Section, `cursor = last center + sectionTail` (or band bottom if the Section has no Main_Node).
-3. Place Side_Quest_Nodes in elkjs order `(y, document position)`, which is a topological order:
-   - `anchor` = the prerequisite with the lowest center (largest `cy`, ties by document position).
-   - If the anchor is a Main_Node with a next Main_Node, `desired = midpoint(anchor.cy, next.cy)` (Req 5.5). Otherwise `desired = anchor.cy + rowGap / 2`.
+2. For each Side_Quest_Node in elkjs order `(y, document position)`, which is a topological order, find the Main_Node it hangs from: the latest Main_Node among its prerequisites, where a Side_Quest_Node prerequisite counts as the Main_Node it hangs from. Count the side quests per Main_Node.
+3. Walk Sections. For Section s: header band `[cursor, cursor + headerHeight]`; `cursor = band bottom + sectionLead` is the first Main_Node center. The next Main_Node is `+ rowGap`, or, after a Main_Node with n side quests, `+ max(rowGap, 2 × mainLabelReach + stack(n))` with `stack(n) = n × (size.side + sideLabelReserve) + (n - 1) × sideGap`. Main_Node `i` (global index) gets `cx = windingOffsets[i % 4]`. After the Section, `cursor = last center + sectionTail` (or band bottom if the Section has no Main_Node); when the last Main_Node has n side quests, the tail is at least `mainLabelReach + stack(n) + sideGap`. Side quests with no prerequisite in the tree get the same kind of space between the header band and the Section's first Main_Node.
+4. Place Side_Quest_Nodes in the same elkjs order:
+   - `desired = anchor.cy + mainLabelReach + size / 2`, where `anchor` is the Main_Node from step 2: the box starts where the anchor's label reach ends (Req 5.5).
    - Footprint = `[cy - size/2, cy + size/2 + sideLabelReserve]`. Starting at `desired`, while the footprint intersects a header band or an already placed side footprint (plus `sideGap`), move `cy` to just below that interval. The occupied list is scanned in sorted order, so the loop ends.
    - `cx = sideX`.
-4. `height` = max of every node footprint bottom and header bottom, plus `bottomPadding`.
-5. Segments: for every `(prereq, node)` pair, `trailDots(prereq center, node center)`.
+5. `height` = max of every node footprint bottom and header bottom, plus `bottomPadding`.
+6. Segments: for every `(prereq, node)` pair, `trailDots(start, node center)`. `start` is the prerequisite's center, except for the branch from a Main_Node to a Side_Quest_Node, which starts at the Main_Node's lower edge so that no dot sits on the Main_Node's label.
 
 Side and Main_Nodes never overlap horizontally: the widest Main_Node box reaches `0 + 46 = 46` px (desktop milestone at offset 0), while the nearest side box edge is at `110 - 32 = 78` (mobile) or `170 - 35 = 135` (desktop). Main_Nodes are at least 112 px apart vertically with half sizes of at most 46, and header bands are separated from Main_Node boxes by `sectionLead - 46 > 0` and `sectionTail - 46 > 0`. Side quests are pushed past header bands and each other. Together this gives Req 5.7 and 5.9.
+
+Labels: the layout cannot measure text, so `PathNodeLabel` clamps the title (2 lines below a side quest, 3 beside a Main_Node) and the layout reserves `sideLabelReserve` and `mainLabelReach` for them. A side quest footprint (box + label) always lies between the label reach of the Main_Node above and of the one below, at any column width (bug APP-PATH-02).
 
 **`computePathLayout`**: `checkPathOrder` → `buildElkGraph` → `await elk.layout()` inside `try/catch` → `placePath`. Any throw becomes `layout_failed` (Req 5.12).
 
@@ -684,13 +687,13 @@ Generators referenced below live in `tests/arbitraries.ts`:
 
 ### Property 16: Main nodes follow the winding trail
 
-*For any* tree from `arbPathTree` and either viewport class, the resulting layout gives the i-th Main_Node (document order) `cx = windingOffsets[i % 4]` and a box size of `size.milestone` for Milestone_Nodes, `size.main` for other Main_Nodes and `size.side` for Side_Quest_Nodes; Main_Node centers strictly increase in `cy` along document order, and consecutive Main_Nodes in the same Section are exactly `rowGap` apart.
+*For any* tree from `arbPathTree` and either viewport class, the resulting layout gives the i-th Main_Node (document order) `cx = windingOffsets[i % 4]` and a box size of `size.milestone` for Milestone_Nodes, `size.main` for other Main_Nodes and `size.side` for Side_Quest_Nodes; Main_Node centers strictly increase in `cy` along document order, and consecutive Main_Nodes in the same Section are exactly `rowGap` apart when no Side_Quest_Node sits between them, and further apart otherwise.
 
 **Validates: Requirements 5.2, 5.3, 5.4, 5.6**
 
-### Property 17: Side quests sit on the side column at or below their slot
+### Property 17: Side quests sit on the side column, between the labels of two Main_Nodes
 
-*For any* tree from `arbPathTree` and either viewport class, every Side_Quest_Node has `cx = sideX` and `cy` at or below its desired slot (midpoint between its lowest prerequisite and the next Main_Node, as defined in `placePath`); when it is the only side quest in that slot and the slot is clear of header bands, `cy` equals the midpoint.
+*For any* tree from `arbPathTree` and either viewport class, every Side_Quest_Node has `cx = sideX`; its box starts at or below `cy + mainLabelReach` of the Main_Node above it, and its footprint (box + `sideLabelReserve`) ends at or above `cy - mainLabelReach` of the next Main_Node; that Main_Node above is at or after each of its Main_Node prerequisites; the first side quest below a Main_Node starts exactly at `cy + mainLabelReach`.
 
 **Validates: Requirements 5.5**
 
@@ -702,7 +705,7 @@ Generators referenced below live in `tests/arbitraries.ts`:
 
 ### Property 19: Nothing overlaps
 
-*For any* tree from `arbPathTree` and either viewport class, no two Node boxes intersect and no Node box intersects any header band; header bands appear once per Section in Section order.
+*For any* tree from `arbPathTree` and either viewport class, no two Node boxes intersect and no Node box intersects any header band; no side quest footprint (box + label) intersects another side quest footprint, a Main_Node label band (`cy ± mainLabelReach`) or a header band; header bands appear once per Section in Section order.
 
 **Validates: Requirements 5.7, 5.9**
 
@@ -806,7 +809,7 @@ tests/
 
 - **Sample_Tree** (Req 3.1–3.7): hobby, mascot, Section titles and levels, the 13 titles in order, single side quest and its prerequisite, milestones last and main, the linear chain, and zero schema and validator errors.
 - **Loading** (Req 3.8): schema-invalid input returns schema errors only (validator spy not called); graph-invalid input returns graph errors; `formatValidationError` output for each kind.
-- **Layout examples** (Req 5.1, 5.5, 5.12): `buildElkGraph(sample)` has `layered`/`DOWN` options and every prerequisite edge; on the sample, "Falling safely" sits at `cx = 110` and the exact midpoint between "Reading grades" and "Warm-up routine" on mobile; a throwing `ElkLike` gives `layout_failed`; a P1 violation gives `unsupported_order`.
+- **Layout examples** (Req 5.1, 5.5, 5.12): `buildElkGraph(sample)` has `layered`/`DOWN` options and every prerequisite edge; on the sample, "Falling safely" sits at `cx = 110` with its box starting `mainLabelReach` below "Reading grades" and "Warm-up routine" 208 px below "Reading grades" on mobile; a throwing `ElkLike` gives `layout_failed`; a P1 violation gives `unsupported_order`.
 - **Visual mappings** (Req 4.12, 6.4–6.13, 8.4, 8.9–8.12): `nodeVisual` per state including milestone current, ring degrees for 0–3 checks, `statusLine` per state, `chipFor`, `buttonFor`, `formatTitleList` with 1, 2 and 3 titles.
 - **Store** (Req 10.1–10.3, 10.6): fake `StorageLike` records `setItem` with the right key after save; missing key gives empty Progress; a storage whose methods throw gives empty Progress and a silent save.
 - **XP edges** (Req 11.2, 11.4): 0, 99, 100, 199, 200, 399, 400, 699, 700, 750.

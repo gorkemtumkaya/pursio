@@ -48,7 +48,7 @@ export interface ElkLike { layout(graph: ElkNode): Promise<ElkNode> }
 export interface LayoutConfig {
   /** Main_Node center offsets from the center line, indexed by `i % 4` (Req 5.2). */
   windingOffsets: readonly [number, number, number, number]
-  /** Vertical distance between consecutive Main_Node centers in a Section (Req 5.4). */
+  /** Vertical distance between consecutive Main_Node centers in a Section when no Side_Quest_Node sits between them (Req 5.4). */
   rowGap: number
   /** Side_Quest_Node center offset from the center line (Req 5.5). */
   sideX: number
@@ -62,8 +62,18 @@ export interface LayoutConfig {
   sectionLead: number
   /** Last Main_Node center to next header band top. */
   sectionTail: number
-  /** Space reserved below a Side_Quest_Node box for its label. */
+  /**
+   * Space reserved below a Side_Quest_Node box for its label: the gap, a
+   * title of two lines and the status line. `PathNodeLabel` clamps the title
+   * to two lines, so the label is never taller.
+   */
   sideLabelReserve: number
+  /**
+   * How far a Main_Node label reaches above and below the Main_Node center:
+   * half of a three-line title plus the status line (the title is clamped to
+   * three lines), rounded up. Side quests stay outside this reach (Req 5.5).
+   */
+  mainLabelReach: number
   /** Minimum vertical space between Side_Quest_Node footprints. */
   sideGap: number
   /** Space below the lowest footprint. */
@@ -88,7 +98,8 @@ export const LAYOUT_CONFIG: Readonly<Record<ViewportClass, LayoutConfig>> = {
     headerTop: 16,
     sectionLead: 92,
     sectionTail: 76,
-    sideLabelReserve: 40,
+    sideLabelReserve: 64,
+    mainLabelReach: 40,
     sideGap: 12,
     bottomPadding: 120,
     dotDiameter: 8,
@@ -103,7 +114,8 @@ export const LAYOUT_CONFIG: Readonly<Record<ViewportClass, LayoutConfig>> = {
     headerTop: 8,
     sectionLead: 104,
     sectionTail: 84,
-    sideLabelReserve: 44,
+    sideLabelReserve: 72,
+    mainLabelReach: 42,
     sideGap: 12,
     bottomPadding: 64,
     dotDiameter: 10,
@@ -216,6 +228,17 @@ export function trailDots(a: Point, b: Point): [Point, Point, Point] {
 }
 
 /**
+ * Where a Trail_Segment starts. The branch from a Main_Node to a
+ * Side_Quest_Node starts at the Main_Node's lower edge, so its dots run below
+ * the Main_Node's label instead of through it. Every other segment starts at
+ * the center.
+ */
+export function trailStart(a: NodePlacement, b: NodePlacement): Point {
+  const branch = a.kind !== 'side' && b.kind === 'side'
+  return { x: a.cx, y: branch ? a.cy + a.size / 2 : a.cy }
+}
+
+/**
  * Trail dots for a segment, or none when the segment crosses a Section_Header
  * band: the header separates the Sections, so dots there would sit on its text.
  */
@@ -228,7 +251,7 @@ export function bandAwareTrailDots(
   const lo = upper.cy + upper.size / 2
   const hi = lower.cy - lower.size / 2
   if (bands.some(band => band.top < hi && lo < band.bottom)) return []
-  return trailDots({ x: a.cx, y: a.cy }, { x: b.cx, y: b.cy })
+  return trailDots(trailStart(a, b), { x: b.cx, y: b.cy })
 }
 
 // ---------------------------------------------------------------------------
@@ -247,8 +270,13 @@ function footprint(p: NodePlacement, cfg: LayoutConfig): Interval {
   return { top: p.cy - p.size / 2, bottom: p.cy + p.size / 2 + reserve }
 }
 
+/** Height of `count` stacked Side_Quest_Node footprints with `sideGap` between them. */
+function sideStackHeight(count: number, cfg: LayoutConfig): number {
+  return count * (cfg.size.side + cfg.sideLabelReserve) + (count - 1) * cfg.sideGap
+}
+
 /**
- * Maps the elkjs result onto the winding trail (design "placePath" steps 1–5).
+ * Maps the elkjs result onto the winding trail (design "placePath" steps 1–6).
  * Takes `viewport` instead of a bare config because `PathLayout` records it;
  * `cfg` defaults to `LAYOUT_CONFIG[viewport]` and can be overridden in tests.
  */
@@ -279,10 +307,54 @@ export function placePath(
     return layoutFailed('elkjs ordered the main path differently from the document order')
   }
 
-  // Step 2: header bands and Main_Nodes, Section by Section.
+  // Step 2: the Main_Node each Side_Quest_Node hangs from, in elkjs
+  // (topological) order: the latest Main_Node among its prerequisites, where
+  // a Side_Quest_Node prerequisite counts as the Main_Node it hangs from.
+  const mainPosition = new Map(mainOrder.map((id, i) => [id, i]))
+  const sectionIndexOf = new Map<string, number>()
+  tree.sections.forEach((section, sectionIndex) => {
+    for (const node of section.nodes) if (!sectionIndexOf.has(node.id)) sectionIndexOf.set(node.id, sectionIndex)
+  })
+  const sides = nodes.filter(node => node.optional).sort(byElkOrder)
+  const anchorOf = new Map<string, string | null>()
+  const sidesAfterMain = new Map<string, number>()
+  const looseSidesInSection = new Map<number, number>()
+  for (const side of sides) {
+    let anchorId: string | null = null
+    for (const prerequisiteId of side.prerequisites) {
+      let candidate: string | null
+      if (mainPosition.has(prerequisiteId)) {
+        candidate = prerequisiteId
+      }
+      else {
+        const viaSide = anchorOf.get(prerequisiteId)
+        if (viaSide === undefined) {
+          if (docIndex.has(prerequisiteId)) {
+            return layoutFailed(`elkjs placed side quest "${side.id}" before its prerequisite "${prerequisiteId}"`)
+          }
+          continue
+        }
+        candidate = viaSide
+      }
+      if (candidate === null) continue
+      if (anchorId === null || (mainPosition.get(candidate) ?? 0) > (mainPosition.get(anchorId) ?? 0)) anchorId = candidate
+    }
+    anchorOf.set(side.id, anchorId)
+    if (anchorId === null) {
+      const sectionIndex = sectionIndexOf.get(side.id) ?? 0
+      looseSidesInSection.set(sectionIndex, (looseSidesInSection.get(sectionIndex) ?? 0) + 1)
+    }
+    else {
+      sidesAfterMain.set(anchorId, (sidesAfterMain.get(anchorId) ?? 0) + 1)
+    }
+  }
+
+  // Step 3: header bands and Main_Nodes, Section by Section. A Main_Node with
+  // side quests gets a taller gap below it, so the side quests and their
+  // labels fit between its label and the next Main_Node's label.
   const placements: Record<string, NodePlacement> = {}
   const headers: HeaderPlacement[] = []
-  const sectionBandBottom = new Map<string, number>()
+  const bandBottoms: number[] = []
   const seen = new Set<string>()
   let cursor = cfg.headerTop
   let mainIndex = 0
@@ -290,54 +362,45 @@ export function placePath(
     const top = cursor
     const bandBottom = top + cfg.headerHeight
     headers.push({ sectionIndex, top, height: cfg.headerHeight })
-    let center = bandBottom + cfg.sectionLead
-    let lastCenter: number | null = null
+    bandBottoms.push(bandBottom)
+    const loose = looseSidesInSection.get(sectionIndex) ?? 0
+    const looseBottom = loose > 0 ? bandBottom + cfg.sideGap + sideStackHeight(loose, cfg) : bandBottom
+    let center = Math.max(bandBottom + cfg.sectionLead, loose > 0 ? looseBottom + cfg.mainLabelReach : 0)
+    let last: { center: number; sides: number } | null = null
     for (const node of section.nodes) {
       if (seen.has(node.id)) continue
       seen.add(node.id)
-      sectionBandBottom.set(node.id, bandBottom)
       if (node.optional) continue
       const kind = nodeKind(node)
       const offset = cfg.windingOffsets[mainIndex % 4] ?? 0
       placements[node.id] = { id: node.id, kind, cx: offset, cy: center, size: cfg.size[kind] }
-      lastCenter = center
-      center += cfg.rowGap
+      const count = sidesAfterMain.get(node.id) ?? 0
+      last = { center, sides: count }
+      center += count > 0
+        ? Math.max(cfg.rowGap, 2 * cfg.mainLabelReach + sideStackHeight(count, cfg))
+        : cfg.rowGap
       mainIndex++
     }
-    cursor = lastCenter === null ? bandBottom : lastCenter + cfg.sectionTail
-  })
-
-  // Step 3: Side_Quest_Nodes in elkjs (topological) order.
-  const occupied: Interval[] = headers.map(h => ({ top: h.top, bottom: h.top + h.height }))
-  const mainPosition = new Map(mainOrder.map((id, i) => [id, i]))
-  const sides = nodes.filter(node => node.optional).sort(byElkOrder)
-  for (const side of sides) {
-    let anchor: NodePlacement | undefined
-    for (const prerequisiteId of side.prerequisites) {
-      const p = placements[prerequisiteId]
-      if (!p) {
-        if (docIndex.has(prerequisiteId)) {
-          return layoutFailed(`elkjs placed side quest "${side.id}" before its prerequisite "${prerequisiteId}"`)
-        }
-        continue
-      }
-      const better = !anchor || p.cy > anchor.cy
-        || (p.cy === anchor.cy && (docIndex.get(p.id) ?? 0) < (docIndex.get(anchor.id) ?? 0))
-      if (better) anchor = p
-    }
-
-    let desired: number
-    if (anchor) {
-      const i = mainPosition.get(anchor.id)
-      const nextId = i === undefined ? undefined : mainOrder[i + 1]
-      const next = nextId === undefined ? undefined : placements[nextId]
-      desired = next ? (anchor.cy + next.cy) / 2 : anchor.cy + cfg.rowGap / 2
+    if (last === null) {
+      cursor = loose > 0 ? looseBottom + cfg.sideGap : bandBottom
     }
     else {
-      desired = (sectionBandBottom.get(side.id) ?? cfg.headerTop + cfg.headerHeight) + cfg.sectionLead
+      const tail = last.sides > 0 ? cfg.mainLabelReach + sideStackHeight(last.sides, cfg) + cfg.sideGap : 0
+      cursor = last.center + Math.max(cfg.sectionTail, tail)
     }
+  })
 
+  // Step 4: Side_Quest_Nodes in elkjs order, each at the top of the space
+  // reserved for it, then pushed below whatever is already there.
+  const occupied: Interval[] = headers.map(h => ({ top: h.top, bottom: h.top + h.height }))
+  for (const side of sides) {
     const size = cfg.size.side
+    const anchorId = anchorOf.get(side.id) ?? null
+    const anchor = anchorId === null ? undefined : placements[anchorId]
+    const desired = anchor
+      ? anchor.cy + cfg.mainLabelReach + size / 2
+      : (bandBottoms[sectionIndexOf.get(side.id) ?? 0] ?? cfg.headerTop + cfg.headerHeight) + cfg.sideGap + size / 2
+
     const placement: NodePlacement = { id: side.id, kind: 'side', cx: cfg.sideX, cy: desired, size }
     const sorted = [...occupied].sort((a, b) => a.top - b.top || a.bottom - b.bottom)
     let moved = true
@@ -356,13 +419,13 @@ export function placePath(
     occupied.push({ top: f.top - cfg.sideGap, bottom: f.bottom + cfg.sideGap })
   }
 
-  // Step 4: total height.
+  // Step 5: total height.
   let lowest = 0
   for (const h of headers) lowest = Math.max(lowest, h.top + h.height)
   for (const p of Object.values(placements)) lowest = Math.max(lowest, footprint(p, cfg).bottom)
   const height = lowest + cfg.bottomPadding
 
-  // Step 5: one Trail_Segment per (prerequisite, dependent) pair.
+  // Step 6: one Trail_Segment per (prerequisite, dependent) pair.
   const segments: TrailSegment[] = []
   const bands: Interval[] = headers.map(h => ({ top: h.top, bottom: h.top + h.height }))
   for (const node of nodes) {

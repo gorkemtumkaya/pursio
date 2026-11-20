@@ -6,6 +6,11 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+## [0.6.1] - 2026-11-20
+
+### Fixed
+- Side quests on the path no longer overlap other text: each side quest and its title now get their own space between two skills, and very long titles are shortened with "…". (spec: skill-path-ui)
+
 ## [0.6.0] - 2026-11-18
 
 ### Added

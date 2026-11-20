@@ -4,7 +4,7 @@ import fc from 'fast-check'
 import { describe, expect, it } from 'vitest'
 import type { SkillTree } from '../../shared/types/skill-tree'
 import type { ViewportClass } from '../../shared/types/viewport'
-import { computePathLayout, LAYOUT_CONFIG, type PathLayout } from '../../app/utils/path-layout'
+import { computePathLayout, LAYOUT_CONFIG, trailStart, type PathLayout } from '../../app/utils/path-layout'
 import { segmentTone } from '../../app/utils/node-visual'
 import { deriveNodeStates } from '../../shared/utils/progress-engine'
 import { allNodes, arbPathTree, arbProgress, mainNodes, sideQuestNodes } from '../arbitraries'
@@ -46,7 +46,7 @@ function sectionOf(tree: SkillTree): Map<string, number> {
 describe('Property 16: Main nodes follow the winding trail', () => {
   // Feature: skill-path-ui, Property 16: Main nodes follow the winding trail
   // **Validates: Requirements 5.2, 5.3, 5.4, 5.6**
-  it('places Main_Nodes on the winding offsets, rowGap apart, with per-kind box sizes', async () => {
+  it('places Main_Nodes on the winding offsets, rowGap apart unless a side quest sits between them, with per-kind box sizes', async () => {
     await fc.assert(
       fc.asyncProperty(arbPathTree, async (tree) => {
         const mains = mainNodes(tree)
@@ -69,7 +69,13 @@ describe('Property 16: Main nodes follow the winding trail', () => {
             const q = prev === undefined ? undefined : layout.nodes[prev.id]
             if (!prev || !q) return
             expect(p.cy).toBeGreaterThan(q.cy)
-            if (sections.get(prev.id) === sections.get(node.id)) expect(p.cy - q.cy).toBe(cfg.rowGap)
+            if (sections.get(prev.id) !== sections.get(node.id)) return
+            const sideBetween = sides.some((side) => {
+              const s = layout.nodes[side.id]
+              return s !== undefined && q.cy < s.cy && s.cy < p.cy
+            })
+            if (sideBetween) expect(p.cy - q.cy).toBeGreaterThan(cfg.rowGap)
+            else expect(p.cy - q.cy).toBe(cfg.rowGap)
           })
 
           for (const node of sides) expect(layout.nodes[node.id]?.size).toBe(cfg.size.side)
@@ -91,23 +97,19 @@ function overlaps(a: Band, b: Band): boolean {
   return a.top < b.bottom && b.top < a.bottom
 }
 
-describe('Property 17: Side quests sit on the side column at or below their slot', () => {
-  // Feature: skill-path-ui, Property 17: Side quests sit on the side column at or below their slot
+describe('Property 17: Side quests sit on the side column, between the labels of two Main_Nodes', () => {
+  // Feature: skill-path-ui, Property 17: Side quests sit on the side column, between the labels of two Main_Nodes
   // **Validates: Requirements 5.5**
-  it('places every Side_Quest_Node at sideX, at or below its desired slot, and on it when the slot is clear', async () => {
+  it('places every Side_Quest_Node at sideX, below the label of the Main_Node above it and above the label of the next one', async () => {
     await fc.assert(
       fc.asyncProperty(arbPathTree, async (tree) => {
         const sides = sideQuestNodes(tree)
-        const docIndex = new Map(tree.sections.flatMap(s => s.nodes).map((node, i) => [node.id, i] as const))
         for (const viewport of VIEWPORTS) {
           const cfg = LAYOUT_CONFIG[viewport]
           const layout = await layoutOk(tree, viewport)
           const mainPosition = new Map(layout.mainOrder.map((id, i) => [id, i]))
-          const headerBands: Band[] = layout.headers.map(h => ({ top: h.top, bottom: h.top + h.height }))
-          const sideFootprint = (cy: number): Band => ({
-            top: cy - cfg.size.side / 2,
-            bottom: cy + cfg.size.side / 2 + cfg.sideLabelReserve,
-          })
+          /** Top edge of the highest side quest box in the gap below each Main_Node. */
+          const firstTop = new Map<string, number>()
 
           for (const side of sides) {
             const p = layout.nodes[side.id]
@@ -115,36 +117,36 @@ describe('Property 17: Side quests sit on the side column at or below their slot
             if (!p) continue
             expect(p.cx).toBe(cfg.sideX)
 
-            // Anchor: the lowest prerequisite (ties go to the earlier Node in document order).
-            let anchor: { id: string; cy: number } | undefined
-            for (const prerequisiteId of side.prerequisites) {
-              const q = layout.nodes[prerequisiteId]
-              if (!q) continue
-              const better = !anchor || q.cy > anchor.cy
-                || (q.cy === anchor.cy && (docIndex.get(q.id) ?? 0) < (docIndex.get(anchor.id) ?? 0))
-              if (better) anchor = { id: q.id, cy: q.cy }
-            }
-            expect(anchor, `${viewport}: side quest ${side.id} has no placed prerequisite`).toBeDefined()
-            if (!anchor) continue
-
-            const i = mainPosition.get(anchor.id)
-            const nextId = i === undefined ? undefined : layout.mainOrder[i + 1]
-            const next = nextId === undefined ? undefined : layout.nodes[nextId]
-            const desired = next ? (anchor.cy + next.cy) / 2 : anchor.cy + cfg.rowGap / 2
-
-            expect(p.cy).toBeGreaterThanOrEqual(desired)
-
-            // Clear slot: no header band and no other side quest footprint (plus sideGap) in the way.
-            const slot = sideFootprint(desired)
-            const blockedByHeader = headerBands.some(band => overlaps(slot, band))
-            const blockedBySide = sides.some((other) => {
-              if (other.id === side.id) return false
-              const o = layout.nodes[other.id]
-              if (!o) return false
-              const f = sideFootprint(o.cy)
-              return overlaps(slot, { top: f.top - cfg.sideGap, bottom: f.bottom + cfg.sideGap })
+            // The Main_Node directly above the side quest, and the one after it.
+            let aboveIndex = -1
+            layout.mainOrder.forEach((id, i) => {
+              const m = layout.nodes[id]
+              if (m && m.cy < p.cy) aboveIndex = i
             })
-            if (!blockedByHeader && !blockedBySide) expect(p.cy).toBe(desired)
+            const aboveId = layout.mainOrder[aboveIndex]
+            const above = aboveId === undefined ? undefined : layout.nodes[aboveId]
+            expect(above, `${viewport}: side quest ${side.id} is above every Main_Node`).toBeDefined()
+            if (!above || aboveId === undefined) continue
+            const nextId = layout.mainOrder[aboveIndex + 1]
+            const next = nextId === undefined ? undefined : layout.nodes[nextId]
+
+            const top = p.cy - p.size / 2
+            const bottom = p.cy + p.size / 2 + cfg.sideLabelReserve
+            expect(top, `${viewport}: ${side.id} reaches into the label of ${aboveId}`).toBeGreaterThanOrEqual(above.cy + cfg.mainLabelReach)
+            if (next) expect(bottom, `${viewport}: ${side.id} reaches into the label of ${nextId}`).toBeLessThanOrEqual(next.cy - cfg.mainLabelReach)
+            firstTop.set(aboveId, Math.min(firstTop.get(aboveId) ?? Number.POSITIVE_INFINITY, top))
+
+            // It hangs from the latest Main_Node among its prerequisites, or from a later one via a side quest.
+            for (const prerequisiteId of side.prerequisites) {
+              const i = mainPosition.get(prerequisiteId)
+              if (i !== undefined) expect(aboveIndex).toBeGreaterThanOrEqual(i)
+            }
+          }
+
+          // The first side quest below a Main_Node starts right at the end of that Main_Node's label reach.
+          for (const [mainId, top] of firstTop) {
+            const m = layout.nodes[mainId]
+            if (m) expect(top, `${viewport}: gap above the first side quest of ${mainId}`).toBe(m.cy + cfg.mainLabelReach)
           }
         }
       }),
@@ -209,10 +211,11 @@ function boxesOverlap(a: Box, b: Box): boolean {
 describe('Property 19: Nothing overlaps', () => {
   // Feature: skill-path-ui, Property 19: Nothing overlaps
   // **Validates: Requirements 5.7, 5.9**
-  it('keeps Node boxes apart from each other and from full-width header bands, one band per Section in order', async () => {
+  it('keeps Node boxes, side quest labels and Main_Node labels apart from each other and from full-width header bands, one band per Section in order', async () => {
     await fc.assert(
       fc.asyncProperty(arbPathTree, async (tree) => {
         for (const viewport of VIEWPORTS) {
+          const cfg = LAYOUT_CONFIG[viewport]
           const layout = await layoutOk(tree, viewport)
           const placements = Object.values(layout.nodes)
           const boxes = placements.map(p => ({ id: p.id, box: boxOf(p) }))
@@ -232,6 +235,29 @@ describe('Property 19: Nothing overlaps', () => {
               expect(overlaps(a.box, band), `${viewport}: ${a.id} overlaps header ${k}`).toBe(false)
             })
           }
+
+          // Labels (APP-PATH-02). A side quest's footprint is its box plus the label below it;
+          // a Main_Node's label band is `mainLabelReach` above and below its center. Label
+          // widths depend on the column, so the bands are compared at any x.
+          const sideFootprints = placements.filter(p => p.kind === 'side').map(p => ({
+            id: p.id,
+            band: { top: p.cy - p.size / 2, bottom: p.cy + p.size / 2 + cfg.sideLabelReserve },
+          }))
+          const mainLabels = placements.filter(p => p.kind !== 'side').map(p => ({
+            id: p.id,
+            band: { top: p.cy - cfg.mainLabelReach, bottom: p.cy + cfg.mainLabelReach },
+          }))
+          sideFootprints.forEach((a, i) => {
+            for (const b of sideFootprints.slice(i + 1)) {
+              expect(overlaps(a.band, b.band), `${viewport}: side quest ${a.id} and its label overlap ${b.id}`).toBe(false)
+            }
+            for (const m of mainLabels) {
+              expect(overlaps(a.band, m.band), `${viewport}: side quest ${a.id} and its label overlap the label of ${m.id}`).toBe(false)
+            }
+            bands.forEach((band, k) => {
+              expect(overlaps(a.band, band), `${viewport}: side quest ${a.id} and its label overlap header ${k}`).toBe(false)
+            })
+          })
         }
       }),
       RUNS,
@@ -321,8 +347,9 @@ describe('Property 21: Trail segments match prerequisite links', () => {
               expect(seg.dots).toHaveLength(3)
               ;[0.28, 0.5, 0.72].forEach((t, i) => {
                 const dot = seg.dots[i]!
-                expect(dot.x).toBeCloseTo(a.cx + (b.cx - a.cx) * t)
-                expect(dot.y).toBeCloseTo(a.cy + (b.cy - a.cy) * t)
+                const start = trailStart(a, b)
+                expect(dot.x).toBeCloseTo(start.x + (b.cx - start.x) * t)
+                expect(dot.y).toBeCloseTo(start.y + (b.cy - start.y) * t)
               })
             }
 

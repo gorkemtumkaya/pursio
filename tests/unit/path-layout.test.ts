@@ -4,7 +4,7 @@ import ELK from 'elkjs/lib/elk.bundled.js'
 import { describe, expect, it } from 'vitest'
 import type { SkillNode, SkillTree } from '#shared/types/skill-tree'
 import type { ElkNode } from 'elkjs/lib/elk-api'
-import { bandAwareTrailDots, buildElkGraph, checkPathOrder, computePathLayout, LAYOUT_CONFIG, placePath, trailDots } from '~/utils/path-layout'
+import { bandAwareTrailDots, buildElkGraph, checkPathOrder, computePathLayout, LAYOUT_CONFIG, placePath, trailDots, trailStart } from '~/utils/path-layout'
 import { loadSkillTree } from '#shared/utils/skill-tree-load'
 
 function node(id: string, prerequisites: string[] = [], flags: Partial<Pick<SkillNode, 'optional' | 'milestone'>> = {}): SkillNode {
@@ -38,13 +38,13 @@ describe('LAYOUT_CONFIG', () => {
       windingOffsets: [0, -60, -90, -60], rowGap: 112, sideX: 110,
       size: { main: 72, milestone: 84, side: 64 },
       headerHeight: 104, headerTop: 16, sectionLead: 92, sectionTail: 76,
-      sideLabelReserve: 40, sideGap: 12, bottomPadding: 120, dotDiameter: 8, ringPad: 9,
+      sideLabelReserve: 64, mainLabelReach: 40, sideGap: 12, bottomPadding: 120, dotDiameter: 8, ringPad: 9,
     })
     expect(LAYOUT_CONFIG.desktop).toEqual({
       windingOffsets: [0, -90, -135, -90], rowGap: 124, sideX: 170,
       size: { main: 80, milestone: 92, side: 70 },
       headerHeight: 120, headerTop: 8, sectionLead: 104, sectionTail: 84,
-      sideLabelReserve: 44, sideGap: 12, bottomPadding: 64, dotDiameter: 10, ringPad: 10,
+      sideLabelReserve: 72, mainLabelReach: 42, sideGap: 12, bottomPadding: 64, dotDiameter: 10, ringPad: 10,
     })
   })
 })
@@ -140,23 +140,27 @@ describe('placePath', () => {
     expect(l.mainOrder).toEqual(['a', 'b', 'c', 'm'])
     expect(l.headers).toEqual([
       { sectionIndex: 0, top: 16, height: 104 },
-      { sectionIndex: 1, top: 512, height: 104 },
+      { sectionIndex: 1, top: 608, height: 104 },
     ])
     expect(l.nodes).toEqual({
       a: { id: 'a', kind: 'main', cx: 0, cy: 212, size: 72 },
       b: { id: 'b', kind: 'main', cx: -60, cy: 324, size: 72 },
-      c: { id: 'c', kind: 'main', cx: -90, cy: 436, size: 72 },
-      side: { id: 'side', kind: 'side', cx: 110, cy: 380, size: 64 },
-      m: { id: 'm', kind: 'milestone', cx: -60, cy: 708, size: 84 },
+      // b has a side quest: the gap to c is 40 + (64 + 64) + 40 = 208, not rowGap 112.
+      c: { id: 'c', kind: 'main', cx: -90, cy: 532, size: 72 },
+      // Top of the side quest box at b + mainLabelReach 40.
+      side: { id: 'side', kind: 'side', cx: 110, cy: 396, size: 64 },
+      m: { id: 'm', kind: 'milestone', cx: -60, cy: 804, size: 84 },
     })
-    expect(l.height).toBe(750 + 120)
+    expect(l.height).toBe(846 + 120)
     expect(l.segments.map(s => [s.fromId, s.toId])).toEqual([['a', 'b'], ['b', 'side'], ['b', 'c'], ['c', 'm']])
     expect(l.segments[0]?.dots).toEqual(trailDots({ x: 0, y: 212 }, { x: -60, y: 324 }))
+    // The branch to the side quest starts at b's lower edge, below b's label.
+    expect(l.segments[1]?.dots).toEqual(trailDots({ x: -60, y: 324 + 36 }, { x: 110, y: 396 }))
     expect(l.dotDiameter).toBe(8)
     expect(l.ringPad).toBe(9)
   })
 
-  it('pushes a side quest below a header band and below an earlier side quest', () => {
+  it('stacks the side quests of a Section\'s last Main_Node above the next header', () => {
     const t = tree(
       [node('a'), node('s1', ['a'], { optional: true }), node('s2', ['a'], { optional: true })],
       [node('b', ['a'])],
@@ -164,12 +168,52 @@ describe('placePath', () => {
     const result = placePath(t, elkInDocOrder(t), 'mobile')
     if (!result.ok) throw new Error(JSON.stringify(result.errors))
     const { nodes, headers } = result.value
-    // a at 212, section tail -> header 2 at [288, 392], b at 484.
-    expect(headers[1]).toEqual({ sectionIndex: 1, top: 288, height: 104 })
-    // s1 desired 348 overlaps header 2, moved to band bottom + 32.
-    expect(nodes.s1?.cy).toBe(392 + 32)
-    // s2 desired 348 -> header, then below s1 footprint (424 + 32 + 40) + sideGap 12.
-    expect(nodes.s2?.cy).toBe(424 + 32 + 40 + 12 + 32)
+    // s1 box top at a + mainLabelReach: 212 + 40 + 32.
+    expect(nodes.s1?.cy).toBe(284)
+    // s2 below the s1 footprint (284 + 32 + 64) + sideGap 12.
+    expect(nodes.s2?.cy).toBe(380 + 12 + 32)
+    // Header 2 starts sideGap below the s2 footprint (424 + 32 + 64), not at a + sectionTail.
+    expect(headers[1]).toEqual({ sectionIndex: 1, top: 532, height: 104 })
+    expect(nodes.b?.cy).toBe(532 + 104 + 92)
+  })
+
+  it('keeps a side quest and its label clear of the Main_Node labels above and below (APP-PATH-02)', () => {
+    for (const viewport of ['mobile', 'desktop'] as const) {
+      const cfg = LAYOUT_CONFIG[viewport]
+      const result = placePath(small, elkInDocOrder(small), viewport)
+      if (!result.ok) throw new Error(JSON.stringify(result.errors))
+      const { b, c, side } = result.value.nodes
+      if (!b || !c || !side) throw new Error('missing nodes')
+      expect(side.cy - side.size / 2).toBeGreaterThanOrEqual(b.cy + cfg.mainLabelReach)
+      expect(side.cy + side.size / 2 + cfg.sideLabelReserve).toBeLessThanOrEqual(c.cy - cfg.mainLabelReach)
+    }
+  })
+
+  it('puts a side quest that depends on a side quest in the same gap, below it', () => {
+    const t = tree([
+      node('a'),
+      node('s1', ['a'], { optional: true }),
+      node('s2', ['s1'], { optional: true }),
+      node('b', ['a']),
+    ])
+    const result = placePath(t, elkInDocOrder(t), 'desktop')
+    if (!result.ok) throw new Error(JSON.stringify(result.errors))
+    const { a, b, s1, s2 } = result.value.nodes
+    if (!a || !b || !s1 || !s2) throw new Error('missing nodes')
+    expect(s1.cy).toBe(a.cy + 42 + 35)
+    expect(s2.cy).toBe(s1.cy + 35 + 72 + 12 + 35)
+    expect(b.cy - a.cy).toBe(42 + 2 * (70 + 72) + 12 + 42)
+  })
+
+  it('leaves a path without side quests on the fixed row gap', () => {
+    const t = tree([node('a'), node('b', ['a']), node('c', ['b'])], [node('d', ['c'])])
+    const result = placePath(t, elkInDocOrder(t), 'desktop')
+    if (!result.ok) throw new Error(JSON.stringify(result.errors))
+    const { nodes, headers, height } = result.value
+    expect([nodes.a?.cy, nodes.b?.cy, nodes.c?.cy]).toEqual([232, 356, 480])
+    expect(headers[1]?.top).toBe(480 + 84)
+    expect(nodes.d?.cy).toBe(564 + 120 + 104)
+    expect(height).toBe(788 + 40 + 64)
   })
 
   it('returns layout_failed when elkjs drops a node', () => {
@@ -232,7 +276,7 @@ describe('Sample_Tree layout (Req 5.1, 5.5)', () => {
     expect(prereqEdges).toHaveLength(12)
     for (const e of prereqEdges) expect(edges).toContain(e)
   })
-  it('places "Falling safely" at cx = 110, midway between "Reading grades" and "Warm-up routine" (mobile)', async () => {
+  it('places "Falling safely" at cx = 110, between the labels of "Reading grades" and "Warm-up routine" (mobile)', async () => {
     const result = await computePathLayout(loadSample(), 'mobile', new ELK())
     if (!result.ok) throw new Error(JSON.stringify(result.errors))
     const { nodes } = result.value
@@ -242,7 +286,8 @@ describe('Sample_Tree layout (Req 5.1, 5.5)', () => {
     if (!side || !prev || !next) throw new Error('missing sample nodes')
     expect(side.kind).toBe('side')
     expect(side.cx).toBe(110)
-    expect(side.cy).toBe((prev.cy + next.cy) / 2)
+    expect(side.cy).toBe(prev.cy + 40 + 32)
+    expect(next.cy - prev.cy).toBe(40 + 64 + 64 + 40)
   })
 })
 
@@ -252,6 +297,15 @@ describe('bandAwareTrailDots', () => {
 
   it('matches trailDots when no band is crossed', () => {
     expect(bandAwareTrailDots(a, b, [])).toEqual(trailDots({ x: 0, y: 0 }, { x: -60, y: 272 }))
+  })
+
+  it('starts the branch from a Main_Node to a side quest at the Main_Node\'s lower edge', () => {
+    const side = { id: 's', kind: 'side' as const, cx: 110, cy: 72, size: 64 }
+    const below = { id: 't', kind: 'side' as const, cx: 110, cy: 212, size: 64 }
+    expect(trailStart(a, side)).toEqual({ x: 0, y: 36 })
+    expect(trailStart(a, b)).toEqual({ x: 0, y: 0 })
+    expect(trailStart(side, below)).toEqual({ x: 110, y: 72 })
+    expect(bandAwareTrailDots(a, side, [])).toEqual(trailDots({ x: 0, y: 36 }, { x: 110, y: 72 }))
   })
 
   it('draws no dots when the segment crosses a header band', () => {
