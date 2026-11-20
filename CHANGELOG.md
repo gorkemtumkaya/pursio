@@ -6,6 +6,11 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+## [0.6.3] - 2026-11-20
+
+### Changed
+- The founding member offer on the landing page now reads "Founding price, only for the first 50" and no longer names a later price. (spec: landing-page)
+
 ## [0.6.2] - 2026-11-20
 
 ### Fixed

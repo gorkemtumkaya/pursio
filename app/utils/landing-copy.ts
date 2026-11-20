@@ -30,7 +30,7 @@ export const LANDING_COPY = {
   buildMyPath: 'Build my path',
   emptyHobby: 'Type a hobby to start.',
   chipsLabel: 'Try:',
-  heroNote: 'Your first path takes about 15 seconds.',
+  heroNote: '',
 
   // Path preview (decorative, hidden from assistive technology)
   previewEyebrow: 'SECTION 1 · BEGINNER',
@@ -53,7 +53,7 @@ export const LANDING_COPY = {
   foundingHeading: 'Back Pursio early. Keep Plus for life.',
   foundingPrice: '$19',
   foundingPriceUnit: 'one-time',
-  foundingPriceLater: '· $29 after the first 50',
+  foundingPriceLater: '· Founding price, only for the first 50',
   foundingCta: 'Join the founding waitlist',
   foundingDone: 'You’re on the founding waitlist. Wick will be in touch.',
   foundingNote:
