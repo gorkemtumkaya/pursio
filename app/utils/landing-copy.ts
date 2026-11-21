@@ -57,9 +57,10 @@ export const LANDING_COPY = {
   foundingPrice: '$19.99',
   foundingPriceUnit: 'once',
   foundingPriceLater: 'Plus will be $29.99 a year after the first 50.',
-  foundingCta: 'Become a founding member',
+  foundingCta: 'Opening soon · Join the waitlist',
   foundingDone: 'You’re on the founding waitlist. Wick will be in touch.',
-  foundingNote: 'One payment. Full refund within 30 days of buying, no questions asked.',
+  foundingNote:
+    'No payment today. We’ll email you when founding spots open. Then: one payment, with a full refund within 30 days of buying, no questions asked.',
   foundingSeePlans: 'See plans and prices',
   followHeading: 'Not ready? Just follow along.',
   followText:

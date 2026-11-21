@@ -4,7 +4,7 @@ On 2026-11-21 the owner asked to take the tested sandbox integration live, in th
 
 - **Repos and branches:** `pursio` `main`
 - **State:** uncommitted
-- **Size:** 18 files changed, 2 added, in 6 groups
+- **Size:** 18 files changed, 2 added, in 7 groups
 
 ## Review order
 
@@ -88,6 +88,19 @@ This replaces the landing part of G5. The left card is the founding member offer
   - The price is $19.99, from the owner's later answer; the first request said $19.
   - The Terms, Refund and FAQ text still describe only the Plus subscription (monthly, yearly, trial), not the one-time founding purchase. The owner asked for no other changes.
   - The Paddle sandbox product is still named Premium, and released CHANGELOG entries keep the old name.
+
+### G7. Founding membership in the legal pages and in Paddle (asked 2026-11-21)
+
+| File / entity | Why it changed |
+|---|---|
+| [app/utils/legal-copy.ts](../../app/utils/legal-copy.ts) | Terms: a "Founding membership" section (one payment of $19.99, first 50, perks, what "for life" means, not transferable, waitlist) and Paddle named as seller of both. Refund: full refund within 30 days of buying, and what ends after it. Privacy: purchases instead of subscription only; the waitlist is the founding one |
+| Paddle sandbox product `pro_01m7z53bqpv547tfxdvnfhj9e4` "Founding member" | New, tax category `saas`. Permanent, like the other catalog entities |
+| Paddle sandbox price `pri_01m7z53bx7exmc85qm2cfkssbt` | One-time, USD 19.99 (`"1999"`), quantity fixed at 1 |
+
+- **Watch for:**
+  - "For life means for as long as Pursio offers Plus" and "not transferable" are the agent's wording, to be confirmed by the owner. Not reviewed by a lawyer.
+  - Nothing sells the product yet: no button opens its checkout, and the webhook mirror stores the transaction but grants no lifetime Plus, badge or outfit. Paddle does not enforce the limit of 50.
+  - The landing FAQ's refund answer still mentions only Plus.
 
 ## Not changed on purpose
 
