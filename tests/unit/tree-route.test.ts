@@ -37,7 +37,7 @@ describe('handleTreeRequest success', () => {
       body: { tree: sampleTree(), model: DEFAULTS.model, pathId: 'path-1', profile: null },
     })
     expect(Object.keys(response.body).sort()).toEqual(['model', 'pathId', 'profile', 'tree'])
-    expect(fake.calls.order).toEqual(['verify', 'cache.get', 'limiter', 'adapter', 'cache.set', 'save'])
+    expect(fake.calls.order).toEqual(['verify', 'limit', 'cache.get', 'limiter', 'adapter', 'cache.set', 'save'])
   })
 
   it('saves the trimmed hobby, the level, the tree and the model with the user token', async () => {
@@ -293,6 +293,57 @@ describe('handleTreeRequest without a tree', () => {
   })
 })
 
+describe('handleTreeRequest hobby limit', () => {
+  it('answers 403 hobby_limit with 0 model calls, and touches no cache, rate limit or save', async () => {
+    const fake = fakeTreeDeps({ hobbyLimitBlocks: async () => true })
+    const response = await handleTreeRequest(request('  Pottery '), fake.deps)
+
+    expect(response).toEqual({ status: 403, body: { error: 'hobby_limit' } })
+    expect(fake.calls.adapter).toEqual([])
+    expect(fake.calls.order).toEqual(['verify', 'limit'])
+    // The check gets the verified user and the trimmed hobby, nothing from the client about the plan.
+    expect(fake.calls.limit).toEqual([{ userId: USER_ID, hobby: 'Pottery' }])
+  })
+
+  it('stops a cached tree too, and a request with the learner\'s own key', async () => {
+    const fake = fakeTreeDeps({ hobbyLimitBlocks: async () => true })
+    fake.cache.set(cacheKey('pottery', 'new', 'anthropic', DEFAULTS.model), { tree: sampleTree(), model: 'cached' })
+    expect((await handleTreeRequest(request('pottery'), fake.deps)).status).toBe(403)
+    const own = await handleTreeRequest(
+      { body: { hobby: 'pottery', provider: 'openai', model: 'm' }, headerKey: OWN_KEY, authorization: bearer(TOKEN) },
+      fake.deps,
+    )
+    expect(own.status).toBe(403)
+    expect(fake.calls.adapter).toEqual([])
+    expect(fake.calls.save).toEqual([])
+  })
+
+  it('checks the token and the input first', async () => {
+    const fake = fakeTreeDeps({ hobbyLimitBlocks: async () => true })
+    expect((await handleTreeRequest({ body: { hobby: 'pottery' }, headerKey: undefined, authorization: undefined }, fake.deps)).status).toBe(401)
+    expect((await handleTreeRequest(request('   '), fake.deps)).status).toBe(400)
+    expect(fake.calls.limit).toEqual([])
+  })
+
+  it('builds as before when the limit does not block', async () => {
+    const fake = fakeTreeDeps({ hobbyLimitBlocks: async () => false })
+    expect((await handleTreeRequest(request('pottery'), fake.deps)).status).toBe(200)
+    expect(fake.calls.adapter).toHaveLength(1)
+  })
+
+  it('makes 0 model calls and answers 502 when the check fails or passes its time limit', async () => {
+    const failing = fakeTreeDeps({ hobbyLimitBlocks: async () => { throw new Error('down') } })
+    expect(await handleTreeRequest(request('pottery'), failing.deps)).toEqual({ status: 502, body: { error: 'generation_failed' } })
+    const slow = fakeTreeDeps({ hobbyLimitBlocks: () => never<boolean>(), limitTimeoutMs: SHORT_MS })
+    expect((await handleTreeRequest(request('pottery'), slow.deps)).status).toBe(502)
+    for (const fake of [failing, slow]) {
+      expect(fake.calls.adapter).toEqual([])
+      expect(fake.calls.save).toEqual([])
+      expect(fake.calls.log.at(-1)).toMatchObject({ code: 'generation_failed', stage: 'limit_check' })
+    }
+  })
+})
+
 describe('ERROR_STATUS', () => {
   it('maps every Error_Code to its status', () => {
     expect(ERROR_STATUS).toEqual({
@@ -306,6 +357,7 @@ describe('ERROR_STATUS', () => {
       no_key: 503,
       unauthorized: 401,
       save_failed: 502,
+      hobby_limit: 403,
     })
     expect(Object.keys(ERROR_STATUS).sort()).toEqual([...ERROR_CODES].sort())
   })

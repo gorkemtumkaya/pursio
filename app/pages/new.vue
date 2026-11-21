@@ -1,5 +1,7 @@
 <script setup lang="ts">
 import { computed, nextTick, ref, watch, watchEffect } from 'vue'
+import { track } from '~/utils/analytics'
+import { HOBBY_LIMIT_COPY, hobbyLimitHeading } from '~/utils/hobby-limit-copy'
 import { INTAKE_COPY } from '~/utils/intake-copy'
 import { detectedFields } from '~/utils/intake-panel'
 import MascotWick from '~/components/mascot/wick.vue'
@@ -35,6 +37,8 @@ const {
   errorMessage,
   summary,
   outfit,
+  limitReached,
+  activeHobbyCount,
   start,
   removeChip,
   toggleGoal,
@@ -58,6 +62,8 @@ const reading = computed(() => state.value === 'reading')
 const auth = useAuth()
 const cloud = useCloudStore()
 const authDialog = useAuthDialog()
+const route = useRoute()
+const router = useRouter()
 
 /** Saved hobbies from the account; empty until its rows are loaded. */
 const savedHobbies = computed(() => (cloud.status.value === 'ready' ? cloudEntries(cloud.paths.value) : []))
@@ -79,6 +85,18 @@ const primaryButtonClass =
   + 'shadow-[0_5px_0_var(--color-primary-deep)] transition-[translate,box-shadow] duration-75 '
   + 'active:translate-y-1 active:shadow-[0_1px_0_var(--color-primary-deep)] '
   + 'focus-visible:outline-3 focus-visible:outline-offset-2 focus-visible:outline-primary'
+
+/**
+ * The free plan's hobby limit (3 active hobbies). The limit card takes the place of the form
+ * when the account cannot add a hobby, or when a build was stopped by the limit. A hobby handed
+ * over in `?hobby=` is tried first: rebuilding a hobby the learner already has is always allowed.
+ */
+const showLimit = computed(
+  () => state.value === 'limit' || (state.value === 'input' && limitReached.value && parseHobbyQuery(route.query.hobby) === null),
+)
+watch(showLimit, (shown) => {
+  if (shown && import.meta.client) track('hobby_limit_shown')
+}, { immediate: true })
 
 const mood = computed<WickMood>(() => {
   if (state.value === 'generating' || state.value === 'reading') return 'think'
@@ -106,7 +124,7 @@ const bubble = computed(() => {
         ? `Hmm, I don't know “${shownHobby.value}” as a hobby.`
         : 'Something went wrong.'
     default:
-      return 'What do you want to get better at?'
+      return showLimit.value ? HOBBY_LIMIT_COPY.wick : 'What do you want to get better at?'
   }
 })
 
@@ -127,7 +145,7 @@ const status = computed(() => {
     case 'error':
       return errorCopy.value
     default:
-      return ''
+      return showLimit.value ? hobbyLimitHeading(activeHobbyCount.value) : ''
   }
 })
 
@@ -139,8 +157,6 @@ const status = computed(() => {
  * `start()` reads the hobby before its first await, so the replace right after it does not change
  * the request. A failed build is not retried.
  */
-const route = useRoute()
-const router = useRouter()
 let handoffDone = false
 watchEffect(() => {
   if (handoffDone || !import.meta.client) return
@@ -216,8 +232,11 @@ watch(state, async (next) => {
           <div
             class="flex flex-col rounded-[26px] border-2 border-line bg-surface p-5 shadow-raised-line max-[700px]:rounded-[22px] max-[700px]:p-4"
           >
+            <!-- free plan hobby limit: a card in place of the form -->
+            <HobbyLimitCard v-if="showLimit" :count="activeHobbyCount" :manage-to="backTo ?? '/path'" />
+
             <!-- input -->
-            <div v-if="showForm" class="flex flex-col gap-5">
+            <div v-else-if="showForm" class="flex flex-col gap-5">
               <form class="flex flex-col gap-3.5" :aria-busy="reading" @submit.prevent="start">
                 <label for="hobby" :class="labelClass">Your hobby</label>
                 <input

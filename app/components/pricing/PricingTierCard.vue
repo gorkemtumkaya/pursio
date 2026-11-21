@@ -14,11 +14,19 @@ const props = defineProps<{
   trialDays: number | undefined
   /** False shows a disabled "Coming soon" instead of Subscribe (NUXT_PUBLIC_PADDLE_CHECKOUT_ENABLED). */
   checkoutEnabled: boolean
+  /** Only read by the one-time founding tier: whether a spot is left, or this account already is a member. */
+  foundingState?: 'open' | 'sold_out' | 'member'
 }>()
-const emit = defineEmits<{ subscribe: [priceId: string] }>()
+const emit = defineEmits<{ subscribe: [priceId: string]; founding: [] }>()
 
+/** The one-time founding tier: a single payment, not affected by the billing toggle. */
+const oneTime = computed(() => props.tier.oneTimePriceId !== undefined)
 const priceId = computed(() => props.tier.priceId?.[props.frequency] ?? null)
-const headingId = computed(() => `pricing-tier-${props.tier.name.toLowerCase()}`)
+const free = computed(() => priceId.value === null && !oneTime.value)
+const headingId = computed(() => `pricing-tier-${props.tier.name.toLowerCase().replace(/\s+/g, '-')}`)
+/** "MOST POPULAR" belongs to the yearly plan only. */
+const showBadge = computed(() => props.tier.featured && props.frequency === 'year')
+const unit = computed(() => (oneTime.value ? PRICING_COPY.once : props.frequency === 'month' ? PRICING_COPY.perMonth : PRICING_COPY.perYear))
 
 const FOCUS = 'focus-visible:outline-3 focus-visible:outline-offset-2 focus-visible:outline-primary'
 const BUTTON = 'flex h-14 w-full items-center justify-center rounded-2xl font-head text-lg font-semibold'
@@ -31,7 +39,7 @@ const BUTTON = 'flex h-14 w-full items-center justify-center rounded-2xl font-he
     :class="tier.featured ? 'border-primary shadow-raised-primary' : 'border-line shadow-raised-line'"
   >
     <span
-      v-if="tier.featured"
+      v-if="showBadge"
       class="self-start rounded-lg bg-gold px-3 py-1.5 text-[13px] font-extrabold tracking-[0.04em] text-gold-ink"
     >
       {{ PRICING_COPY.featuredBadge }}
@@ -42,17 +50,16 @@ const BUTTON = 'flex h-14 w-full items-center justify-center rounded-2xl font-he
     <p class="text-base leading-normal text-muted">{{ tier.description }}</p>
 
     <p class="flex min-h-14 flex-wrap items-baseline gap-2" aria-live="polite">
-      <template v-if="priceId === null">
+      <template v-if="free">
         <span class="font-display text-[48px] leading-none font-semibold text-ink">{{ PRICING_COPY.freePrice }}</span>
       </template>
       <template v-else>
         <span class="font-display text-[48px] leading-none font-semibold text-ink">{{ price ?? PRICING_COPY.loading }}</span>
-        <span class="text-base font-extrabold text-ink">
-          {{ frequency === 'month' ? PRICING_COPY.perMonth : PRICING_COPY.perYear }}
-        </span>
+        <span class="text-base font-extrabold text-ink">{{ unit }}</span>
       </template>
     </p>
     <p v-if="trialDays !== undefined" class="text-[15px] font-extrabold text-accent-text">{{ trialLabel(trialDays) }}</p>
+    <p v-else-if="tier.note" class="text-[15px] font-extrabold text-accent-text">{{ tier.note }}</p>
 
     <ul class="flex flex-1 flex-col gap-2.5">
       <li v-for="feature in tier.features" :key="feature" class="flex items-start gap-3 text-base leading-[1.4] font-bold text-ink">
@@ -65,7 +72,7 @@ const BUTTON = 'flex h-14 w-full items-center justify-center rounded-2xl font-he
       </li>
     </ul>
 
-    <NuxtLink v-if="priceId === null" :to="NEW_PAGE" :class="[BUTTON, FOCUS, 'border-2 border-line bg-surface text-ink']">
+    <NuxtLink v-if="free" :to="NEW_PAGE" :class="[BUTTON, FOCUS, 'border-2 border-line bg-surface text-ink']">
       {{ PRICING_COPY.freeCta }}
     </NuxtLink>
     <button
@@ -76,8 +83,31 @@ const BUTTON = 'flex h-14 w-full items-center justify-center rounded-2xl font-he
     >
       {{ PRICING_COPY.comingSoonCta }}
     </button>
+    <p
+      v-else-if="oneTime && foundingState === 'member'"
+      role="status"
+      class="flex min-h-14 items-center justify-center rounded-2xl border-2 border-done bg-surface px-4 text-center text-base font-extrabold text-ink"
+    >
+      {{ PRICING_COPY.foundingMember }}
+    </p>
     <button
-      v-else
+      v-else-if="oneTime && foundingState === 'sold_out'"
+      type="button"
+      disabled
+      :class="[BUTTON, 'cursor-not-allowed border-2 border-line bg-surface text-muted']"
+    >
+      {{ PRICING_COPY.foundingSoldOut }}
+    </button>
+    <button
+      v-else-if="oneTime"
+      type="button"
+      :class="[BUTTON, FOCUS, 'cursor-pointer bg-primary text-primary-ink shadow-raised-primary']"
+      @click="emit('founding')"
+    >
+      {{ PRICING_COPY.foundingCta }}
+    </button>
+    <button
+      v-else-if="priceId !== null"
       type="button"
       :disabled="price === undefined"
       :class="[BUTTON, FOCUS, 'cursor-pointer bg-primary text-primary-ink shadow-raised-primary disabled:cursor-wait disabled:opacity-60']"

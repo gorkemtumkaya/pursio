@@ -4,7 +4,9 @@ import { createAnthropicAdapter } from './providers/anthropic'
 import { createOpenAIAdapter } from './providers/openai'
 import type { Fetcher, ProviderAdapter } from './providers/types'
 import { createRateLimiter } from './rate-limiter'
-import { savePathForUser, verifyAccessToken } from './supabase-server'
+import { hobbyLimitBlocks } from '../../shared/utils/hobby-limit'
+import { paidAccessForToken } from './billing-runtime'
+import { listHobbiesForUser, savePathForUser, verifyAccessToken } from './supabase-server'
 import { createTreeCache } from './tree-cache'
 import { afterTreeSave } from './video/runtime'
 
@@ -14,6 +16,18 @@ const TEST_TIMEOUT_MS = 15_000
 /** Token check and path save limits (spec: accounts-cloud-save, Req 9.2, 9.10). */
 const VERIFY_TIMEOUT_MS = 5_000
 const SAVE_TIMEOUT_MS = 10_000
+const LIMIT_TIMEOUT_MS = 8_000
+
+/**
+ * The free plan's hobby limit for one build. The paths are read with the user's token; paid
+ * status comes from the billing mirror and is only read when the paths alone would stop the
+ * build, so most builds cost one small query.
+ */
+async function treeHobbyLimitBlocks(input: { token: string; userId: string; hobby: string }, signal: AbortSignal): Promise<boolean> {
+  const hobbies = await listHobbiesForUser(input.token, input.userId, signal)
+  if (!hobbyLimitBlocks({ hobbies, requested: input.hobby, unlimited: false })) return false
+  return !(await paidAccessForToken(input.token))
+}
 
 /** Narrows ofetch's generic $fetch to the subset the adapters use. */
 const llmFetcher: Fetcher = (url, options) => $fetch<unknown>(url, options)
@@ -82,6 +96,8 @@ export function llmTreeDeps(): TreeDeps {
     timeoutMs: TREE_TIMEOUT_MS,
     verifyToken: verifyAccessToken,
     savePath: savePathForUser,
+    hobbyLimitBlocks: treeHobbyLimitBlocks,
+    limitTimeoutMs: LIMIT_TIMEOUT_MS,
     verifyTimeoutMs: VERIFY_TIMEOUT_MS,
     saveTimeoutMs: SAVE_TIMEOUT_MS,
     afterSave: afterTreeSave,

@@ -367,6 +367,17 @@ async function customerIdFor(user: VerifiedUser, store: BillingStore): Promise<s
   return user.email === null ? null : store.customerIdByEmail(user.email)
 }
 
+/**
+ * Whether the account has paid access now: a founding membership that was not
+ * refunded, or a subscription that grants access. The same rule as `access` in
+ * the billing status, for server code that needs only the answer.
+ */
+export async function accountHasPaidAccess(user: VerifiedUser, store: BillingStore): Promise<boolean> {
+  const query = { userId: user.id, customerId: await customerIdFor(user, store) }
+  if (await store.isFoundingMember(query)) return true
+  return grantsPaidAccess(currentSubscription(await store.subscriptionsFor(query)))
+}
+
 export async function handleBillingStatus(
   input: { authorization: string | undefined },
   deps: AccountBillingDeps,

@@ -12,6 +12,9 @@ export type AnalyticsEvent =
   | 'intake_answered'
   | 'intake_skipped'
   | 'intake_failed'
+  // Free plan hobby limit: the card on the new hobby page. No properties.
+  | 'hobby_limit_shown'
+  | 'hobby_limit_checkout_clicked'
 
 export type AnalyticsProps = Readonly<Record<string, string | number | boolean | readonly string[]>>
 export type AnalyticsClient = Pick<PostHog, 'capture'>

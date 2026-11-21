@@ -136,7 +136,8 @@ export const WICK_SHOWCASE = [
 
 /** Founding member perks, in order. */
 export const FOUNDING_PERKS: readonly string[] = [
-  'Founder badge and the Founding Wick outfit, today',
+  'Unlimited hobbies, today',
+  'Founder badge and the Founding Wick outfit',
   'Lifetime Pursio Plus when it launches, with nothing more to pay',
   'A vote on which hobbies and features come next',
 ]
@@ -151,7 +152,7 @@ export const FAQ_ITEMS: readonly FaqItem[] = [
   {
     question: 'Is Pursio free?',
     answer:
-      'Yes. You can build paths, do quests and track your progress for free, and you don’t need an account to try it. Pursio Plus adds extras for $4.99 a month or $29.99 a year.',
+      'Yes. You can build up to 3 hobbies with paths, quests and Fresh for free. Founding members get unlimited hobbies.',
   },
   {
     question: 'What is Pursio Plus?',

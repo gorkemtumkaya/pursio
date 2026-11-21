@@ -3,7 +3,7 @@ import type { CheckoutOpenOptions } from '@paddle/paddle-js'
 import { checkoutEnabled } from '~/utils/paddle-config'
 import { formattedTotals, pricePreviewParams, trialDays, type FormattedPrices } from '~/utils/paddle-pricing'
 import { PRICING_COPY } from '~/utils/pricing-copy'
-import { paidPriceIds, tiersFor, type BillingFrequency } from '~/utils/pricing-tiers'
+import { paidPriceIds, tiersFor, type BillingFrequency, type Tier } from '~/utils/pricing-tiers'
 
 /**
  * Tier cards with localized prices (Paddle.PricePreview) and Paddle Checkout.
@@ -18,6 +18,18 @@ const { load } = usePaddle()
 const TIERS = tiersFor(useRuntimeConfig().public.paddleEnv === 'production' ? 'production' : 'sandbox')
 const canCheckout = checkoutEnabled(useRuntimeConfig().public.paddleCheckoutEnabled)
 const auth = useAuth()
+// The founding tier's button opens the same checkout as the landing page's founding card.
+const founding = useFoundingCheckout()
+const foundingState = computed(() => (founding.founding.value ? 'member' : founding.available.value ? 'open' : 'sold_out'))
+
+/** The price ID a tier shows now: its one-time price, or the monthly or yearly one. */
+function shownPriceId(tier: Tier): string | undefined {
+  return tier.oneTimePriceId ?? tier.priceId?.[frequency.value]
+}
+function shown<T>(tier: Tier, values: Record<string, T>): T | undefined {
+  const id = shownPriceId(tier)
+  return id === undefined ? undefined : values[id]
+}
 
 const frequency = ref<BillingFrequency>('month')
 const prices = ref<FormattedPrices>({})
@@ -69,7 +81,7 @@ async function subscribe(priceId: string): Promise<void> {
 <template>
   <div class="flex flex-col items-center gap-8">
     <PricingFrequencyToggle v-model="frequency" />
-    <p v-if="pricesFailed || checkoutFailed" role="alert" class="text-base font-bold text-danger-text">
+    <p v-if="pricesFailed || checkoutFailed || founding.failed.value" role="alert" class="text-base font-bold text-danger-text">
       {{ pricesFailed ? PRICING_COPY.pricesFailed : PRICING_COPY.checkoutFailed }}
     </p>
     <div class="flex w-full flex-wrap items-stretch justify-center gap-5">
@@ -78,9 +90,11 @@ async function subscribe(priceId: string): Promise<void> {
         :key="tier.name"
         :tier="tier"
         :frequency="frequency"
-        :price="tier.priceId ? prices[tier.priceId[frequency]] : undefined"
-        :trial-days="tier.priceId ? trials[tier.priceId[frequency]] : undefined"
+        :price="shown(tier, prices)"
+        :trial-days="shown(tier, trials)"
         :checkout-enabled="canCheckout"
+        :founding-state="foundingState"
+        @founding="founding.open"
         class="max-w-[440px]"
         @subscribe="subscribe"
       />

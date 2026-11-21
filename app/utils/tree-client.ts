@@ -61,6 +61,8 @@ const MESSAGES: Record<ErrorCode, string> = {
   invalid_input: 'Type a hobby of up to 60 characters.',
   unauthorized: AUTH_MESSAGES.sessionEnded,
   save_failed: AUTH_MESSAGES.saveFailed,
+  // The new hobby page shows a card for this code, not this sentence.
+  hobby_limit: 'You have 3 hobbies going. Archive one to start another.',
 }
 
 /** One plain sentence per Error_Code, no technical detail (Req 5.3, 7.4, 8.6). */

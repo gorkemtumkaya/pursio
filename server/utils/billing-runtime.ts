@@ -2,7 +2,7 @@ import { Environment, LogLevel, Paddle } from '@paddle/paddle-node-sdk'
 import { createClient, type SupabaseClient } from '@supabase/supabase-js'
 import type { MirroredSubscription, ScheduledChangeAction } from '../../shared/types/billing'
 import { createPaddleIpList, ipInCidrs } from './paddle-ips'
-import { reasonError, type AccountBillingDeps, type BillingStore, type UpsertResult, type VerifiedUser, type WebhookDeps } from './billing-handlers'
+import { accountHasPaidAccess, reasonError, type AccountBillingDeps, type BillingStore, type UpsertResult, type VerifiedUser, type WebhookDeps } from './billing-handlers'
 
 // Server-only wiring for Paddle billing. Reads NUXT_PADDLE_API_KEY,
 // NUXT_PADDLE_WEBHOOK_SECRET, NUXT_PUBLIC_PADDLE_ENV and the Supabase service
@@ -321,4 +321,16 @@ export function accountBillingDeps(): AccountBillingDeps {
 export function foundingAvailabilityDeps(): { store: BillingStore } {
   const admin = adminClient(billingConfig())
   return { store: admin ? supabaseBillingStore(admin) : UNCONFIGURED_STORE }
+}
+
+/**
+ * Whether the account behind this Access_Token has paid access (a founding
+ * membership or Plus). Read from the billing mirror on the server; nothing the
+ * client sends is used. Throws when the token is not valid or billing is not set up.
+ */
+export async function paidAccessForToken(token: string): Promise<boolean> {
+  const deps = accountBillingDeps()
+  const user = await deps.verifyUser(token)
+  if (!user) throw reasonError('limit_check:no_user')
+  return accountHasPaidAccess(user, deps.store)
 }

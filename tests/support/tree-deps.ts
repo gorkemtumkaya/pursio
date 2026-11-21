@@ -71,7 +71,7 @@ export function treeOutput(tree: unknown): AdapterResult {
 
 export const NOT_A_HOBBY_OUTPUT: AdapterResult = { ok: true, value: { result: { error: 'not_a_hobby' } } }
 
-export type CallName = 'verify' | 'cache.get' | 'cache.set' | 'limiter' | 'adapter' | 'save'
+export type CallName = 'verify' | 'limit' | 'cache.get' | 'cache.set' | 'limiter' | 'adapter' | 'save'
 
 export interface AdapterCall {
   provider: Provider
@@ -89,6 +89,8 @@ export interface TreeCalls {
   order: CallName[]
   /** Tokens given to `verifyToken`. */
   verify: string[]
+  /** User and trimmed hobby given to the hobby limit check. */
+  limit: { userId: string; hobby: string }[]
   cacheGet: string[]
   cacheSet: string[]
   /** Keys given to `tryConsume`. */
@@ -103,6 +105,9 @@ export interface FakeTreeOptions {
   users?: Record<string, string>
   /** Replaces the map-backed verifier. */
   verifyToken?: TreeDeps['verifyToken']
+  /** The hobby limit check. Default: never blocks. */
+  hobbyLimitBlocks?: TreeDeps['hobbyLimitBlocks']
+  limitTimeoutMs?: number
   /** Replaces the default save, which returns `path-1`, `path-2`, ... */
   savePath?: TreeDeps['savePath']
   /** What every adapter answers. Default: the sample tree. */
@@ -128,6 +133,7 @@ export function fakeTreeDeps(options: FakeTreeOptions = {}): FakeTree {
   const calls: TreeCalls = {
     order: [],
     verify: [],
+    limit: [],
     cacheGet: [],
     cacheSet: [],
     consume: [],
@@ -195,6 +201,12 @@ export function fakeTreeDeps(options: FakeTreeOptions = {}): FakeTree {
       calls.save.push({ token, input })
       return saveInner(token, input, signal)
     },
+    hobbyLimitBlocks(input, signal) {
+      calls.order.push('limit')
+      calls.limit.push({ userId: input.userId, hobby: input.hobby })
+      return (options.hobbyLimitBlocks ?? (async () => false))(input, signal)
+    },
+    limitTimeoutMs: options.limitTimeoutMs ?? 1_000,
     verifyTimeoutMs: options.verifyTimeoutMs ?? 1_000,
     saveTimeoutMs: options.saveTimeoutMs ?? 1_000,
     log: (entry) => {

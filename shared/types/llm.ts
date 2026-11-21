@@ -18,6 +18,8 @@ export type ErrorCode =
   | 'no_key'
   | 'unauthorized'
   | 'save_failed'
+  /** The free plan's limit of active hobbies is reached (403). */
+  | 'hobby_limit'
 /**
  * `pathId` is the id of the Path_Row the tree was saved to. `profile` is the Stored_Profile,
  * or null for a build without one (spec: path-intake, Req 7.7).

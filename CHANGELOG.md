@@ -6,6 +6,12 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+## [0.9.0] - 2026-11-21
+
+### Added
+- The pricing page now shows founding membership next to Free and Plus, with its one-time price and a button to buy it.
+- The free plan now has a limit of 3 active hobbies. At the limit, the new hobby page offers to archive one or to become a founding member; founding members and Plus have unlimited hobbies. Hobbies you already have stay, and rebuilding one still works.
+
 ## [0.8.1] - 2026-11-21
 
 ### Changed

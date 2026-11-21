@@ -3,6 +3,7 @@ import type { FinalProfile } from '#shared/types/learner-profile'
 import type { ErrorCode } from '#shared/types/llm'
 import { bearerHeader } from '#shared/utils/auth'
 import { startLevelFor } from '#shared/utils/learner-profile'
+import { countedHobbies, hobbyLimitBlocks, type LimitHobby } from '#shared/utils/hobby-limit'
 import { normalizeHobby } from '#shared/utils/llm'
 import { loadSkillTree } from '#shared/utils/skill-tree-load'
 import { track } from '~/utils/analytics'
@@ -28,9 +29,10 @@ import { toWickOutfit, type WickOutfit } from '~/utils/wick'
 
 /**
  * `reading`: intake runs. `panel`: the Panel is open under the inputs (spec: path-intake).
+ * `limit`: the free plan's hobby limit stopped the build; the page shows the limit card.
  * The other states are those of the new-hobby-page spec.
  */
-export type BuilderState = 'input' | 'reading' | 'panel' | 'generating' | 'ready' | 'error'
+export type BuilderState = 'input' | 'reading' | 'panel' | 'generating' | 'ready' | 'error' | 'limit'
 
 export const BUILD_STEPS = [
   'Mapping the skills',
@@ -82,6 +84,35 @@ export function useHobbyBuilder() {
   const auth = useAuth()
   const cloud = useCloudStore()
   const { $posthog: posthog } = useNuxtApp()
+  const billing = useBillingStatus()
+
+  /** The account's hobbies as the limit sees them. The demo path is never among the account's paths. */
+  function limitHobbies(): LimitHobby[] {
+    return cloud.paths.value.map((path) => ({
+      hobbyId: path.record.id,
+      hobby: path.record.tree.hobby,
+      archived: path.record.archived,
+    }))
+  }
+
+  /**
+   * Whether the page itself can tell that the limit stops a build of `requested` (null: any
+   * new hobby). This only saves a wasted request; the tree route decides. While the paths or
+   * the plan are not loaded, nothing is stopped here. The plan comes from the server's billing
+   * status; a guest has none.
+   */
+  function blockedByLimit(requested: string | null): boolean {
+    if (cloud.status.value !== 'ready') return false
+    const signedIn = auth.status.value === 'signed_in'
+    if (signedIn && billing.status.value === null) return false
+    const unlimited = signedIn && billing.status.value?.access === true
+    return hobbyLimitBlocks({ hobbies: limitHobbies(), requested, unlimited })
+  }
+
+  /** True when the account cannot add any new hobby: the page shows the limit card instead of the form. */
+  const limitReached = computed(() => blockedByLimit(null))
+  /** Active hobbies that count toward the limit. */
+  const activeHobbyCount = computed(() => countedHobbies(limitHobbies()).length)
 
   let hobbyId: string | null = null
   /** True while the token is read, so a second submit does not start a second request. */
@@ -142,6 +173,11 @@ export function useHobbyBuilder() {
   async function start(): Promise<void> {
     const value = hobby.value.trim()
     if (value.length === 0 || state.value !== 'input' || preparing) return
+    // Checked before intake, so no request is spent on a build the limit would stop.
+    if (blockedByLimit(value)) {
+      state.value = 'limit'
+      return
+    }
     const token = await readToken()
     if (token === null) return
     if (disposed) return
@@ -237,6 +273,11 @@ export function useHobbyBuilder() {
   async function generate(profile: FinalProfile | null): Promise<void> {
     const value = hobby.value.trim()
     if (value.length === 0 || state.value === 'generating' || preparing) return
+    if (blockedByLimit(value)) {
+      panel.value = null
+      state.value = 'limit'
+      return
+    }
     // The Settings goal: the account value wins, else the browser copy (spec: skill-video-pipeline, Req 1.11).
     const accountGoal = cloud.profile.value?.goal ?? null
     const goal = accountGoal !== null && accountGoal.trim() !== '' ? accountGoal : loadUserSettings(browserStorage).goal
@@ -291,8 +332,13 @@ export function useHobbyBuilder() {
       clearTimeout(abortTimer)
       if (controller === current) controller = null
     }
-    // Keep the typed hobby, the Note and the profile so the learner can retry (Req 8.4, 13.1).
     stopTimer()
+    // The server's limit answer is the limit card, not an error.
+    if (code === 'hobby_limit') {
+      state.value = 'limit'
+      return
+    }
+    // Keep the typed hobby, the Note and the profile so the learner can retry (Req 8.4, 13.1).
     showError(code)
   }
 
@@ -345,6 +391,8 @@ export function useHobbyBuilder() {
     errorMessage: readonly(errorMessage),
     summary: readonly(summary),
     outfit: readonly(outfit),
+    limitReached,
+    activeHobbyCount,
     start,
     removeChip,
     toggleGoal,

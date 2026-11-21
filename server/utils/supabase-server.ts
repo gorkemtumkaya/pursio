@@ -5,6 +5,7 @@ import type { VideoEvent } from '../../shared/types/video'
 import { parseMute } from '../../shared/utils/channel-mutes'
 import { buildSaveArgs } from '../../shared/utils/cloud-path'
 import { fillColorSlots, isColorSlot } from '../../shared/utils/color-slot'
+import type { LimitHobby } from '../../shared/utils/hobby-limit'
 import { alignKnownNodes } from '../../shared/utils/known-nodes'
 import { parseStoredProfile } from '../../shared/utils/learner-profile'
 import { effectiveCompleted, findCurrentNodeId } from '../../shared/utils/progress-engine'
@@ -76,6 +77,33 @@ export async function loadPathForUser(token: string, pathId: string, signal?: Ab
   const loaded = loadSkillTree(row.tree)
   if (!loaded.ok) throw new Error('path_invalid')
   return { tree: loaded.value, goalClass: coerceGoalClass(row.goal_class) }
+}
+
+/**
+ * Every path of the user as the hobby limit sees it (Hobby_Id, typed hobby, archived), read
+ * with the user's own token so Row Level Security applies. Throws on any failure.
+ */
+export async function listHobbiesForUser(token: string, userId: string, signal?: AbortSignal): Promise<LimitHobby[]> {
+  const config = publicSupabaseConfig()
+  if (!config) throw new Error('config_missing')
+  const client = createClient(config.url, config.anonKey, {
+    auth: SERVER_AUTH,
+    global: { headers: { Authorization: `Bearer ${token}` } },
+  })
+  const query = client.from('paths').select('hobby_id, hobby, archived').eq('user_id', userId)
+  const { data, error } = await (signal ? query.abortSignal(signal) : query)
+  if (error) throw Object.assign(new Error('hobby_list_failed'), { reason: 'hobby_list_failed' })
+  const rows: unknown = data
+  if (!Array.isArray(rows)) return []
+  const hobbies: LimitHobby[] = []
+  for (const raw of rows) {
+    if (typeof raw !== 'object' || raw === null) continue
+    const row = raw as Record<string, unknown>
+    if (typeof row.hobby_id !== 'string') continue
+    // A row without a readable flag counts as active, so a broken row never frees a slot.
+    hobbies.push({ hobbyId: row.hobby_id, hobby: typeof row.hobby === 'string' ? row.hobby : undefined, archived: row.archived === true })
+  }
+  return hobbies
 }
 
 /** Most Video_Events the Fresh_Endpoint returns, newest first by update time. */

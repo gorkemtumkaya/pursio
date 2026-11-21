@@ -38,6 +38,7 @@ export const ERROR_STATUS: Record<ErrorCode, number> = {
   no_key: 503,
   unauthorized: 401,
   save_failed: 502,
+  hobby_limit: 403,
 }
 
 export type ResolvedConfig =
@@ -103,7 +104,7 @@ export async function withTimeout<T>(ms: number, onTimeout: T, task: (signal: Ab
 }
 
 /** Where in the request a failure happened (spec: tree-api-502-on-new-path). */
-export type TreeStage = 'token_check' | 'prompt_load' | 'provider_call' | 'tree_validation' | 'path_save'
+export type TreeStage = 'token_check' | 'limit_check' | 'prompt_load' | 'provider_call' | 'tree_validation' | 'path_save'
 
 /** One error log entry. `reason` is a short fixed label. Provider and model are absent before the config is resolved. */
 export interface TreeLogEntry {
@@ -132,8 +133,16 @@ export interface TreeDeps {
   verifyToken: (token: string, signal: AbortSignal) => Promise<string | null>
   /** Saves the path with the user's own token and returns the Path_Row id; throws on failure. */
   savePath: (token: string, input: PathSaveInput, signal: AbortSignal) => Promise<string>
+  /**
+   * Whether the free plan's hobby limit stops this build: the account is not paid, already has
+   * 3 active hobbies and `hobby` is not one of them. Paid status is read on the server only,
+   * never from the request. Throws when it cannot be decided.
+   */
+  hobbyLimitBlocks: (input: { token: string; userId: string; hobby: string }, signal: AbortSignal) => Promise<boolean>
   /** 5_000 at runtime (spec: accounts-cloud-save, Req 9.2). */
   verifyTimeoutMs: number
+  /** Time limit of the hobby limit check. */
+  limitTimeoutMs: number
   /** 10_000 at runtime (spec: accounts-cloud-save, Req 9.10). */
   saveTimeoutMs: number
   /**
@@ -202,6 +211,24 @@ export async function handleTreeRequest(
   const level: StartLevel = profile !== null ? startLevelFor(profile.level) : (isStartLevel(rawLevel) ? rawLevel : DEFAULT_LEVEL)
   // A tree made for a goal, avoid, taste or known skill is never shared through the cache (Req 7.4, 7.5).
   const plain = isPlainProfile(profile)
+
+  // 1d. Free plan hobby limit, before the cache, the rate limit and any model call. An undecided
+  // check (a read failed or timed out) stops the build too, so the limit cannot be skipped.
+  let blocked: boolean | null
+  let limitReason = 'timeout'
+  try {
+    blocked = await withTimeout<boolean | null>(deps.limitTimeoutMs, null, (signal) =>
+      deps.hobbyLimitBlocks({ token, userId, hobby }, signal),
+    )
+  } catch (error) {
+    blocked = null
+    limitReason = errorReason(error)
+  }
+  if (blocked === null) {
+    deps.log?.({ code: 'generation_failed', stage: 'limit_check', reason: limitReason })
+    return treeError('generation_failed')
+  }
+  if (blocked) return treeError('hobby_limit')
 
   // 2. Provider_Config (Req 2.1 to 2.4).
   const resolved = resolveProviderConfig({ headerKey: input.headerKey, body, defaults: deps.defaults })
