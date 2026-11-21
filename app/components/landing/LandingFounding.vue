@@ -29,8 +29,8 @@ const headingId = 'landing-founding-heading'
       <p class="flex flex-wrap items-baseline gap-2.5">
         <span class="font-display text-[56px] leading-none font-semibold text-ink">{{ LANDING_COPY.foundingPrice }}</span>
         <span class="text-base font-extrabold text-ink">{{ LANDING_COPY.foundingPriceUnit }}</span>
-        <span class="text-[15px] font-bold text-muted">{{ LANDING_COPY.foundingPriceLater }}</span>
       </p>
+      <p class="text-[15px] font-bold text-muted">{{ LANDING_COPY.foundingPriceLater }}</p>
       <ul class="flex flex-col gap-2.5">
         <li
           v-for="perk in FOUNDING_PERKS"
@@ -59,6 +59,12 @@ const headingId = 'landing-founding-heading'
       </ul>
       <LandingWaitlistForm kind="founding" :cta="LANDING_COPY.foundingCta" :done="LANDING_COPY.foundingDone" />
       <p class="text-sm leading-normal text-muted">{{ LANDING_COPY.foundingNote }}</p>
+      <NuxtLink
+        to="/pricing"
+        class="inline-flex min-h-11 items-center self-start rounded-lg text-[15px] font-extrabold text-accent-text underline underline-offset-2 hover:text-ink focus-visible:outline-3 focus-visible:outline-offset-2 focus-visible:outline-primary"
+      >
+        {{ LANDING_COPY.foundingSeePlans }}
+      </NuxtLink>
     </div>
 
     <div

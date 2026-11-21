@@ -1,7 +1,9 @@
 // Every string a visitor can read or hear on the Landing_Page and the Legal_Pages
 // (spec: landing-page). Components import from here, so one test can check the
 // copy over all of it. The text follows the design in dev_docs ("Landing page"),
-// which states the founding member price and plan (owner decision, 2026-11-18).
+// which stated the founding member price and plan (owner decision, 2026-11-18).
+// Owner decision, 2026-11-21: the founding member offer is the main card again,
+// as a one-time purchase for the first 50, and the paid plan is named Plus.
 
 /** Page title, with a middle dot (not a dash). Req 12.1. */
 export const LANDING_TITLE = 'Pursio · Type a hobby. Get a path.'
@@ -48,16 +50,17 @@ export const LANDING_COPY = {
   wickText:
     'Wick is a little lantern spirit who walks the path with you. It dresses for your hobby, cheers when you finish a skill, and gets sleepy when you’ve been away too long.',
 
-  // Founding members. The offer is a waitlist: nobody pays on this page.
+  // Founding members. Until the founding checkout exists (founding-checkout spec,
+  // one-time product in Paddle), the button submits the waitlist form: nobody pays here.
   foundingBadge: 'FOUNDING MEMBER · FIRST 50 ONLY',
   foundingHeading: 'Back Pursio early. Keep Plus for life.',
-  foundingPrice: '$19',
-  foundingPriceUnit: 'one-time',
-  foundingPriceLater: '· Founding price, only for the first 50',
-  foundingCta: 'Join the founding waitlist',
+  foundingPrice: '$19.99',
+  foundingPriceUnit: 'once',
+  foundingPriceLater: 'Plus will be $29.99 a year after the first 50.',
+  foundingCta: 'Become a founding member',
   foundingDone: 'You’re on the founding waitlist. Wick will be in touch.',
-  foundingNote:
-    'No payment today. Join the waitlist and we’ll email you when founding spots open. 30-day refund once you buy, no questions asked.',
+  foundingNote: 'One payment. Full refund within 30 days of buying, no questions asked.',
+  foundingSeePlans: 'See plans and prices',
   followHeading: 'Not ready? Just follow along.',
   followText:
     'Pursio is free to use. Leave your email and you’ll hear when new hobbies and features land. No spam.',
@@ -131,9 +134,8 @@ export const WICK_SHOWCASE = [
 
 /** Founding member perks, in order. */
 export const FOUNDING_PERKS: readonly string[] = [
+  'Founder badge and the Founding Wick outfit, today',
   'Lifetime Pursio Plus when it launches, with nothing more to pay',
-  'A founder badge on your profile',
-  'An exclusive outfit for Wick',
   'A vote on which hobbies and features come next',
 ]
 
@@ -147,12 +149,12 @@ export const FAQ_ITEMS: readonly FaqItem[] = [
   {
     question: 'Is Pursio free?',
     answer:
-      'Yes. You can build paths, do quests and track your progress for free, and you don’t need an account to try it. Pursio Plus will add extras later.',
+      'Yes. You can build paths, do quests and track your progress for free, and you don’t need an account to try it. Pursio Plus adds extras for $4.99 a month or $29.99 a year.',
   },
   {
-    question: 'What do founding members get?',
+    question: 'What is Pursio Plus?',
     answer:
-      'The full free app, a founder badge on your profile, an exclusive outfit for Wick and a vote on what we build next. Plus features unlock for you automatically as they ship, with nothing more to pay. Founding spots are not open yet: join the waitlist and we’ll email you first.',
+      'An optional subscription for $4.99 a month or $29.99 a year, with a 7-day free trial. Everything in the free app stays free. Plus is not open yet: join the list and we’ll email you when it is. Payments are handled by Paddle, our merchant of record.',
   },
   {
     question: 'Which hobbies does it work for?',
@@ -166,6 +168,6 @@ export const FAQ_ITEMS: readonly FaqItem[] = [
   },
   {
     question: 'Can I get a refund?',
-    answer: 'Yes. Founding members can ask for a full refund within 30 days, no questions asked.',
+    answer: 'Yes. Cancel Plus anytime in Settings, and ask for a full refund within 30 days of a payment, no questions asked.',
   },
 ]

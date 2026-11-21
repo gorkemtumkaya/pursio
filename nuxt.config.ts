@@ -101,6 +101,10 @@ export default defineNuxtConfig({
       // NUXT_PUBLIC_PADDLE_CLIENT_TOKEN starts with test_ or live_ to match it.
       paddleEnv: '',
       paddleClientToken: '',
+      // NUXT_PUBLIC_PADDLE_CHECKOUT_ENABLED=true lets Subscribe open Paddle Checkout.
+      // Off by default: /pricing still shows Paddle's prices, with "Coming soon"
+      // instead of Subscribe (e.g. while Paddle reviews the live account).
+      paddleCheckoutEnabled: false,
     },
   },
   nitro: {

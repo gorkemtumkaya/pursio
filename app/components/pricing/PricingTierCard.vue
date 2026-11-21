@@ -12,6 +12,8 @@ const props = defineProps<{
   frequency: BillingFrequency
   price: string | undefined
   trialDays: number | undefined
+  /** False shows a disabled "Coming soon" instead of Subscribe (NUXT_PUBLIC_PADDLE_CHECKOUT_ENABLED). */
+  checkoutEnabled: boolean
 }>()
 const emit = defineEmits<{ subscribe: [priceId: string] }>()
 
@@ -66,6 +68,14 @@ const BUTTON = 'flex h-14 w-full items-center justify-center rounded-2xl font-he
     <NuxtLink v-if="priceId === null" :to="NEW_PAGE" :class="[BUTTON, FOCUS, 'border-2 border-line bg-surface text-ink']">
       {{ PRICING_COPY.freeCta }}
     </NuxtLink>
+    <button
+      v-else-if="!checkoutEnabled"
+      type="button"
+      disabled
+      :class="[BUTTON, 'cursor-not-allowed border-2 border-line bg-surface text-muted']"
+    >
+      {{ PRICING_COPY.comingSoonCta }}
+    </button>
     <button
       v-else
       type="button"

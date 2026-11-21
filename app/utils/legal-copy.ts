@@ -1,5 +1,7 @@
 // Text of the Privacy, Terms and Refund pages (spec: landing-page, Req 10).
-// Every statement about data matches what the code does on 2026-11-18. When
+// Every statement about data matches what the code does on 2026-11-21.
+// DRAFT 2026-11-21 (Paddle): Plus, Paddle as merchant of record, cancellation
+// and refunds were added for the owner to review before release. When
 // the app starts to collect, send or sell something new, update this file in
 // the same change. Not reviewed by a lawyer.
 
@@ -18,7 +20,7 @@ export interface LegalDocument {
   sections: readonly LegalSection[]
 }
 
-export const LEGAL_UPDATED = 'Last updated: 18 November 2026'
+export const LEGAL_UPDATED = 'Last updated: 21 November 2026'
 export const CONTACT_EMAIL = 'hello@pursio.fun'
 
 export const PRIVACY: LegalDocument = {
@@ -33,7 +35,8 @@ export const PRIVACY: LegalDocument = {
         'Your progress: finished skills, ticked quests, XP, streaks and rewards.',
         'Your video activity: videos you watch, save or skip, and the channels you mute.',
         'Your account: when you first open the app, Pursio creates an anonymous account with a random id, so your paths can be saved without a signup. If you sign in with Google or with an email link, Pursio also stores your email address.',
-        'Your waitlist email: if you join the founding member waitlist or the updates list, Pursio stores that email address and which list you joined.',
+        'Your waitlist email: if you join the Plus waitlist or the updates list, Pursio stores that email address and which list you joined.',
+        'Your subscription: if you buy Plus, Paddle tells Pursio your Paddle customer id, the email you bought with, your plan, its status and renewal dates, and the totals of your payments. Pursio never receives or stores your card or bank details.',
         'Your settings: theme and AI settings. These stay in your browser.',
       ],
     },
@@ -50,7 +53,8 @@ export const PRIVACY: LegalDocument = {
         'To build your paths and show your progress on every device you sign in on.',
         'To pick videos for the skill you are on.',
         'To find errors and to learn which parts of the app are used.',
-        'To email you about founding spots or product news, only if you joined a list.',
+        'To unlock Plus for your account and show your plan in Settings.',
+        'To email you about Plus or product news, only if you joined a list.',
       ],
     },
     {
@@ -63,12 +67,13 @@ export const PRIVACY: LegalDocument = {
         'PostHog provides analytics and error reports. It receives the pages you open, the actions you take in the app, errors, and the text sent to and returned by the AI provider. If you are signed in, it also receives your account id and email address.',
         'YouTube plays the videos. Pursio loads the player in its privacy enhanced mode, and Google receives data when you play a video.',
         'Google handles sign in, if you choose to sign in with Google.',
+        'Paddle (Paddle.com Market Ltd) sells Plus as the merchant of record. If you buy, Paddle receives your email, country, payment details and order, and handles payment, tax, invoices and refunds under its own privacy policy. On the pricing page, Paddle’s script also receives your IP address to show prices in your currency.',
       ],
     },
     {
       heading: 'How long Pursio keeps it',
       paragraphs: [
-        'Pursio keeps your account data until you delete your account. Waitlist emails are kept until you ask to be removed, or until the list is no longer needed.',
+        'Pursio keeps your account data until you delete your account. Waitlist emails are kept until you ask to be removed, or until the list is no longer needed. Records of purchases are kept as long as tax and accounting law requires, also after you delete your account.',
       ],
     },
     {
@@ -124,9 +129,26 @@ export const TERMS: LegalDocument = {
       ],
     },
     {
-      heading: 'Free app and founding members',
+      heading: 'Free app and Plus',
       paragraphs: [
-        'Pursio is free to use today. Founding membership is not on sale yet: joining the waitlist costs nothing and does not oblige you to buy. The price and the terms of purchase will be shown before you pay.',
+        'The core app is free. Pursio Plus is an optional subscription for $4.99 a month or $29.99 a year. The price you pay is shown at checkout, in your currency and with the tax for your country.',
+      ],
+    },
+    {
+      heading: 'Who sells Plus',
+      paragraphs: [
+        'Our order process is conducted by our online reseller Paddle.com. Paddle.com is the Merchant of Record for all our orders. Paddle provides all customer service inquiries and handles returns. Paddle’s buyer terms apply to your purchase as well.',
+      ],
+    },
+    {
+      heading: 'Free trial, renewal and cancellation',
+      items: [
+        'A new subscription starts with a 7-day free trial. You enter a payment method at the start, and nothing is charged until the trial ends.',
+        'If you do not cancel during the trial, the first payment is taken when it ends. After that, the subscription renews and is paid in advance every month or every year, until you cancel.',
+        'You can cancel at any time in Settings, under Subscription, with “Manage subscription”, or from the link in any Paddle email. Plus stays on until the end of the period you paid for and does not renew after that.',
+        'If a payment fails, Paddle tries again for a while. Plus stays on during that time; if the payment cannot be taken, the subscription ends.',
+        'If the price changes, you are told by email before your next renewal, and you can cancel before it applies.',
+        'Refunds are described on the Refund page.',
       ],
     },
     {
@@ -152,24 +174,30 @@ export const TERMS: LegalDocument = {
 
 export const REFUND: LegalDocument = {
   title: 'Refund',
-  intro: 'Pursio is free to use today, and nothing is on sale yet. This page says how refunds will work once founding membership opens.',
+  intro: 'Pursio Plus is a subscription sold by Paddle, our merchant of record. This page says how to cancel it and how to get your money back.',
   sections: [
     {
-      heading: 'Today',
+      heading: 'Free trial',
       paragraphs: [
-        'You cannot pay for anything in Pursio yet. Joining the founding member waitlist is free and takes no payment details.',
+        'Plus starts with a 7-day free trial. Cancel before it ends and you are never charged.',
       ],
     },
     {
-      heading: 'Founding membership',
+      heading: 'Cancel at any time',
       paragraphs: [
-        'Founding membership will be a single payment. If you buy it and change your mind, you can ask for a full refund within 30 days of the purchase, with no questions asked.',
+        'Cancel in Settings, under Subscription, with “Manage subscription”, or from the link in any Paddle email. Plus stays on until the end of the period you paid for, then it ends and is not charged again. The free app keeps working.',
+      ],
+    },
+    {
+      heading: '30-day refund',
+      paragraphs: [
+        'If you change your mind, you can ask for a full refund of a payment within 30 days of that payment, with no questions asked. This applies to monthly and yearly plans.',
       ],
     },
     {
       heading: 'How to ask',
       paragraphs: [
-        `Write to ${CONTACT_EMAIL} from the email address you bought with. The money goes back to the payment method you used. After a refund, the founder perks and any paid features end; the free app keeps working.`,
+        `Write to ${CONTACT_EMAIL} from the email address you bought with, or contact Paddle through paddle.net or the link in your receipt. Paddle sends the money back to the payment method you used. After a refund, Plus ends; the free app keeps working.`,
       ],
     },
     {

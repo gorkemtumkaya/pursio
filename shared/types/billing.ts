@@ -30,6 +30,8 @@ export interface BillingStatusResponse {
   } | null
   /** Whether "Manage subscription" can open the portal: a Paddle customer matches the verified email. */
   canManage: boolean
+  /** That Paddle customer's id (`ctm_…`), for Paddle Retain's `pwCustomer`; null without one. Resolved on the server only. */
+  customerId: string | null
 }
 
 export type BillingErrorCode = 'unauthorized' | 'no_customer' | 'not_configured' | 'failed'

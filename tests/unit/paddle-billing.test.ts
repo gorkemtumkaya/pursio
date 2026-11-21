@@ -17,6 +17,9 @@ import {
   type WebhookDeps,
 } from '~~/server/utils/billing-handlers'
 import { paddleServerEnvironment } from '~~/server/utils/billing-runtime'
+import { createPaddleIpList, ipInCidrs, paddleIpsUrl, parseIpsResponse, sourceIp } from '~~/server/utils/paddle-ips'
+
+const PADDLE_IP = '34.237.3.244'
 
 const SECRET = 'pdl_ntfset_test_secret_for_unit_tests'
 const USER_ID = '7c9e6679-7425-40de-944b-e07fc1f90ae7'
@@ -165,6 +168,8 @@ function memoryStore() {
 function webhookDeps(store: BillingStore, overrides: Partial<WebhookDeps> = {}): WebhookDeps {
   return {
     secret: SECRET,
+    allowedCidrs: async () => [`${PADDLE_IP}/32`, '34.195.105.136/32'],
+    ipAllowed: ipInCidrs,
     unmarshal: (body, secret, signature) => paddle.webhooks.unmarshal(body, secret, signature),
     store,
     fetchCustomer: vi.fn(async (id: string) => ({ customerId: id, email: 'buyer@example.com', paddleUpdatedAt: '2026-11-21T11:59:00Z' })),
@@ -172,8 +177,8 @@ function webhookDeps(store: BillingStore, overrides: Partial<WebhookDeps> = {}):
   }
 }
 
-async function deliver(body: string, deps: WebhookDeps, signature = sign(body)) {
-  return handlePaddleWebhook({ rawBody: body, signature }, deps)
+async function deliver(body: string, deps: WebhookDeps, signature = sign(body), ip: string | null = PADDLE_IP) {
+  return handlePaddleWebhook({ rawBody: body, signature, sourceIp: ip }, deps)
 }
 
 describe('webhook signature verification', () => {
@@ -203,10 +208,66 @@ describe('webhook signature verification', () => {
 
   it('rejects a missing signature or body with 400, and a missing secret with 500', async () => {
     const mem = memoryStore()
-    expect((await handlePaddleWebhook({ rawBody: 'x', signature: undefined }, webhookDeps(mem.store))).status).toBe(400)
-    expect((await handlePaddleWebhook({ rawBody: '', signature: 'ts=1;h1=a' }, webhookDeps(mem.store))).status).toBe(400)
+    expect((await handlePaddleWebhook({ rawBody: 'x', signature: undefined, sourceIp: PADDLE_IP }, webhookDeps(mem.store))).status).toBe(400)
+    expect((await handlePaddleWebhook({ rawBody: '', signature: 'ts=1;h1=a', sourceIp: PADDLE_IP }, webhookDeps(mem.store))).status).toBe(400)
     const body = customerEvent('a@example.com')
     expect((await deliver(body, webhookDeps(mem.store, { secret: '' }))).status).toBe(500)
+  })
+})
+
+describe('webhook source allowlist', () => {
+  it('rejects a correctly signed delivery from an address Paddle does not list', async () => {
+    const mem = memoryStore()
+    const body = customerEvent('a@example.com')
+    for (const ip of ['1.2.3.4', '34.237.3.245', null]) {
+      const result = await deliver(body, webhookDeps(mem.store), sign(body), ip)
+      expect(result.status).toBe(403)
+    }
+    expect(mem.customers.size).toBe(0)
+  })
+
+  it('fails closed with 503 when the IP list is unavailable', async () => {
+    const mem = memoryStore()
+    const body = customerEvent('a@example.com')
+    const deps = webhookDeps(mem.store, { allowedCidrs: () => Promise.reject(new Error('down')) })
+    expect((await deliver(body, deps)).status).toBe(503)
+    expect(mem.customers.size).toBe(0)
+  })
+
+  it('matches CIDRs, including the IPv4-mapped IPv6 form', () => {
+    expect(ipInCidrs('34.237.3.244', ['34.237.3.244/32'])).toBe(true)
+    expect(ipInCidrs('::ffff:34.237.3.244', ['34.237.3.244/32'])).toBe(true)
+    expect(ipInCidrs('10.1.2.3', ['10.0.0.0/8'])).toBe(true)
+    for (const ip of ['34.237.3.243', '2600::1', 'not-an-ip', '256.1.1.1']) expect(ipInCidrs(ip, ['34.237.3.244/32'])).toBe(false)
+    expect(ipInCidrs('34.237.3.244', ['garbage', '1.2.3.4/40'])).toBe(false)
+  })
+
+  it('reads the source address from the platform headers', () => {
+    expect(sourceIp({ realIp: '34.237.3.244', forwardedFor: '9.9.9.9' })).toBe('34.237.3.244')
+    expect(sourceIp({ forwardedFor: '34.237.3.244, 10.0.0.1' })).toBe('34.237.3.244')
+    expect(sourceIp({ remote: '::1' })).toBe('::1')
+    expect(sourceIp({})).toBeNull()
+  })
+
+  it('takes the list from the environment\'s /ips endpoint, caches it and keeps the last good list', async () => {
+    expect(paddleIpsUrl('production')).toBe('https://api.paddle.com/ips')
+    expect(paddleIpsUrl('sandbox')).toBe('https://sandbox-api.paddle.com/ips')
+    let now = 0
+    let fail = false
+    const fetchJson = vi.fn(async (url: string) => {
+      if (fail) throw new Error('down')
+      return { data: { ipv4_cidrs: [url.includes('sandbox') ? '3.208.120.145/32' : '34.237.3.244/32'] } }
+    })
+    const list = createPaddleIpList({ fetchJson, now: () => now, ttlMs: 1000 })
+    expect(await list('production')).toEqual(['34.237.3.244/32'])
+    expect(await list('production')).toEqual(['34.237.3.244/32'])
+    expect(fetchJson).toHaveBeenCalledTimes(1)
+    now = 5000
+    fail = true
+    expect(await list('production')).toEqual(['34.237.3.244/32'])
+    await expect(list('sandbox')).rejects.toThrow()
+    expect(() => parseIpsResponse({ data: { ipv4_cidrs: [] } })).toThrow()
+    expect(() => parseIpsResponse({})).toThrow()
   })
 })
 
@@ -336,7 +397,7 @@ describe('billing status and customer portal', () => {
     expect((await handleBillingPortal({ authorization: 'Bearer good' }, deps)).status).toBe(404)
     expect(deps.createPortalUrl).not.toHaveBeenCalled()
     const status = await handleBillingStatus({ authorization: 'Bearer good' }, deps)
-    expect(status.body).toMatchObject({ access: true, canManage: false })
+    expect(status.body).toMatchObject({ access: true, canManage: false, customerId: null })
   })
 
   it('reports access and the plan for the account', async () => {
@@ -348,10 +409,11 @@ describe('billing status and customer portal', () => {
         access: true,
         subscription: { status: 'trialing', priceId: 'pri_01m7yxc793p1af7c9vnmqcmw3n', scheduledChange: null, nextBilledAt: '2026-11-28T12:00:00Z' },
         canManage: true,
+        customerId: 'ctm_01test',
       },
     })
     const stranger = await handleBillingStatus({ authorization: 'Bearer good' }, accountDeps(mem.store, { id: 'stranger', email: 'x@example.com' }))
-    expect(stranger.body).toEqual({ access: false, subscription: null, canManage: false })
+    expect(stranger.body).toEqual({ access: false, subscription: null, canManage: false, customerId: null })
   })
 })
 

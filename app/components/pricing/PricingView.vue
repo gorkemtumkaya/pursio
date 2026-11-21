@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import type { CheckoutOpenOptions } from '@paddle/paddle-js'
+import { checkoutEnabled } from '~/utils/paddle-config'
 import { formattedTotals, pricePreviewParams, trialDays, type FormattedPrices } from '~/utils/paddle-pricing'
 import { PRICING_COPY } from '~/utils/pricing-copy'
 import { paidPriceIds, TIERS, type BillingFrequency } from '~/utils/pricing-tiers'
@@ -12,6 +13,7 @@ import { paidPriceIds, TIERS, type BillingFrequency } from '~/utils/pricing-tier
 const props = defineProps<{ country: string }>()
 
 const { load } = usePaddle()
+const canCheckout = checkoutEnabled(useRuntimeConfig().public.paddleCheckoutEnabled)
 const auth = useAuth()
 
 const frequency = ref<BillingFrequency>('month')
@@ -37,6 +39,7 @@ async function fetchPrices(country: string): Promise<void> {
 onMounted(() => void fetchPrices(props.country))
 
 async function subscribe(priceId: string): Promise<void> {
+  if (!canCheckout) return
   checkoutFailed.value = false
   try {
     const paddle = await load()
@@ -74,10 +77,12 @@ async function subscribe(priceId: string): Promise<void> {
         :frequency="frequency"
         :price="tier.priceId ? prices[tier.priceId[frequency]] : undefined"
         :trial-days="tier.priceId ? trials[tier.priceId[frequency]] : undefined"
+        :checkout-enabled="canCheckout"
         class="max-w-[440px]"
         @subscribe="subscribe"
       />
     </div>
+    <p v-if="!canCheckout" class="max-w-[560px] text-center text-base font-bold text-ink">{{ PRICING_COPY.checkoutClosedNote }}</p>
     <p class="max-w-[560px] text-center text-sm leading-normal text-muted">{{ PRICING_COPY.taxNote }}</p>
   </div>
 </template>

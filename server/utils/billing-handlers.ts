@@ -124,11 +124,21 @@ export function transactionRow(data: TransactionCompletedEvent['data']): Transac
 // ---------------------------------------------------------------------------
 // POST /api/paddle/webhook
 
-export type WebhookLogCode = 'missing_input' | 'not_configured' | 'unverified' | 'handler_failed'
+export type WebhookLogCode =
+  | 'missing_input'
+  | 'not_configured'
+  | 'source_denied'
+  | 'source_list_unavailable'
+  | 'unverified'
+  | 'handler_failed'
 
 export interface WebhookDeps {
   /** The notification destination's signing secret (not the API key). */
   secret: string
+  /** Paddle's current webhook source CIDRs for this environment (from its /ips endpoint). Throws when unavailable. */
+  allowedCidrs(): Promise<string[]>
+  /** Whether the source address is inside the CIDRs. */
+  ipAllowed(ip: string, cidrs: readonly string[]): boolean
   /** `paddle.webhooks.unmarshal`: verifies the signature over the raw body, then parses. Throws when invalid. */
   unmarshal(rawBody: string, secret: string, signature: string): Promise<EventEntity>
   store: BillingStore
@@ -198,9 +208,23 @@ export async function processEvent(event: EventEntity, deps: WebhookDeps): Promi
  * event gets a 2xx; anything else is a non-2xx so Paddle retries it.
  */
 export async function handlePaddleWebhook(
-  input: { rawBody: string | undefined; signature: string | undefined },
+  input: { rawBody: string | undefined; signature: string | undefined; sourceIp: string | null },
   deps: WebhookDeps,
 ): Promise<HandlerResponse<{ received: true } | { error: string; reason?: string }>> {
+  // Only Paddle's published addresses may deliver. Checked first and fail-closed:
+  // without the list nothing is accepted (503, so Paddle retries later).
+  let cidrs: string[]
+  try {
+    cidrs = await deps.allowedCidrs()
+  } catch {
+    deps.log?.({ code: 'source_list_unavailable' })
+    return { status: 503, body: { error: 'source_list_unavailable' } }
+  }
+  if (input.sourceIp === null || !deps.ipAllowed(input.sourceIp, cidrs)) {
+    deps.log?.({ code: 'source_denied' })
+    return { status: 403, body: { error: 'forbidden_source' } }
+  }
+
   const signature = input.signature?.trim() ?? ''
   const rawBody = input.rawBody ?? ''
   if (signature === '' || rawBody === '') {
@@ -304,6 +328,7 @@ export async function handleBillingStatus(
           nextBilledAt: sub.nextBilledAt,
         },
         canManage: customerId !== null,
+        customerId,
       },
     }
   } catch {

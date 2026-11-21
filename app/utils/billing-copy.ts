@@ -26,20 +26,20 @@ export function billingSummary(status: BillingStatusResponse, locale?: string): 
   const sub = status.subscription
   if (!sub) return { title: 'Free plan', hint: 'No subscription' }
   const change = sub.scheduledChange
-  if (change?.action === 'cancel') return { title: 'Premium', hint: `Cancels on ${billingDate(change.at, locale)}` }
-  if (change?.action === 'pause') return { title: 'Premium', hint: `Pauses on ${billingDate(change.at, locale)}` }
+  if (change?.action === 'cancel') return { title: 'Plus', hint: `Cancels on ${billingDate(change.at, locale)}` }
+  if (change?.action === 'pause') return { title: 'Plus', hint: `Pauses on ${billingDate(change.at, locale)}` }
   const next = sub.nextBilledAt ? billingDate(sub.nextBilledAt, locale) : ''
   switch (sub.status) {
     case 'trialing':
-      return { title: 'Premium', hint: next ? `Free trial · first payment on ${next}` : 'Free trial' }
+      return { title: 'Plus', hint: next ? `Free trial · first payment on ${next}` : 'Free trial' }
     case 'active':
-      return { title: 'Premium', hint: next ? `Renews on ${next}` : 'Active' }
+      return { title: 'Plus', hint: next ? `Renews on ${next}` : 'Active' }
     case 'past_due':
-      return { title: 'Premium', hint: 'Payment failed · update your payment method' }
+      return { title: 'Plus', hint: 'Payment failed · update your payment method' }
     case 'paused':
-      return { title: 'Premium (paused)', hint: change?.action === 'resume' ? `Resumes on ${billingDate(change.at, locale)}` : 'Paused' }
+      return { title: 'Plus (paused)', hint: change?.action === 'resume' ? `Resumes on ${billingDate(change.at, locale)}` : 'Paused' }
     case 'canceled':
-      return { title: 'Free plan', hint: 'Premium ended' }
+      return { title: 'Free plan', hint: 'Plus ended' }
     default:
       return { title: 'Free plan', hint: 'No active subscription' }
   }

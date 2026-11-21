@@ -1,6 +1,6 @@
 import type { PricePreviewResponse } from '@paddle/paddle-js'
 import { describe, expect, it } from 'vitest'
-import { readPaddleConfig } from '~/utils/paddle-config'
+import { checkoutEnabled, readPaddleConfig } from '~/utils/paddle-config'
 import {
   countryFromHeader,
   formattedTotals,
@@ -33,6 +33,14 @@ describe('readPaddleConfig', () => {
   })
 })
 
+describe('checkout switch', () => {
+  it('is on only for an explicit true', () => {
+    expect(checkoutEnabled(true)).toBe(true)
+    expect(checkoutEnabled('true')).toBe(true)
+    for (const value of [false, 'false', '', undefined, null, 1, 'yes', 'TRUE']) expect(checkoutEnabled(value)).toBe(false)
+  })
+})
+
 describe('country detection', () => {
   it('normalises a header country code', () => {
     expect(countryFromHeader('de')).toBe('DE')
@@ -55,7 +63,7 @@ describe('tiers', () => {
   it('previews both prices of every paid tier in one call', () => {
     const tiers: Tier[] = [
       { name: 'Free', description: '', features: [], priceId: null, featured: false },
-      { name: 'Premium', description: '', features: [], priceId: { month: 'pri_m', year: 'pri_y' }, featured: true },
+      { name: 'Plus', description: '', features: [], priceId: { month: 'pri_m', year: 'pri_y' }, featured: true },
     ]
     expect(paidPriceIds(tiers)).toEqual(['pri_m', 'pri_y'])
   })

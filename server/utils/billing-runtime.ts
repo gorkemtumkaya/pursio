@@ -1,6 +1,7 @@
 import { Environment, LogLevel, Paddle } from '@paddle/paddle-node-sdk'
 import { createClient, type SupabaseClient } from '@supabase/supabase-js'
 import type { MirroredSubscription, ScheduledChangeAction } from '../../shared/types/billing'
+import { createPaddleIpList, ipInCidrs } from './paddle-ips'
 import { reasonError, type AccountBillingDeps, type BillingStore, type UpsertResult, type VerifiedUser, type WebhookDeps } from './billing-handlers'
 
 // Server-only wiring for Paddle billing. Reads NUXT_PADDLE_API_KEY,
@@ -36,6 +37,8 @@ function text(value: unknown): string {
 
 interface BillingConfig {
   paddle: Paddle | null
+  /** Null when NUXT_PUBLIC_PADDLE_ENV or the API key is invalid. */
+  environment: 'sandbox' | 'production' | null
   apiKey: string
   webhookSecret: string
   supabaseUrl: string
@@ -50,8 +53,10 @@ function billingConfig(): BillingConfig {
   const apiKey = text(config.paddleApiKey)
   const env = text(config.public.paddleEnv)
   let paddle: Paddle | null = null
+  let environmentName: BillingConfig['environment'] = null
   try {
     const environment = paddleServerEnvironment(env, apiKey)
+    environmentName = environment === Environment.sandbox ? 'sandbox' : 'production'
     const signature = `${environment}:${apiKey}`
     if (cached?.signature !== signature) {
       cached = { signature, paddle: new Paddle(apiKey, { environment, logLevel: LogLevel.error }) }
@@ -62,6 +67,7 @@ function billingConfig(): BillingConfig {
   }
   return {
     paddle,
+    environment: environmentName,
     apiKey,
     webhookSecret: text(config.paddleWebhookSecret),
     supabaseUrl: text(config.public.supabaseUrl),
@@ -202,6 +208,17 @@ function logWebhook(entry: { code: string; eventType?: string; eventId?: string;
   else console.error('[paddle-webhook]', line)
 }
 
+/** Paddle's webhook source IPs, refreshed hourly; a failed refresh keeps the last good list. */
+const paddleIps = createPaddleIpList({
+  async fetchJson(url) {
+    const response = await fetch(url, { signal: AbortSignal.timeout(3_000) })
+    if (!response.ok) throw new Error('paddle_ips_http')
+    return response.json()
+  },
+  now: () => Date.now(),
+  ttlMs: 60 * 60 * 1000,
+})
+
 export function paddleWebhookDeps(): WebhookDeps {
   const config = billingConfig()
   const admin = adminClient(config)
@@ -209,6 +226,8 @@ export function paddleWebhookDeps(): WebhookDeps {
   return {
     // An unusable environment or missing database means "not configured": the route answers 500 and Paddle retries.
     secret: paddle && admin ? config.webhookSecret : '',
+    allowedCidrs: () => (config.environment ? paddleIps(config.environment) : Promise.reject(new Error('not_configured'))),
+    ipAllowed: ipInCidrs,
     unmarshal: (rawBody, secret, signature) => {
       if (!paddle) return Promise.reject(new Error('not_configured'))
       return paddle.webhooks.unmarshal(rawBody, secret, signature)

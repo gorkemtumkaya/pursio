@@ -6,6 +6,14 @@ export interface PaddleConfig {
   token: string
 }
 
+/**
+ * Whether Subscribe may open Paddle Checkout (NUXT_PUBLIC_PADDLE_CHECKOUT_ENABLED).
+ * Only an explicit true turns it on; unset, "false" or anything else keeps it off.
+ */
+export function checkoutEnabled(value: unknown): boolean {
+  return value === true || value === 'true'
+}
+
 /** A client-side token belongs to one environment, shown by its prefix. */
 const TOKEN_PREFIX: Record<Environments, string> = { sandbox: 'test_', production: 'live_' }
 
