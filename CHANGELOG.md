@@ -6,6 +6,19 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+## [0.8.0] - 2026-11-21
+
+### Added
+- You can now become a founding member from the landing page: one payment of $19.99 for the first 50, with lifetime Plus. A guest signs in first, so the purchase belongs to an account.
+- Paying is open: Subscribe on /pricing and the founding button now open Paddle Checkout with real payments.
+
+### Changed
+- The paid plan is now called Plus (it was Premium), on the pricing page, in Settings and in the Terms, Privacy and Refund pages.
+- The Terms, Privacy and Refund pages now cover Plus and founding membership: prices, the 7-day trial, cancelling, 30-day refunds, and Paddle as the seller.
+
+### Removed
+- The founding waitlist form on the landing page. The "Keep me posted" updates form stays.
+
 ## [0.7.0] - 2026-11-21
 
 ### Added

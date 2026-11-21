@@ -1,12 +1,61 @@
 <script setup lang="ts">
 // Founding members section (design: dev_docs "Landing page"): the offer card
-// and the "follow along" card. Owner decision, 2026-11-18: nobody buys here.
-// The offer card collects an email for the founding waitlist instead of the
-// design's "Become a founding member" button. Both forms store the address
-// through POST /api/waitlist.
+// and the "follow along" card. Owner decision, 2026-11-21: the waitlist is gone
+// from the offer card. "Become a founding member" opens Paddle Checkout for the
+// one-time founding price; a guest signs in first, so the purchase belongs to
+// an account. The "follow along" form still stores an email through POST /api/waitlist.
+import type { CheckoutOpenOptions } from '@paddle/paddle-js'
 import { FOUNDING_PERKS, LANDING_COPY } from '~/utils/landing-copy'
+import { checkoutEnabled } from '~/utils/paddle-config'
+import { FOUNDING_PRICE_ID } from '~/utils/pricing-tiers'
 
 const headingId = 'landing-founding-heading'
+
+const config = useRuntimeConfig().public
+const auth = useAuth()
+const dialog = useAuthDialog()
+const { load } = usePaddle()
+
+/** NUXT_PUBLIC_PADDLE_CHECKOUT_ENABLED: off shows a disabled "Opening soon" button. */
+const canCheckout = checkoutEnabled(config.paddleCheckoutEnabled)
+const busy = ref(false)
+const failed = ref(false)
+
+async function becomeFoundingMember(): Promise<void> {
+  if (!canCheckout || busy.value) return
+  failed.value = false
+  // A guest signs in first. `save` keeps their anonymous paths and adds the email to them.
+  if (auth.status.value !== 'signed_in') {
+    dialog.show('save')
+    return
+  }
+  busy.value = true
+  try {
+    const paddle = await load()
+    // load() has already rejected an unset or unknown NUXT_PUBLIC_PADDLE_ENV.
+    const priceId = FOUNDING_PRICE_ID[config.paddleEnv === 'production' ? 'production' : 'sandbox']
+    const options: CheckoutOpenOptions = {
+      items: [{ priceId, quantity: 1 }],
+      settings: {
+        displayMode: 'overlay',
+        variant: 'one-page',
+        successUrl: new URL('/welcome?founding=1', window.location.origin).href,
+      },
+      // Links the purchase to the Pursio account in the webhook mirror.
+      customData: { pursioUserId: auth.userId.value },
+    }
+    if (auth.email.value !== '') options.customer = { email: auth.email.value }
+    paddle.Checkout.open(options)
+  } catch (error) {
+    console.error('[paddle] founding Checkout.open failed', error)
+    failed.value = true
+  } finally {
+    busy.value = false
+  }
+}
+
+const BUTTON =
+  'h-[60px] w-full rounded-[18px] font-head text-xl font-semibold focus-visible:outline-3 focus-visible:outline-offset-2 focus-visible:outline-primary'
 </script>
 
 <template>
@@ -57,7 +106,19 @@ const headingId = 'landing-founding-heading'
           <span>{{ perk }}</span>
         </li>
       </ul>
-      <LandingWaitlistForm kind="founding" :cta="LANDING_COPY.foundingCta" :done="LANDING_COPY.foundingDone" />
+      <button
+        v-if="canCheckout"
+        type="button"
+        :aria-disabled="busy ? 'true' : undefined"
+        :class="[BUTTON, 'cursor-pointer bg-primary text-primary-ink shadow-[0_5px_0_var(--pursio-primary-deep)] aria-disabled:opacity-70']"
+        @click="becomeFoundingMember"
+      >
+        {{ LANDING_COPY.foundingCta }}
+      </button>
+      <button v-else type="button" disabled :class="[BUTTON, 'cursor-not-allowed border-2 border-line bg-surface text-muted']">
+        {{ LANDING_COPY.foundingClosedCta }}
+      </button>
+      <p v-if="failed" role="alert" class="text-sm font-bold text-danger-text">{{ LANDING_COPY.foundingFailed }}</p>
       <p class="text-sm leading-normal text-muted">{{ LANDING_COPY.foundingNote }}</p>
       <NuxtLink
         to="/pricing"

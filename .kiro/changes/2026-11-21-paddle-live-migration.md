@@ -3,8 +3,8 @@
 On 2026-11-21 the owner connected the `paddle-live` MCP and asked to continue the live migration. Earlier batches: [2026-11-21-paddle-integration.md](2026-11-21-paddle-integration.md), [2026-11-21-paddle-go-live.md](2026-11-21-paddle-go-live.md) (committed in `c325430` and `b496425`).
 
 - **Repos and branches:** `pursio` `main`
-- **State:** uncommitted
-- **Size:** 3 files changed, 1 added, in 1 group
+- **State:** G1 committed by the owner in `ced27ea`; G2 uncommitted
+- **Size:** G2: 5 files changed, in 2 groups overall
 
 ## Live Paddle entities (outside the repo)
 
@@ -39,6 +39,24 @@ Production still runs on sandbox while Paddle reviews the site, so the sandbox I
 | [tests/unit/paddle-pricing.test.ts](../../tests/unit/paddle-pricing.test.ts) | Both sets are valid IDs and share none |
 
 - **Watch for:** `FOUNDING_PRICE_ID` is not used by any code yet; it records the mapping for the founding checkout.
+
+### G2. Founding card sells instead of collecting emails (asked 2026-11-21)
+
+The owner no longer wants the waitlist on the founding card. "Become a founding member" now opens Paddle Checkout for the one-time founding price of the configured environment. A guest gets the sign-in dialog first (`save` mode, which keeps their anonymous paths), so every purchase carries a Pursio account in `pursioUserId`.
+
+| File | Why it changed |
+|---|---|
+| [app/components/landing/LandingFounding.vue](../../app/components/landing/LandingFounding.vue) | Button instead of the waitlist form; overlay one-page checkout, `/welcome?founding=1`; disabled "Opening soon" while `NUXT_PUBLIC_PADDLE_CHECKOUT_ENABLED` is off |
+| [app/utils/landing-copy.ts](../../app/utils/landing-copy.ts) | Button and small print as the owner first wrote them; the FAQ no longer says Plus is not open |
+| [app/pages/welcome.vue](../../app/pages/welcome.vue), [app/utils/pricing-copy.ts](../../app/utils/pricing-copy.ts) | A founding version of the welcome text |
+| [app/utils/legal-copy.ts](../../app/utils/legal-copy.ts) | Terms: the "join the waitlist while spots are not open" line removed |
+
+- **Related, not changed:** [LandingWaitlistForm.vue](../../app/components/landing/LandingWaitlistForm.vue) still has its `founding` style and `POST /api/waitlist` still accepts `kind: 'founding'`; the "follow along" card uses the form.
+- **Watch for:**
+  - **Nothing fulfils a founding purchase yet.** The webhook stores the transaction with the account id, but no code grants lifetime Plus, the badge or the Wick outfit, and `grantsPaidAccess` looks at subscriptions only. The `transactions` table does not store which product was bought.
+  - **The limit of 50 is not enforced**, neither by Paddle nor by the app.
+  - After signing in, the buyer has to press the button again.
+  - People already on the founding waitlist are not told that spots are open.
 
 ## Decisions
 

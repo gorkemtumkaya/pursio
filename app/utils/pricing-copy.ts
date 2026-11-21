@@ -22,6 +22,8 @@ export const PRICING_COPY = {
   taxNote: 'Tax is calculated for your country at checkout.',
   welcomeTitle: 'Welcome to Plus',
   welcomeText: 'Thanks for subscribing. Paddle has emailed you the details of your subscription.',
+  welcomeFoundingTitle: 'Welcome, founding member',
+  welcomeFoundingText: 'Thanks for backing Pursio early. Paddle has emailed you a receipt.',
   welcomeCta: 'Back to Pursio',
 } as const
 

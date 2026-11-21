@@ -50,17 +50,16 @@ export const LANDING_COPY = {
   wickText:
     'Wick is a little lantern spirit who walks the path with you. It dresses for your hobby, cheers when you finish a skill, and gets sleepy when you’ve been away too long.',
 
-  // Founding members. Until the founding checkout exists (founding-checkout spec,
-  // one-time product in Paddle), the button submits the waitlist form: nobody pays here.
+  // Founding members. The button opens Paddle Checkout for the one-time founding price.
   foundingBadge: 'FOUNDING MEMBER · FIRST 50 ONLY',
   foundingHeading: 'Back Pursio early. Keep Plus for life.',
   foundingPrice: '$19.99',
   foundingPriceUnit: 'once',
   foundingPriceLater: 'Plus will be $29.99 a year after the first 50.',
-  foundingCta: 'Opening soon · Join the waitlist',
-  foundingDone: 'You’re on the founding waitlist. Wick will be in touch.',
-  foundingNote:
-    'No payment today. We’ll email you when founding spots open. Then: one payment, with a full refund within 30 days of buying, no questions asked.',
+  foundingCta: 'Become a founding member',
+  foundingClosedCta: 'Opening soon',
+  foundingFailed: 'Checkout couldn’t open. Reload the page and try again.',
+  foundingNote: 'One payment. Full refund within 30 days of buying, no questions asked.',
   foundingSeePlans: 'See plans and prices',
   followHeading: 'Not ready? Just follow along.',
   followText:
@@ -145,7 +144,7 @@ export interface FaqItem {
   answer: string
 }
 
-/** FAQ in order, as in the design. Founding answers are worded for the waitlist. */
+/** FAQ in order, as in the design. */
 export const FAQ_ITEMS: readonly FaqItem[] = [
   {
     question: 'Is Pursio free?',
@@ -155,7 +154,7 @@ export const FAQ_ITEMS: readonly FaqItem[] = [
   {
     question: 'What is Pursio Plus?',
     answer:
-      'An optional subscription for $4.99 a month or $29.99 a year, with a 7-day free trial. Everything in the free app stays free. Plus is not open yet: join the list and we’ll email you when it is. Payments are handled by Paddle, our merchant of record.',
+      'An optional subscription for $4.99 a month or $29.99 a year, with a 7-day free trial. Everything in the free app stays free. Payments are handled by Paddle, our merchant of record.',
   },
   {
     question: 'Which hobbies does it work for?',

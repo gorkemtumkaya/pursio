@@ -142,7 +142,6 @@ export const TERMS: LegalDocument = {
         'A founding member gets a founder badge on their profile, the Founding Wick outfit and a vote on which hobbies and features come next.',
         'A founding member also gets Pursio Plus for life, with nothing more to pay. “For life” means for as long as Pursio offers Plus. It covers the Plus plan as it changes over time, not other products that may be sold separately.',
         'A membership belongs to the account that bought it. It cannot be transferred, shared or resold.',
-        'While founding spots are not open yet, you can join the waitlist. Joining is free and does not oblige you to buy.',
         'Refunds are described on the Refund page.',
       ],
     },
