@@ -5,6 +5,8 @@
 // one-time founding price; a guest signs in first, so the purchase belongs to
 // an account. The first 50 limit is asked from GET /api/founding/availability on
 // load and again right before checkout opens; a member sees "You're a founding member".
+// A guest's click is remembered in the URL (?founding=checkout), which both sign-in
+// ways return to, so checkout opens by itself once they come back signed in.
 // The "follow along" form still stores an email through POST /api/waitlist.
 import type { CheckoutOpenOptions } from '@paddle/paddle-js'
 import { FOUNDING_PERKS, LANDING_COPY } from '~/utils/landing-copy'
@@ -18,6 +20,23 @@ const auth = useAuth()
 const dialog = useAuthDialog()
 const { load } = usePaddle()
 const billing = useBillingStatus()
+const route = useRoute()
+const router = useRouter()
+
+/** Query flag that carries "this visitor wanted to become a founding member" through sign-in. */
+const INTENT_KEY = 'founding'
+const INTENT_VALUE = 'checkout'
+/**
+ * True only when the page was opened with the flag, i.e. on the way back from
+ * sign-in. The tab where the guest clicked gets the flag later and so never
+ * opens checkout by itself, which avoids two checkouts when a magic link opens a new tab.
+ */
+const returnedToBuy = route.query[INTENT_KEY] === INTENT_VALUE
+
+function intentQuery(on: boolean) {
+  const { [INTENT_KEY]: _dropped, ...rest } = route.query
+  return on ? { ...rest, [INTENT_KEY]: INTENT_VALUE } : rest
+}
 
 /** NUXT_PUBLIC_PADDLE_CHECKOUT_ENABLED: off shows a disabled "Opening soon" button. */
 const canCheckout = checkoutEnabled(config.paddleCheckoutEnabled)
@@ -44,6 +63,8 @@ async function becomeFoundingMember(): Promise<void> {
   failed.value = false
   // A guest signs in first. `save` keeps their anonymous paths and adds the email to them.
   if (auth.status.value !== 'signed_in') {
+    // Both sign-in ways come back to the current URL, so the flag survives the round trip.
+    await router.replace({ query: intentQuery(true), hash: route.hash })
     dialog.show('save')
     return
   }
@@ -74,6 +95,20 @@ async function becomeFoundingMember(): Promise<void> {
   } finally {
     busy.value = false
   }
+}
+
+// Back from sign-in with the flag: drop it from the URL and open checkout once.
+if (returnedToBuy) {
+  const stop = watch(
+    () => auth.status.value,
+    (status) => {
+      if (status !== 'signed_in') return
+      // `stop` is not assigned yet when the first run is the immediate one.
+      queueMicrotask(() => stop())
+      void router.replace({ query: intentQuery(false), hash: route.hash }).then(() => becomeFoundingMember())
+    },
+    { immediate: true },
+  )
 }
 
 const BUTTON =

@@ -6,6 +6,11 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+## [0.8.1] - 2026-11-21
+
+### Changed
+- After you sign in from the founding card on the landing page, checkout opens by itself; you no longer press the button a second time.
+
 ## [0.8.0] - 2026-11-21
 
 ### Added
