@@ -2,8 +2,8 @@
 
 Implementation of the `path-intake` spec ([requirements](requirements.md), [design](design.md), [tasks](tasks.md)). This file grows with the work. So far it covers tasks 1 to 4, 6 to 8, 10, and 12.1 to 12.4. The latency check ran and failed on the 2 s target only; the owner had the Panel built first and decides on the target afterwards (decision 39).
 
-- **Repos and branches:** `pursio` `main`
-- **State:** uncommitted
+- **Repos and branches:** `pursio` `feat/path-intake`
+- **State:** committed in `6338987`. `.env.example` (the three intake keys) is left for the owner to commit
 - **Size:** 41 files changed (1 deleted), 33 added, in 8 groups
 
 What a learner sees now: on `/new`, a "Tell Wick more" field instead of the level picker; "Build my path" reads the Note and opens the Panel; the path is built with the profile; the ready card shows the finish line and the head start. If intake fails or takes 5 s, the path builds at once as before.
