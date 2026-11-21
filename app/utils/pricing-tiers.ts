@@ -60,7 +60,7 @@ export function tiersFor(environment: Environments): readonly Tier[] {
       name: 'Plus',
       description: 'For learners who want more from every path.',
       // Placeholder features: replace with what Plus actually unlocks.
-      features: ['Unlimited hobbies', 'Everything in Free', 'Plus features as they ship, at no extra cost', 'Support an independent, open-source app'],
+      features: ['Unlimited hobbies', 'Everything in Free', 'Plus features as they ship, at no extra cost'],
       priceId: PRICE_IDS[environment].plus,
       featured: true,
     },

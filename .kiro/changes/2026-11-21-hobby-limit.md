@@ -66,7 +66,7 @@ At the limit the page shows `HobbyLimitCard` in place of the form. The page chec
 | File | Why it changed |
 |---|---|
 | [app/utils/landing-copy.ts](../../app/utils/landing-copy.ts) | Founding card's first check is "Unlimited hobbies, today"; FAQ "Is Pursio free?" as written by the owner |
-| [app/utils/pricing-tiers.ts](../../app/utils/pricing-tiers.ts) | Free: "3 active hobbies"; Plus: "Unlimited hobbies" |
+| [app/utils/pricing-tiers.ts](../../app/utils/pricing-tiers.ts) | Free: "3 active hobbies"; Plus: "Unlimited hobbies"; the Plus line "Support an independent, open-source app" removed (asked 2026-11-21) |
 | [app/utils/legal-copy.ts](../../app/utils/legal-copy.ts) | Terms, "Free app, Plus and founding membership": the limit of 3 active hobbies |
 | [CHANGELOG.md](../../CHANGELOG.md) | One line under Unreleased |
 
