@@ -183,15 +183,18 @@ watch(state, async (next) => {
 <template>
   <div class="flex min-h-dvh flex-col">
     <header class="flex items-center justify-between px-7 py-5 max-[700px]:px-4 max-[700px]:py-3">
-      <div class="flex items-center gap-2.5 font-head text-[26px] font-bold text-ink max-[700px]:text-[21px]">
+      <NuxtLink
+        :to="backTo ?? '/'"
+        class="flex items-center gap-2.5 rounded-[14px] font-head text-[26px] font-bold text-ink focus-visible:outline-3 focus-visible:outline-offset-2 focus-visible:outline-primary max-[700px]:text-[21px]"
+      >
         <span aria-hidden="true" class="size-9 shrink-0 bg-(image:--pursio-logo) bg-contain bg-center bg-no-repeat" />
         <span>Pursio</span>
-      </div>
+      </NuxtLink>
       <div class="flex items-center gap-2">
         <NuxtLink
           v-if="backTo"
           :to="backTo"
-          class="flex h-11 items-center rounded-[14px] px-3 text-[15px] font-extrabold text-accent-text hover:bg-surface-2 focus-visible:outline-3 focus-visible:outline-offset-2 focus-visible:outline-primary"
+          class="flex h-11 items-center rounded-[14px] px-3 text-[15px] font-extrabold text-ink hover:bg-surface-2 focus-visible:outline-3 focus-visible:outline-offset-2 focus-visible:outline-primary"
         >
           <span aria-hidden="true">←&nbsp;</span>
           <span class="max-[700px]:hidden">Back to my path</span>
@@ -200,7 +203,7 @@ watch(state, async (next) => {
         <button
           v-if="auth.isAnonymous.value"
           type="button"
-          class="flex h-11 items-center rounded-[14px] px-3 text-[15px] font-extrabold text-accent-text hover:bg-surface-2 focus-visible:outline-3 focus-visible:outline-offset-2 focus-visible:outline-primary"
+          class="flex h-11 items-center rounded-[14px] border-2 border-line bg-surface px-4 text-[15px] font-extrabold text-accent-text hover:bg-surface-2 focus-visible:outline-3 focus-visible:outline-offset-2 focus-visible:outline-primary"
           @click="authDialog.show('login')"
         >
           Log in
@@ -208,10 +211,9 @@ watch(state, async (next) => {
         <NuxtLink
           to="/settings"
           aria-label="Settings"
-          class="flex h-11 items-center gap-2 rounded-[14px] border-2 border-line bg-surface px-3.5 text-[15px] font-extrabold text-ink focus-visible:outline-3 focus-visible:outline-offset-2 focus-visible:outline-primary"
+          class="flex size-11 items-center justify-center rounded-[14px] text-ink hover:bg-surface-2 focus-visible:outline-3 focus-visible:outline-offset-2 focus-visible:outline-primary"
         >
-          <PathIcon name="settings" class="size-[18px]" />
-          <span class="max-[700px]:hidden">Settings</span>
+          <PathIcon name="settings" class="size-[22px]" />
         </NuxtLink>
       </div>
     </header>

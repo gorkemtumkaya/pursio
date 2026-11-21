@@ -25,11 +25,9 @@ import { errorCodeFrom, friendlyMessage } from '~/utils/tree-client'
  * accounts-cloud-save, Req 10, 11), and the display name (Req 7.4). App: the theme applies at once and is saved
  * in this browser and to the account; provider, model and API key live in this
  * browser only (Req 11), and "Test connection" checks them via the Test_Route
- * (Req 12). About: source and version. Danger zone: "Delete account".
+ * (Req 12). About: version. Danger zone: "Delete account".
  */
 useHead({ title: 'Settings · Pursio' })
-
-const SOURCE_URL = 'https://github.com/gorkemtumkaya/pursio'
 
 const { theme, themes, setTheme } = useTheme()
 const auth = useAuth()
@@ -531,15 +529,6 @@ const fieldLabelClass = 'font-head text-[15px] font-semibold text-ink'
 
       <h2 id="settings-about" :class="[groupLabelClass, 'mt-3']">About</h2>
       <section aria-labelledby="settings-about" :class="cardClass">
-        <a
-          :href="SOURCE_URL"
-          target="_blank"
-          rel="noopener"
-          :class="[rowClass, dividerClass, 'min-h-15 rounded-t-3xl', focusRing]"
-        >
-          <b :class="rowTitleClass">Source code and license</b>
-          <PathIcon name="chevron" class="size-4.5 -rotate-90 text-muted" />
-        </a>
         <div :class="[rowClass, dividerClass, 'min-h-15']">
           <b :class="rowTitleClass">Version</b>
           <span class="text-[15px] font-bold text-muted">{{ version }}</span>

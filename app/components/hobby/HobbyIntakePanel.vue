@@ -86,7 +86,7 @@ async function onRemove(field: ProfileField): Promise<void> {
 defineExpose({ focusStart })
 
 const primaryButtonClass =
-  'h-[58px] flex-1 rounded-[18px] bg-primary px-6 font-head text-[19px] font-semibold text-primary-ink '
+  'h-[58px] flex-1 max-[700px]:flex-none rounded-[18px] bg-primary px-6 font-head text-[19px] font-semibold text-primary-ink '
   + 'shadow-[0_5px_0_var(--color-primary-deep)] transition-[translate,box-shadow] duration-75 '
   + 'active:translate-y-1 active:shadow-[0_1px_0_var(--color-primary-deep)] '
   + 'focus-visible:outline-3 focus-visible:outline-offset-2 focus-visible:outline-primary'

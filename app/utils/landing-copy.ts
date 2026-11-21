@@ -152,7 +152,7 @@ export const FAQ_ITEMS: readonly FaqItem[] = [
   {
     question: 'Is Pursio free?',
     answer:
-      'Yes. You can build up to 3 hobbies with paths, quests and Fresh for free. Founding members get unlimited hobbies.',
+      'Yes. You can build up to 3 hobbies with paths, quests and Fresh for free. Plus members, founding members included, get unlimited hobbies.',
   },
   {
     question: 'What is Pursio Plus?',
