@@ -120,13 +120,13 @@ const primaryButtonClass =
       @toggle="onToggle(kind, $event)"
     />
 
-    <div class="flex flex-wrap items-center gap-x-6 gap-y-3">
+    <div class="flex flex-wrap items-center gap-x-6 gap-y-3 max-[700px]:flex-col max-[700px]:items-stretch max-[700px]:gap-y-2">
       <button type="button" :class="primaryButtonClass" @click="emit('build')">
         {{ INTAKE_COPY.build }}
       </button>
       <button
         type="button"
-        class="min-h-11 rounded-lg px-1 font-head text-[17px] font-semibold text-ink underline underline-offset-4 hover:text-accent-text focus-visible:outline-3 focus-visible:outline-offset-2 focus-visible:outline-primary"
+        class="min-h-11 rounded-lg px-1 max-[700px]:self-center font-head text-[17px] font-semibold text-ink underline underline-offset-4 hover:text-accent-text focus-visible:outline-3 focus-visible:outline-offset-2 focus-visible:outline-primary"
         @click="emit('skip')"
       >
         {{ INTAKE_COPY.skip }}
