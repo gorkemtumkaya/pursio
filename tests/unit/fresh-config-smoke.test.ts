@@ -43,7 +43,10 @@ describe('Fresh configuration', () => {
     const pkg: { dependencies?: Record<string, string>; devDependencies?: Record<string, string> } = JSON.parse(
       readFileSync(join(ROOT, 'package.json'), 'utf8'),
     )
+    // @paddle/paddle-js is the pricing page's, not Fresh's.
     expect(Object.keys(pkg.dependencies ?? {}).sort()).toEqual([
+      '@paddle/paddle-js',
+      '@paddle/paddle-node-sdk',
       '@supabase/supabase-js',
       'elkjs',
       'nuxt',

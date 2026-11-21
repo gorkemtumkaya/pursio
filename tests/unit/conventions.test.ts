@@ -26,6 +26,10 @@ const SCANNED = [
   // spec: fresh, Req 11.8
   ...listFiles(join(ROOT, 'app/components/fresh')).filter((file) => /\.(vue|ts)$/.test(file)),
   join(ROOT, 'app/pages/fresh.vue'),
+  // Paddle pricing page
+  ...listFiles(join(ROOT, 'app/components/pricing')).filter((file) => /\.(vue|ts)$/.test(file)),
+  join(ROOT, 'app/pages/pricing.vue'),
+  join(ROOT, 'app/pages/welcome.vue'),
 ].map((path) => ({ name: relative(ROOT, path), source: readFileSync(path, 'utf8') }))
 
 // CSS named colors (CSS Color Module Level 4), excluding keywords like
@@ -327,7 +331,10 @@ describe('package.json dependencies (Req 14.1, 14.2)', () => {
 
   it('adds no dependency beyond the known set', () => {
     // posthog-js and posthog-node: product analytics and LLM observability (commit 3b19d5c).
+    // @paddle/paddle-js: pricing page and Paddle Checkout. @paddle/paddle-node-sdk: webhooks and portal.
     expect(Object.keys(deps).sort()).toEqual([
+      '@paddle/paddle-js',
+      '@paddle/paddle-node-sdk',
       '@supabase/supabase-js',
       'elkjs',
       'nuxt',
@@ -355,7 +362,7 @@ describe('package.json dependencies (Req 14.1, 14.2)', () => {
 })
 
 describe('service role key location (spec: accounts-cloud-save, Req 1.5, 9.13)', () => {
-  it('is named only in nuxt.config.ts and three server runtime files (account, video, waitlist)', () => {
+  it('is named only in nuxt.config.ts and four server runtime files (account, billing, video, waitlist)', () => {
     const KEY_NAME = ['supabase', 'ServiceRoleKey'].join('')
     const scanned = ['app', 'server', 'shared'].flatMap((dir) => listFiles(join(ROOT, dir)))
     const hits = scanned
@@ -363,8 +370,10 @@ describe('service role key location (spec: accounts-cloud-save, Req 1.5, 9.13)',
       .filter((path) => readFileSync(path, 'utf8').includes(KEY_NAME))
       .map((path) => relative(ROOT, path))
     // waitlist-runtime.ts was added with the landing page's waitlist (spec: landing-page).
+    // billing-runtime.ts writes the Paddle mirror (paddle-billing migration).
     expect(hits.sort()).toEqual([
       'server/utils/account-runtime.ts',
+      'server/utils/billing-runtime.ts',
       'server/utils/video/runtime.ts',
       'server/utils/waitlist-runtime.ts',
     ])
