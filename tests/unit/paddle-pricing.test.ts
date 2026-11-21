@@ -8,7 +8,7 @@ import {
   trialDays,
   UNKNOWN_COUNTRY,
 } from '~/utils/paddle-pricing'
-import { paidPriceIds, TIERS, type Tier } from '~/utils/pricing-tiers'
+import { FOUNDING_PRICE_ID, paidPriceIds, PRICE_IDS, tiersFor, type Tier } from '~/utils/pricing-tiers'
 
 describe('readPaddleConfig', () => {
   it('accepts a sandbox env with a test_ token', () => {
@@ -69,7 +69,17 @@ describe('tiers', () => {
   })
 
   it('uses Paddle price IDs for every paid tier', () => {
-    for (const id of paidPriceIds(TIERS)) expect(id).toMatch(/^pri_[a-z\d]{26}$/)
+    for (const env of ['sandbox', 'production'] as const) {
+      const ids = paidPriceIds(tiersFor(env))
+      expect(ids).toEqual([PRICE_IDS[env].plus.month, PRICE_IDS[env].plus.year])
+      for (const id of [...ids, FOUNDING_PRICE_ID[env]]) expect(id).toMatch(/^pri_[a-z\d]{26}$/)
+    }
+  })
+
+  it('never shares a price ID between sandbox and live', () => {
+    const sandbox = [...paidPriceIds(tiersFor('sandbox')), FOUNDING_PRICE_ID.sandbox]
+    const live = [...paidPriceIds(tiersFor('production')), FOUNDING_PRICE_ID.production]
+    expect(new Set([...sandbox, ...live]).size).toBe(6)
   })
 })
 

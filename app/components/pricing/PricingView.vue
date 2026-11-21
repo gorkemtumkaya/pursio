@@ -3,7 +3,7 @@ import type { CheckoutOpenOptions } from '@paddle/paddle-js'
 import { checkoutEnabled } from '~/utils/paddle-config'
 import { formattedTotals, pricePreviewParams, trialDays, type FormattedPrices } from '~/utils/paddle-pricing'
 import { PRICING_COPY } from '~/utils/pricing-copy'
-import { paidPriceIds, TIERS, type BillingFrequency } from '~/utils/pricing-tiers'
+import { paidPriceIds, tiersFor, type BillingFrequency } from '~/utils/pricing-tiers'
 
 /**
  * Tier cards with localized prices (Paddle.PricePreview) and Paddle Checkout.
@@ -13,6 +13,9 @@ import { paidPriceIds, TIERS, type BillingFrequency } from '~/utils/pricing-tier
 const props = defineProps<{ country: string }>()
 
 const { load } = usePaddle()
+// Price IDs follow NUXT_PUBLIC_PADDLE_ENV. An unset or unknown value still draws the
+// cards (with the sandbox set), but load() throws before any ID is sent to Paddle.
+const TIERS = tiersFor(useRuntimeConfig().public.paddleEnv === 'production' ? 'production' : 'sandbox')
 const canCheckout = checkoutEnabled(useRuntimeConfig().public.paddleCheckoutEnabled)
 const auth = useAuth()
 

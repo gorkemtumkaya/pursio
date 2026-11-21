@@ -1,11 +1,12 @@
+import type { Environments } from '@paddle/paddle-js'
+
 /**
- * The tiers on /pricing. Edit names, text, features and price IDs here; the
- * page renders whatever this list holds, in order.
+ * The tiers on /pricing. Edit names, text and features in TIER_TEXT and price
+ * IDs in PRICE_IDS; the page renders `tiersFor(environment)`, in order.
  *
- * Price IDs are from the Paddle **sandbox** catalog (the product is still named Premium there,
- * pro_01m7yxc6q85jyxdnpnbd2k1wc9). Live has its own IDs: replace them before
- * setting NUXT_PUBLIC_PADDLE_ENV=production, or price previews fail with
- * "price not found".
+ * Sandbox and live are separate Paddle accounts with separate IDs, so each
+ * environment (NUXT_PUBLIC_PADDLE_ENV) has its own set. A price ID from the
+ * other account fails with "price not found".
  */
 export interface Tier {
   name: 'Free' | 'Plus'
@@ -19,26 +20,51 @@ export interface Tier {
 
 export type BillingFrequency = 'month' | 'year'
 
-export const TIERS: readonly Tier[] = [
-  {
-    name: 'Free',
-    description: 'Everything you need to start a hobby.',
-    features: ['Build skill paths for any hobby', 'Daily quests and progress tracking', 'No account needed to try it'],
-    priceId: null,
-    featured: false,
+type PaidPriceIds = { month: string; year: string }
+
+/**
+ * Paddle price IDs of the Plus subscription per environment.
+ * Sandbox product pro_01m7yxc6q85jyxdnpnbd2k1wc9, live product pro_01m7ywxhgq82670exfb88hyymp.
+ */
+export const PRICE_IDS: Record<Environments, { plus: PaidPriceIds }> = {
+  sandbox: {
+    plus: { month: 'pri_01m7yxc793p1af7c9vnmqcmw3n', year: 'pri_01m7yxc7ekh0c4wb7xc24w7q69' },
   },
-  {
-    name: 'Plus',
-    description: 'For learners who want more from every path.',
-    // Placeholder features: replace with what Plus actually unlocks.
-    features: ['Everything in Free', 'Plus features as they ship, at no extra cost', 'Support an independent, open-source app'],
-    priceId: {
-      month: 'pri_01m7yxc793p1af7c9vnmqcmw3n',
-      year: 'pri_01m7yxc7ekh0c4wb7xc24w7q69',
+  production: {
+    plus: { month: 'pri_01m7z6481j4bcy66nv7yfax61s', year: 'pri_01m7z6488p39zfejmazaz0f408' },
+  },
+}
+
+/**
+ * The one-time Founding member price per environment ($19.99). Not sold yet:
+ * nothing opens its checkout until the founding-checkout spec is built.
+ * Sandbox product pro_01m7z53bqpv547tfxdvnfhj9e4, live product pro_01m7z648hw83fz0s35fp05qr8j.
+ */
+export const FOUNDING_PRICE_ID: Record<Environments, string> = {
+  sandbox: 'pri_01m7z53bx7exmc85qm2cfkssbt',
+  production: 'pri_01m7z648r3tja83w8z89kry3bx',
+}
+
+/** The tiers with the price IDs of one Paddle environment. */
+export function tiersFor(environment: Environments): readonly Tier[] {
+  return [
+    {
+      name: 'Free',
+      description: 'Everything you need to start a hobby.',
+      features: ['Build skill paths for any hobby', 'Daily quests and progress tracking', 'No account needed to try it'],
+      priceId: null,
+      featured: false,
     },
-    featured: true,
-  },
-]
+    {
+      name: 'Plus',
+      description: 'For learners who want more from every path.',
+      // Placeholder features: replace with what Plus actually unlocks.
+      features: ['Everything in Free', 'Plus features as they ship, at no extra cost', 'Support an independent, open-source app'],
+      priceId: PRICE_IDS[environment].plus,
+      featured: true,
+    },
+  ]
+}
 
 /** Every paid price ID in the list, monthly and yearly, so one PricePreview call returns both. */
 export function paidPriceIds(tiers: readonly Tier[]): string[] {
