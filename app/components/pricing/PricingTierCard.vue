@@ -61,16 +61,33 @@ const BUTTON = 'flex h-14 w-full items-center justify-center rounded-2xl font-he
     <p v-if="trialDays !== undefined" class="text-[15px] font-extrabold text-accent-text">{{ trialLabel(trialDays) }}</p>
     <p v-else-if="tier.note" class="text-[15px] font-extrabold text-accent-text">{{ tier.note }}</p>
 
-    <ul class="flex flex-1 flex-col gap-2.5">
-      <li v-for="feature in tier.features" :key="feature" class="flex items-start gap-3 text-base leading-[1.4] font-bold text-ink">
-        <span aria-hidden="true" class="flex size-[26px] shrink-0 items-center justify-center rounded-lg bg-done text-done-ink">
-          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3.4" stroke-linecap="round" stroke-linejoin="round">
-            <path d="M5 12.5l4.5 4.5L19 7.5" />
-          </svg>
-        </span>
-        <span>{{ feature }}</span>
-      </li>
-    </ul>
+    <div class="flex flex-1 flex-col gap-4">
+      <h3 v-if="tier.featuresHeading" class="text-[13px] font-extrabold tracking-[0.04em] text-ink uppercase">{{ tier.featuresHeading }}</h3>
+      <ul class="flex flex-col gap-2.5">
+        <li v-for="feature in tier.features" :key="feature" class="flex items-start gap-3 text-base leading-[1.4] font-bold text-ink">
+          <span aria-hidden="true" class="flex size-[26px] shrink-0 items-center justify-center rounded-lg bg-done text-done-ink">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3.4" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M5 12.5l4.5 4.5L19 7.5" />
+            </svg>
+          </span>
+          <span>{{ feature }}</span>
+        </li>
+      </ul>
+
+      <!-- Planned features: muted, no check marks, so they do not read as available now. -->
+      <template v-if="tier.upcoming">
+        <h3 class="mt-2 text-[13px] font-extrabold tracking-[0.04em] text-muted uppercase">{{ tier.upcoming.heading }}</h3>
+        <ul class="flex flex-col gap-2.5">
+          <li v-for="item in tier.upcoming.items" :key="item.name" class="flex items-start gap-3 text-[15px] leading-[1.4] text-muted">
+            <span aria-hidden="true" class="flex h-[21px] w-[26px] shrink-0 items-center justify-center">
+              <span class="block size-2 rounded-full bg-line" />
+            </span>
+            <span><span class="font-extrabold">{{ item.name }}:</span> {{ item.detail }}</span>
+          </li>
+        </ul>
+        <p class="text-[15px] leading-[1.4] font-bold text-ink">{{ tier.upcoming.note }}</p>
+      </template>
+    </div>
 
     <NuxtLink v-if="free" :to="NEW_PAGE" :class="[BUTTON, FOCUS, 'border-2 border-line bg-surface text-ink']">
       {{ PRICING_COPY.freeCta }}

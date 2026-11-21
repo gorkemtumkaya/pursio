@@ -2,7 +2,8 @@ import type { Environments } from '@paddle/paddle-js'
 
 /**
  * The tiers on /pricing. Edit names, text and features in TIER_TEXT and price
- * IDs in PRICE_IDS; the page renders `tiersFor(environment)`, in order.
+ * IDs in PRICE_IDS; the page renders `tiersFor(environment)`, in order
+ * (founding membership sits in the middle).
  *
  * Sandbox and live are separate Paddle accounts with separate IDs, so each
  * environment (NUXT_PUBLIC_PADDLE_ENV) has its own set. A price ID from the
@@ -12,6 +13,10 @@ export interface Tier {
   name: 'Free' | 'Plus' | 'Founding member'
   description: string
   features: string[]
+  /** Heading above `features`, used when the card also has an `upcoming` list. */
+  featuresHeading?: string
+  /** Planned features, not available yet. The card shows them muted and without check marks. */
+  upcoming?: { heading: string; items: readonly UpcomingFeature[]; note: string }
   /**
    * Monthly and yearly Paddle price IDs of a subscription. `null` with no `oneTimePriceId`
    * is a free tier: its button goes to the app, not checkout.
@@ -23,6 +28,11 @@ export interface Tier {
   note?: string
   /** Highlights the card. The "MOST POPULAR" badge shows on it for yearly billing only. */
   featured: boolean
+}
+
+export interface UpcomingFeature {
+  name: string
+  detail: string
 }
 
 export type BillingFrequency = 'month' | 'year'
@@ -57,14 +67,6 @@ export function tiersFor(environment: Environments): readonly Tier[] {
       featured: false,
     },
     {
-      name: 'Plus',
-      description: 'For learners who want more from every path.',
-      // Placeholder features: replace with what Plus actually unlocks.
-      features: ['Unlimited hobbies', 'Everything in Free', 'Plus features as they ship, at no extra cost'],
-      priceId: PRICE_IDS[environment].plus,
-      featured: true,
-    },
-    {
       name: 'Founding member',
       description: 'Back Pursio early. One payment, Plus for life.',
       features: [
@@ -77,6 +79,24 @@ export function tiersFor(environment: Environments): readonly Tier[] {
       oneTimePriceId: FOUNDING_PRICE_ID[environment],
       note: 'First 50 only',
       featured: false,
+    },
+    {
+      name: 'Plus',
+      description: 'For learners who want more from every path.',
+      featuresHeading: 'What you get today',
+      features: ['Unlimited hobbies (free has 3)'],
+      upcoming: {
+        heading: 'Coming next',
+        items: [
+          { name: 'Progress photos', detail: 'snap a photo when you finish a quest and watch your hobby come together' },
+          { name: 'Branches', detail: 'more than one path for the same hobby, like classical and electric guitar' },
+          { name: 'Change your path', detail: 'set a new goal or swap a skill, and keep your progress' },
+          { name: 'Paths that keep going', detail: 'finish a path and Plus builds the next stage' },
+        ],
+        note: 'Plus members get each of these as it ships, at no extra cost.',
+      },
+      priceId: PRICE_IDS[environment].plus,
+      featured: true,
     },
   ]
 }

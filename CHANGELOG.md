@@ -6,6 +6,12 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+## [0.9.1] - 2026-11-21
+
+### Changed
+- The Plus card on the pricing page now shows what Plus includes today and what is coming next, and founding membership sits in the middle of the three plans.
+- Wick's guitar outfit has a new drawing of the guitar.
+
 ## [0.9.0] - 2026-11-21
 
 ### Added

@@ -131,7 +131,7 @@ export const TERMS: LegalDocument = {
     {
       heading: 'Free app, Plus and founding membership',
       paragraphs: [
-        'The core app is free. The free plan includes up to 3 active hobbies at a time: archived hobbies do not count, and archiving one makes room for another. Plus and founding membership have no limit on hobbies. Pursio Plus is an optional subscription for $4.99 a month or $29.99 a year. Founding membership is an optional single payment of $19.99. The price you pay is shown at checkout, in your currency and with the tax for your country.',
+        'The core app is free. The free plan includes up to 3 active hobbies at a time: archived hobbies do not count, and archiving one makes room for another. Plus and founding membership have no limit on hobbies. Pursio Plus is an optional subscription for $4.99 a month or $29.99 a year. Plus features shown as coming next are plans, not promises: they can change, arrive later or not arrive at all. Founding membership is an optional single payment of $19.99. The price you pay is shown at checkout, in your currency and with the tax for your country.',
       ],
     },
     {
