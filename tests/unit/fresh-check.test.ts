@@ -144,6 +144,28 @@ describe('runFreshCheck', () => {
     expect(h.logs).toEqual([])
   })
 
+  it('logs the stage counts of a successful check, with numbers only', async () => {
+    const stores0 = createFreshStores()
+    const now = stores0.clock.now()
+    const entries = [entry('vidAAAAAAA1', CHANNEL_A, now - HOUR_MS), entry('vidAAAAAAA2', CHANNEL_A, now - 2 * HOUR_MS)]
+    const feeds = createFakeFeedFetcher({ feeds: { [CHANNEL_A]: { entries } } })
+    const provider = createFakeVideoProvider({ catalog: entries.map((e) => fakeDetails(e.videoId)) })
+    const judge = createFakeFreshJudge([{ verdicts: keepAllVerdicts([{ id: 'vidAAAAAAA1' }], 'footwork') }])
+    const h = await harness({ feeds, provider, judge })
+    const infos: unknown[] = []
+
+    const outcome = await runFreshCheck(KEY, 'run-1', h.startedMs, { ...h.deps, info: (e) => infos.push(e) })
+
+    expect(outcome).toEqual({ kind: 'stored', items: 1 })
+    expect(infos).toEqual([
+      {
+        checkKey: checkKeyId(KEY),
+        type: 'check_stored',
+        counts: { sources: 1, feedsOk: 1, inWindow: 2, fresh: 2, detailed: 2, filtered: 2, skillTitles: 1, judged: 2, kept: 1 },
+      },
+    ])
+  })
+
   it('succeeds with no feed fetch when the key has no Channel_Source', async () => {
     const h = await harness({ sources: [] })
     expect(await runFreshCheck(KEY, 'run-1', h.startedMs, h.deps)).toEqual({ kind: 'stored', items: 0 })

@@ -56,6 +56,35 @@ export interface FreshCheckLogEntry {
   type: FreshFailure
 }
 
+/** Stage counts of one successful check. Numbers only: no id, title, URL or secret. */
+export interface FreshCheckCounts {
+  /** Channel_Sources of the key. */
+  sources: number
+  /** Feeds fetched and parsed. */
+  feedsOk: number
+  /** Distinct videos inside the feed window. */
+  inWindow: number
+  /** Of those, not yet stored as Fresh_Items. */
+  fresh: number
+  /** Returned by the details stage. */
+  detailed: number
+  /** Passed the filter. */
+  filtered: number
+  /** Skill titles of the hobby's pools given to the Judge. */
+  skillTitles: number
+  /** Sent to the Judge (newest 40). */
+  judged: number
+  /** Kept by the verdict rules and stored. */
+  kept: number
+}
+
+export interface FreshCheckInfoEntry {
+  /** `checkKeyId(key)`. */
+  checkKey: string
+  type: 'check_stored'
+  counts: FreshCheckCounts
+}
+
 export interface FreshCheckDeps {
   store: FreshStore
   /** Quota_Gate over the shared PipelineStore (one Daily_Quota with the skill pipeline). */
@@ -77,6 +106,8 @@ export interface FreshCheckDeps {
   judgePrompt?: string
   /** Failure log. Default: `console.error('[fresh]', entry)`. */
   log?: (entry: FreshCheckLogEntry) => void
+  /** Success log with stage counts. Default: `console.info('[fresh]', entry)`. */
+  info?: (entry: FreshCheckInfoEntry) => void
 }
 
 /** A stage failure; `fail` maps it to the outcome, with the deadline taking precedence. */
@@ -114,6 +145,10 @@ const defaultTimer = (ms: number): AbortSignal => AbortSignal.timeout(ms)
 
 function defaultLog(entry: FreshCheckLogEntry): void {
   console.error('[fresh]', entry)
+}
+
+function defaultInfo(entry: FreshCheckInfoEntry): void {
+  console.info('[fresh]', entry)
 }
 
 /** Settles when the signal fires (never rejects). */
@@ -278,6 +313,10 @@ export async function runFreshCheck(
   const { store, deadline } = deps
   const timer = deps.timer ?? defaultTimer
   const log = deps.log ?? defaultLog
+  const info = deps.info ?? defaultInfo
+  const counts: FreshCheckCounts = {
+    sources: 0, feedsOk: 0, inWindow: 0, fresh: 0, detailed: 0, filtered: 0, skillTitles: 0, judged: 0, kept: 0,
+  }
 
   /** Throws `deadline_exceeded` once the Call_Deadline has fired. */
   const checkDeadline = (): void => {
@@ -303,6 +342,12 @@ export async function runFreshCheck(
     }
     if (outcome === 'lease_lost') throw new StageFailure('lease_lost')
     if (outcome === 'deadline_exceeded') throw new StageFailure('deadline_exceeded')
+    counts.kept = items.length
+    try {
+      info({ checkKey: checkKeyId(key), type: 'check_stored', counts })
+    } catch {
+      // Logging must not break the outcome.
+    }
     return { kind: 'stored', items: items.length }
   }
 
@@ -312,11 +357,13 @@ export async function runFreshCheck(
     // Sources (Req 4.13).
     const sources = await dbCall(() => store.sources(key), deadline)
     checkDeadline()
+    counts.sources = sources.length
     if (sources.length === 0) return await storeAll([], [])
 
     // Feeds and window (Req 4.1 to 4.5, 4.9).
     const { perFeed, checkedChannelIds } = await readFeeds(sources, startedMs, deps, timer)
     checkDeadline()
+    counts.feedsOk = checkedChannelIds.length
     if (checkedChannelIds.length === 0) throw new StageFailure('feeds_failed')
 
     // Merge and drop stored ids (Req 4.6, 4.7).
@@ -324,26 +371,32 @@ export async function runFreshCheck(
     const stored = await dbCall(() => store.storedIds(key, candidateIds), deadline)
     checkDeadline()
     const entries = mergeEntries(perFeed, stored)
+    counts.inWindow = candidateIds.length
+    counts.fresh = entries.length
     if (entries.length === 0) return await storeAll([], checkedChannelIds)
 
     // Details (Req 5.1 to 5.3, 5.6, 5.7).
     const detailed = await readDetails(entries, deps)
     checkDeadline()
+    counts.detailed = detailed.length
 
     // Filter (Req 5.4, 5.5).
     const passed = new Set(
       filterCandidates(detailed.map((c) => c.video), { language: key.language, quickTip: false }).map((v) => v.id),
     )
     const filtered = detailed.filter((c) => passed.has(c.video.id))
+    counts.filtered = filtered.length
     if (filtered.length === 0) return await storeAll([], checkedChannelIds)
 
     // Pools of the hobby (Req 6.2, 6.3).
     const skillTitles = await dbCall(() => store.skillTitles(key.hobby), deadline)
     checkDeadline()
+    counts.skillTitles = skillTitles.length
     if (skillTitles.length === 0) return await storeAll([], checkedChannelIds)
 
     // Judge: newest 40, one call (Req 6.1, 6.12), then the verdict rules (Req 6.4 to 6.10).
     const sent = chooseForJudge(filtered)
+    counts.judged = sent.length
     const kept = await judge(key, sent, skillTitles, deps, timer)
     checkDeadline()
     const entryOf = new Map(sent.map((c) => [c.video.id, c.entry]))
