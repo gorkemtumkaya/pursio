@@ -30,7 +30,7 @@ const showCounter = computed(() => left.value <= 40)
       name="note"
       autocomplete="off"
       :placeholder="INTAKE_COPY.notePlaceholder"
-      class="min-h-[104px] w-full resize-y rounded-[18px] border-2 bg-bg px-[18px] py-3.5 text-base leading-normal font-bold text-ink outline-none placeholder:font-semibold placeholder:text-muted focus:border-primary read-only:opacity-80"
+      class="[field-sizing:content] max-h-[240px] min-h-[104px] w-full resize-none rounded-[18px] border-2 bg-bg px-[18px] py-3.5 text-base leading-normal font-bold text-ink outline-none placeholder:font-semibold placeholder:text-muted focus:border-primary read-only:opacity-80"
       :class="modelValue.trim() ? 'border-primary' : 'border-line'"
       @input="$emit('update:modelValue', ($event.target as HTMLTextAreaElement).value)"
     />

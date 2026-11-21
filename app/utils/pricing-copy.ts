@@ -23,6 +23,8 @@ export const PRICING_COPY = {
   checkoutFailed: "Checkout couldn't open. Reload the page and try again.",
   // taxNote: 'Prices are shown in your local currency. Tax is calculated for your country at checkout.',
   taxNote: 'Tax is calculated for your country at checkout.',
+  refundNote: 'Full refund within 30 days of a payment, no questions asked.',
+  refundLink: 'Refund policy',
   welcomeTitle: 'Welcome to Plus',
   welcomeText: 'Thanks for subscribing. Paddle has emailed you the details of your subscription.',
   welcomeFoundingTitle: 'Welcome, founding member',

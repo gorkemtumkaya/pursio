@@ -100,6 +100,15 @@ async function subscribe(priceId: string): Promise<void> {
       />
     </div>
     <p v-if="!canCheckout" class="max-w-[560px] text-center text-base font-bold text-ink">{{ PRICING_COPY.checkoutClosedNote }}</p>
-    <p class="max-w-[560px] text-center text-sm leading-normal text-muted">{{ PRICING_COPY.taxNote }}</p>
+    <div class="flex max-w-[560px] flex-col gap-1 text-center text-sm leading-normal text-muted">
+      <p>{{ PRICING_COPY.taxNote }}</p>
+      <p>
+        {{ PRICING_COPY.refundNote }}
+        <NuxtLink
+          to="/refund"
+          class="rounded-md font-bold text-ink underline underline-offset-2 focus-visible:outline-3 focus-visible:outline-offset-2 focus-visible:outline-primary"
+        >{{ PRICING_COPY.refundLink }}</NuxtLink>
+      </p>
+    </div>
   </div>
 </template>

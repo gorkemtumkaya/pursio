@@ -4,7 +4,7 @@ On 2026-11-21, after [2026-11-21-plus-coming-next.md](2026-11-21-plus-coming-nex
 
 - **Repos and branches:** `pursio` `main`
 - **State:** uncommitted
-- **Size:** 5 files changed, 1 added, in 2 groups
+- **Size:** 6 files changed, 1 added, in 3 groups
 
 ## Groups
 
@@ -34,6 +34,15 @@ The long Plus list stretched all three cards to about 810 px at desktop width, w
   - The sizes are the agent's choice; the owner gave no numbers.
   - The cards still share one height, so Free and Founding member keep some empty space above their buttons.
   - Phone padding (22 px) is unchanged.
+
+### G3. Refund line under the tax line (asked 2026-11-21)
+
+| File | Why it changed |
+|---|---|
+| [app/utils/pricing-copy.ts](../../app/utils/pricing-copy.ts) | `refundNote` "Full refund within 30 days of a payment, no questions asked." and `refundLink` "Refund policy" |
+| [app/components/pricing/PricingView.vue](../../app/components/pricing/PricingView.vue) | The line under the tax line, with a link to `/refund` |
+
+- **Watch for:** the wording is the agent's, taken from the Refund page and the landing FAQ. It covers both Plus and founding membership.
 
 ## Verification
 

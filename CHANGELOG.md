@@ -10,6 +10,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ### Changed
 - On the pricing page, founding membership is now the highlighted plan, the cards are smaller, and the "MOST POPULAR" badge is gone.
+- The pricing page now states the 30-day refund under the tax line, with a link to the refund policy.
 
 ## [0.9.1] - 2026-11-21
 
