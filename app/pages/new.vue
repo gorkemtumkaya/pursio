@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { computed, nextTick, ref, watch, watchEffect } from 'vue'
-import { DEFAULT_LEVEL } from '#shared/utils/llm'
+import { INTAKE_COPY } from '~/utils/intake-copy'
+import { detectedFields } from '~/utils/intake-panel'
 import MascotWick from '~/components/mascot/wick.vue'
 import { parseHobbyQuery, withoutHobbyQuery } from '~/utils/landing'
 import type { WickMood } from '~/utils/wick'
@@ -9,8 +10,10 @@ import { cloudEntries, toHobbyLibrary } from '~/utils/cloud-library'
 import { hobbyPath, lastActivePath } from '~/utils/hobby-store'
 
 /**
- * New hobby page (spec: new-hobby-page). Four states: input, generating,
- * ready and error. Wick reacts to the state. When the learner already has
+ * New hobby page (spec: new-hobby-page). States: input, reading, panel,
+ * generating, ready and error (spec: path-intake adds reading and panel: the
+ * Note is read by intake and a short Panel opens under the inputs). Wick reacts
+ * to the state. When the learner already has
  * paths, the top bar links back to the last active one and a "Continue a
  * hobby" row lists them under the card. The paths come from the account
  * (spec: accounts-cloud-save); an anonymous learner also gets a "Log in" link.
@@ -24,20 +27,33 @@ const NOT_A_HOBBY_COPY =
 const { theme } = useTheme()
 const {
   hobby,
-  level,
+  note,
   state,
+  panel,
   stepIndex,
   errorCode,
   errorMessage,
   summary,
   outfit,
-  build,
+  start,
+  removeChip,
+  toggleGoal,
+  toggleKnown,
+  toggleTaste,
+  buildFromPanel,
+  skip,
+  retry,
   pickIdea,
   surprise,
   openPath,
 } = useHobbyBuilder()
 
 const retryInput = ref<HTMLInputElement | null>(null)
+const panelRef = ref<{ focusStart: () => void } | null>(null)
+
+/** The form with the hobby and the Note stays visible while intake reads and the Panel is open (AS13). */
+const showForm = computed(() => state.value === 'input' || state.value === 'reading' || state.value === 'panel')
+const reading = computed(() => state.value === 'reading')
 
 const auth = useAuth()
 const cloud = useCloudStore()
@@ -65,7 +81,8 @@ const primaryButtonClass =
   + 'focus-visible:outline-3 focus-visible:outline-offset-2 focus-visible:outline-primary'
 
 const mood = computed<WickMood>(() => {
-  if (state.value === 'generating') return 'think'
+  if (state.value === 'generating' || state.value === 'reading') return 'think'
+  if (state.value === 'panel') return 'happy'
   if (state.value === 'ready') return 'cheer'
   return 'idle'
 })
@@ -74,6 +91,12 @@ const shownHobby = computed(() => hobby.value.trim())
 
 const bubble = computed(() => {
   switch (state.value) {
+    case 'reading':
+      return INTAKE_COPY.wickReading
+    case 'panel':
+      return panel.value !== null && detectedFields(panel.value.profile).length > 0
+        ? INTAKE_COPY.wickPanel
+        : INTAKE_COPY.wickPanelNoChips
     case 'generating':
       return `Building your ${shownHobby.value} path…`
     case 'ready':
@@ -93,6 +116,10 @@ const errorCopy = computed(() =>
 
 const status = computed(() => {
   switch (state.value) {
+    case 'reading':
+      return INTAKE_COPY.statusReading
+    case 'panel':
+      return INTAKE_COPY.statusPanel
     case 'generating':
       return 'Building your skill tree…'
     case 'ready':
@@ -105,11 +132,12 @@ const status = computed(() => {
 })
 
 /**
- * Hobby handoff from the landing page (spec: landing-page, Req 11). Runs once:
- * `?hobby=` starts a build at the `new` level as soon as a session is ready,
- * then leaves the URL without `hobby` so refresh and back start nothing.
- * `build()` reads hobby and level before its first await, so the replace
- * right after it does not change the request. A failed build is not retried.
+ * Hobby handoff from the landing page (spec: landing-page, Req 11; path-intake, Req 1.6, 1.7).
+ * Runs once: `?hobby=` fills the hobby and runs intake as soon as a session is ready, which
+ * opens the Panel like a normal build (focus on the first question, since there is no Note), or
+ * builds at once when intake fails. The URL then loses `hobby`, so refresh and back start nothing.
+ * `start()` reads the hobby before its first await, so the replace right after it does not change
+ * the request. A failed build is not retried.
  */
 const route = useRoute()
 const router = useRouter()
@@ -124,15 +152,15 @@ watchEffect(() => {
   if (auth.status.value !== 'anonymous' && auth.status.value !== 'signed_in') return
   handoffDone = true
   hobby.value = value
-  level.value = DEFAULT_LEVEL
-  void build()
+  void start()
   void router.replace({ query: withoutHobbyQuery(route.query) })
 })
 
 watch(state, async (next) => {
-  if (next !== 'error') return
+  if (next !== 'error' && next !== 'panel') return
   await nextTick()
-  retryInput.value?.focus()
+  if (next === 'error') retryInput.value?.focus()
+  else panelRef.value?.focusStart()
 })
 </script>
 
@@ -189,24 +217,48 @@ watch(state, async (next) => {
             class="flex flex-col rounded-[26px] border-2 border-line bg-surface p-5 shadow-raised-line max-[700px]:rounded-[22px] max-[700px]:p-4"
           >
             <!-- input -->
-            <form v-if="state === 'input'" class="flex flex-col gap-3.5" @submit.prevent="build">
-              <label for="hobby" :class="labelClass">Your hobby</label>
-              <input
-                id="hobby"
-                v-model="hobby"
-                type="text"
-                name="hobby"
-                maxlength="60"
-                autocomplete="off"
-                placeholder="Type any hobby…"
-                :class="inputClass"
+            <div v-if="showForm" class="flex flex-col gap-5">
+              <form class="flex flex-col gap-3.5" :aria-busy="reading" @submit.prevent="start">
+                <label for="hobby" :class="labelClass">Your hobby</label>
+                <input
+                  id="hobby"
+                  v-model="hobby"
+                  type="text"
+                  name="hobby"
+                  maxlength="60"
+                  autocomplete="off"
+                  placeholder="Type any hobby…"
+                  :readonly="reading"
+                  :class="inputClass"
+                >
+                <HobbyNoteField v-model="note" :readonly="reading" />
+                <template v-if="state !== 'panel'">
+                  <button type="submit" :class="[primaryButtonClass, reading ? 'cursor-wait opacity-70' : '']" :aria-disabled="reading">
+                    {{ INTAKE_COPY.build }}
+                  </button>
+                  <HobbyIdeaChips :ideas="IDEAS" surprise :disabled="reading" @pick="pickIdea" @surprise="surprise" />
+                </template>
+              </form>
+
+              <Transition
+                enter-active-class="motion-safe:transition-[opacity,translate] motion-safe:duration-200"
+                enter-from-class="opacity-0 translate-y-1"
+                leave-active-class="motion-safe:transition-opacity motion-safe:duration-150"
+                leave-to-class="opacity-0"
               >
-              <HobbyLevelPicker v-model="level" />
-              <button type="submit" :class="primaryButtonClass">
-                Build my path
-              </button>
-              <HobbyIdeaChips :ideas="IDEAS" surprise @pick="pickIdea" @surprise="surprise" />
-            </form>
+                <HobbyIntakePanel
+                  v-if="state === 'panel' && panel"
+                  ref="panelRef"
+                  :state="panel"
+                  @remove="removeChip"
+                  @toggle-goal="toggleGoal"
+                  @toggle-known="toggleKnown"
+                  @toggle-taste="toggleTaste"
+                  @build="buildFromPanel"
+                  @skip="skip"
+                />
+              </Transition>
+            </div>
 
             <!-- generating -->
             <HobbyBuildSteps v-else-if="state === 'generating'" :steps="BUILD_STEPS" :active="stepIndex" />
@@ -215,7 +267,7 @@ watch(state, async (next) => {
             <HobbyReadyCard v-else-if="state === 'ready' && summary" :summary="summary" @open="openPath" />
 
             <!-- error -->
-            <form v-else-if="state === 'error'" class="flex flex-col gap-3.5" @submit.prevent="build">
+            <form v-else-if="state === 'error'" class="flex flex-col gap-3.5" @submit.prevent="retry">
               <p class="text-base leading-normal font-bold text-muted">{{ errorCopy }}</p>
               <input
                 id="hobby-retry"

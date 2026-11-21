@@ -5,6 +5,7 @@ import type { QuestTriple, SkillNode } from '#shared/types/skill-tree'
 import type { SkillVideosState } from '#shared/types/video'
 import { watchHowFor as watchHowForQuest } from '#shared/utils/watch-how'
 import type { FreshItem } from '~/utils/fresh-samples'
+import { INTAKE_COPY } from '~/utils/intake-copy'
 import { buttonFor, chipFor, detailTitleId, formatTitleList } from '~/utils/node-visual'
 
 /**
@@ -45,6 +46,11 @@ function watchHowFor(text: string) {
 }
 
 const chip = computed(() => chipFor(props.state))
+/**
+ * A Known_Node: built for a skill the learner already has (spec: path-intake, Req 10.1). Trees are
+ * aligned with their profile when they are read, so the key alone tells it.
+ */
+const known = computed(() => typeof props.node.knownOptionId === 'string')
 const button = computed(() => buttonFor(props.state))
 const locked = computed(() => props.state === 'locked')
 const checkedCount = computed(() => props.checks.filter(Boolean).length)
@@ -98,6 +104,14 @@ const buttonListeners = computed(() => (button.value.enabled ? { click: () => em
     </p>
 
     <template v-else>
+      <p
+        v-if="known"
+        class="flex items-center gap-2.5 rounded-2xl bg-surface-2 px-4 py-3.5 text-sm font-bold text-muted"
+      >
+        <PathIcon name="check" class="size-5 shrink-0 text-done-deep" />
+        <span>{{ INTAKE_COPY.knownSkillNote }}</span>
+      </p>
+
       <div class="flex flex-col gap-2">
         <h3 class="font-head text-[13px] font-extrabold tracking-wider text-muted">
           QUESTS · {{ checkedCount }} OF 3

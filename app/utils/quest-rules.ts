@@ -2,6 +2,7 @@
 import type { WeeklyReward } from '#shared/types/cloud'
 import type { Progress, QuestId } from '#shared/types/progress'
 import { dailyBonusDue, needsNewPick, newDailyPick } from '#shared/utils/daily-pick'
+import { knownNodeIds } from '#shared/utils/known-nodes'
 import { isQuestTicked } from '#shared/utils/progress-engine'
 import { activeDaysInWeek, localDayKey, weekKeyOf } from '#shared/utils/streak'
 import { questTickTimes, stampCompletions, stampQuestTicks, type CloudPath } from './cloud-library'
@@ -52,7 +53,7 @@ export function applyProgressChange(
   if (!path) return null
 
   const completedAt = stampCompletions(path.completedAt, path.progress, next, now)
-  const questTicks = stampQuestTicks(path.questTicks, path.progress, next, now)
+  const questTicks = stampQuestTicks(path.questTicks, path.progress, next, now, new Set(knownNodeIds(path.record.tree)))
 
   let dailyPick = path.dailyPick
   let dailyBonusCount = path.dailyBonusCount

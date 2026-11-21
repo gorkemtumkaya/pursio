@@ -2,7 +2,7 @@ import type { FreshPathSkill, FreshRequest, FreshRequestPath } from '#shared/typ
 import type { Progress } from '#shared/types/progress'
 import type { SkillTree } from '#shared/types/skill-tree'
 import type { ColorSlot } from '#shared/utils/color-slot'
-import { findCurrentNodeId } from '#shared/utils/progress-engine'
+import { effectiveCompleted, findCurrentNodeId } from '#shared/utils/progress-engine'
 import { languageCode } from '#shared/utils/video-normalize'
 import type { HobbyLibrary, HobbyRecord } from './hobby-store'
 
@@ -45,7 +45,7 @@ export function requestPath(
   if (kept.length === 0) return null
   const current = findCurrentNodeId(tree, progress)
   const currentSkillId = current !== null && kept.some((s) => s.id === current) ? current : null
-  const completed = new Set(progress.completed)
+  const completed = effectiveCompleted(tree, progress)
   const completedCount = kept.filter((s) => completed.has(s.id)).length
   return { id, hobby, skills: kept, currentSkillId, colorSlot, completedCount }
 }

@@ -5,7 +5,9 @@ import type { VideoEvent } from '../../shared/types/video'
 import { parseMute } from '../../shared/utils/channel-mutes'
 import { buildSaveArgs } from '../../shared/utils/cloud-path'
 import { fillColorSlots, isColorSlot } from '../../shared/utils/color-slot'
-import { findCurrentNodeId } from '../../shared/utils/progress-engine'
+import { alignKnownNodes } from '../../shared/utils/known-nodes'
+import { parseStoredProfile } from '../../shared/utils/learner-profile'
+import { effectiveCompleted, findCurrentNodeId } from '../../shared/utils/progress-engine'
 import { loadSkillTree } from '../../shared/utils/skill-tree-load'
 import { parseEvent } from '../../shared/utils/video-events'
 import { languageCode } from '../../shared/utils/video-normalize'
@@ -134,7 +136,7 @@ export async function loadFreshUserData(token: string, userId: string, signal?: 
     withSignal(
       client
         .from('paths')
-        .select('id, hobby, hobby_id, tree, goal_class, last_opened_at, created_at, color_slot')
+        .select('id, hobby, hobby_id, tree, goal_class, last_opened_at, created_at, color_slot, profile')
         .eq('user_id', userId)
         .eq('archived', false)
         .order('created_at', { ascending: true }),
@@ -179,14 +181,17 @@ export async function loadFreshUserData(token: string, userId: string, signal?: 
     if (typeof row.id !== 'string' || typeof row.hobby !== 'string') continue
     const loaded = loadSkillTree(row.tree)
     if (!loaded.ok) continue
-    const tree = loaded.value
+    // Known_Nodes follow the stored profile, as on the page (spec: path-intake, AS6, Req 11.5).
+    const knownIds = parseStoredProfile(row.profile)?.known.map((option) => option.id) ?? []
+    const tree = alignKnownNodes(loaded.value, knownIds).tree
     const progress = progressByPath.get(row.id)
     const skills: FreshPathSkill[] = tree.sections.flatMap((section) =>
       section.nodes.map((node) => ({ id: node.id, title: node.title, level: section.level })),
     )
-    const currentSkillId = findCurrentNodeId(tree, { completed: progress?.completed ?? [], quests: {} })
+    const read = { completed: progress?.completed ?? [], quests: {} }
+    const currentSkillId = findCurrentNodeId(tree, read)
     const skillIds = new Set(skills.map((s) => s.id))
-    const completedCount = new Set((progress?.completed ?? []).filter((id) => skillIds.has(id))).size
+    const completedCount = [...effectiveCompleted(tree, read)].filter((id) => skillIds.has(id)).length
     const times = [timeMs(row.last_opened_at), progress?.updatedMs ?? null].filter((t): t is number => t !== null)
     paths.push({
       poolHobby: tree.hobby,

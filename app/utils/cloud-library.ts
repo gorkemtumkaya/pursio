@@ -1,11 +1,12 @@
 // Pure list operations on the learner's cloud paths (spec: accounts-cloud-save).
 import type { CompletedAt, DailyPick, QuestData, QuestTicks } from '#shared/types/cloud'
+import type { StoredProfile } from '#shared/types/learner-profile'
 import type { StartLevel } from '#shared/types/llm'
 import type { Progress } from '#shared/types/progress'
 import type { QuestTriple, SkillTree } from '#shared/types/skill-tree'
 import { slotForNewPath, type ColorSlot } from '#shared/utils/color-slot'
 import { completionPercent, emptyProgress } from '#shared/utils/progress-engine'
-import { hobbyId, hobbyPath, type HobbyEntry, type HobbyLibrary, type HobbyRecord } from './hobby-store'
+import { hobbyId, hobbyPath, profileField, type HobbyEntry, type HobbyLibrary, type HobbyRecord } from './hobby-store'
 
 /** One Path_Row with its Progress_Row, as the app holds it. */
 export interface CloudPath {
@@ -69,8 +70,15 @@ export function activityTimes(paths: readonly CloudPath[]): number[] {
  * (or none, for a legacy tick), a newly ticked one gets `now`, an unticked one
  * loses its time. Entries with no time are left out.
  */
-export function stampQuestTicks(prev: QuestTicks, before: Progress, after: Progress, now: number): QuestTicks {
-  const ids = new Set([...Object.keys(prev), ...Object.keys(after.quests)])
+export function stampQuestTicks(
+  prev: QuestTicks,
+  before: Progress,
+  after: Progress,
+  now: number,
+  skip: ReadonlySet<string> = new Set(),
+): QuestTicks {
+  // A Refresher_Quest gets no Tick_Time, so it never makes a day active (spec: path-intake, Req 10.4).
+  const ids = new Set([...Object.keys(prev), ...Object.keys(after.quests)].filter((id) => !skip.has(id)))
   const entries = [...ids].map((id): [string, QuestTriple<number | null>] => {
     const ticked = Object.hasOwn(after.quests, id) ? after.quests[id] : undefined
     const was = Object.hasOwn(before.quests, id) ? before.quests[id] : undefined
@@ -108,6 +116,8 @@ export interface GeneratedPath {
   tree: SkillTree
   model: string
   level: StartLevel
+  /** The Stored_Profile the Tree_Route saved, or none (spec: path-intake, Req 11.8). */
+  profile?: StoredProfile | null
 }
 
 /**
@@ -122,7 +132,7 @@ export function upsertGenerated(paths: readonly CloudPath[], generated: Generate
   const id = hobbyId(generated.tree)
   const fresh = (addedAt: number, colorSlot: ColorSlot): CloudPath => ({
     pathId: generated.pathId,
-    record: { id, tree: generated.tree, model: generated.model, addedAt, archived: false, colorSlot },
+    record: { id, tree: generated.tree, model: generated.model, addedAt, archived: false, colorSlot, ...profileField(generated.profile) },
     level: generated.level,
     progress: emptyProgress(),
     completedAt: {},

@@ -15,6 +15,11 @@ export interface SkillNode {
   searchQueries?: string[]
   /** True when videos shorter than 60 s are fine; absent means false. */
   quickTip?: boolean
+  /**
+   * The id of the Known_Skill this Node was built for (spec: path-intake). A Node that carries
+   * one is a Known_Node: completed from the start. Absent or null means none.
+   */
+  knownOptionId?: string | null
 }
 
 export interface Section {

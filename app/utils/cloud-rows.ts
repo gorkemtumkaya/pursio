@@ -17,7 +17,7 @@ import { START_LEVELS } from '#shared/utils/llm'
 import { emptyProgress } from '#shared/utils/progress-engine'
 import { loadSkillTree } from '#shared/utils/skill-tree-load'
 import { emptyQuestData, type CloudPath } from './cloud-library'
-import { hobbyId } from './hobby-store'
+import { hobbyId, profileField, readTreeWithProfile } from './hobby-store'
 import { storedProgressSchema } from './progress-store'
 
 const pathRowSchema = z.object({
@@ -29,6 +29,8 @@ const pathRowSchema = z.object({
   created_at: z.string(),
   // Read on its own below: a missing or bad value never drops the row (spec: fresh-v2).
   color_slot: z.unknown().optional(),
+  // Read on its own: a bad value reads as no profile and never drops the row (spec: path-intake, Req 11.5).
+  profile: z.unknown().optional(),
 })
 
 /** A parsed Path_Row whose Color_Slot may still be missing (a row read before the migration). */
@@ -42,6 +44,7 @@ function readPathRow(raw: unknown): ParsedPathRow | null {
   if (!row.success) return null
   const loaded = loadSkillTree(row.data.tree)
   if (!loaded.ok) return null
+  const { tree, profile } = readTreeWithProfile(loaded.value, row.data.profile)
   const addedAt = Date.parse(row.data.created_at)
   if (!Number.isFinite(addedAt)) return null
   const colorSlot = isColorSlot(row.data.color_slot) ? row.data.color_slot : null
@@ -50,12 +53,13 @@ function readPathRow(raw: unknown): ParsedPathRow | null {
     path: {
       pathId: row.data.id,
       record: {
-        id: hobbyId(loaded.value),
-        tree: loaded.value,
+        id: hobbyId(tree),
+        tree,
         model: row.data.model,
         addedAt,
         archived: row.data.archived,
         colorSlot: colorSlot ?? 1,
+        ...profileField(profile),
       },
       level: row.data.level,
       progress: emptyProgress(),
@@ -244,6 +248,7 @@ export function toPathInsertRow(userId: string, path: CloudPath): PathInsertRow 
     archived: record.archived,
     created_at: new Date(record.addedAt).toISOString(),
     color_slot: record.colorSlot,
+    ...profileField(record.profile),
   }
 }
 

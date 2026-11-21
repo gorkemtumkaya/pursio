@@ -29,6 +29,7 @@ export const ICON_NAMES = [
   'reset',
   'spark',
   'bookmark',
+  'flag',
 ] as const
 
 export type IconName = (typeof ICON_NAMES)[number]
@@ -162,6 +163,8 @@ export const ICONS: Readonly<Record<IconName, IconDefinition>> = {
   },
   /** Fresh save control (spec: fresh, Req 12.6, 13.2). */
   bookmark: { filled: false, shapes: [{ tag: 'path', d: 'M7 4h10a1 1 0 0 1 1 1v15l-6-4-6 4V5a1 1 0 0 1 1-1z' }] },
+  /** Ready card finish line (spec: path-intake, Req 12.1): a pole with a waving flag. */
+  flag: { filled: false, shapes: [{ tag: 'path', d: 'M6 20.5V4M6 4.5h10.5l-2.5 4 2.5 4H6' }] },
 }
 
 export function isIconName(value: unknown): value is IconName {

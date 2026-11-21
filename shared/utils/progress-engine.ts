@@ -1,8 +1,20 @@
 import type { CompletionResult, NodeState, Progress, QuestId } from '../types/progress'
 import type { QuestTriple, SkillNode, SkillTree } from '../types/skill-tree'
+import { knownNodeIds } from './known-nodes'
 
 export function emptyProgress(): Progress {
   return { completed: [], quests: {} }
+}
+
+/**
+ * Effective_Completed: the completed ids of the Progress plus the tree's Known_Nodes
+ * (spec: path-intake, Req 9.2). Known_Nodes are never written to the Progress; they come from
+ * the tree, so a reset keeps them and the head start can never be given twice.
+ */
+export function effectiveCompleted(tree: SkillTree, progress: Progress): Set<string> {
+  const done = new Set(progress.completed)
+  for (const id of knownNodeIds(tree)) done.add(id)
+  return done
 }
 
 /** First Node with the given id, in Section order then Node order. */
@@ -22,7 +34,7 @@ function isNodeAvailable(node: SkillNode, done: ReadonlySet<string>): boolean {
 /** Not completed, and every prerequisite completed (Req 4.3, 4.7). Unknown ids are not available. */
 export function isAvailable(tree: SkillTree, progress: Progress, id: string): boolean {
   const node = findNode(tree, id)
-  return node !== undefined && isNodeAvailable(node, new Set(progress.completed))
+  return node !== undefined && isNodeAvailable(node, effectiveCompleted(tree, progress))
 }
 
 function currentIdFor(tree: SkillTree, done: ReadonlySet<string>): string | null {
@@ -36,7 +48,7 @@ function currentIdFor(tree: SkillTree, done: ReadonlySet<string>): string | null
 
 /** Open_Nodes in document order: not completed, every prerequisite completed. First node wins on a repeated id. */
 export function openNodes(tree: SkillTree, progress: Progress): SkillNode[] {
-  const done = new Set(progress.completed)
+  const done = effectiveCompleted(tree, progress)
   const seen = new Set<string>()
   const open: SkillNode[] = []
   for (const section of tree.sections) {
@@ -90,12 +102,12 @@ export function diffTicks(
 
 /** First available Main_Node in document order; side quests are never current (Req 4.2, 4.5). */
 export function findCurrentNodeId(tree: SkillTree, progress: Progress): string | null {
-  return currentIdFor(tree, new Set(progress.completed))
+  return currentIdFor(tree, effectiveCompleted(tree, progress))
 }
 
 /** Ordered rules: completed → current → side_quest → milestone → locked (Req 4.1, 4.4). */
 export function deriveNodeStates(tree: SkillTree, progress: Progress): Map<string, NodeState> {
-  const done = new Set(progress.completed)
+  const done = effectiveCompleted(tree, progress)
   const currentId = currentIdFor(tree, done)
   const states = new Map<string, NodeState>()
   for (const section of tree.sections) {
@@ -119,7 +131,7 @@ export function deriveNodeStates(tree: SkillTree, progress: Progress): Map<strin
  */
 export function markComplete(tree: SkillTree, progress: Progress, id: string): CompletionResult {
   const node = findNode(tree, id)
-  const done = new Set(progress.completed)
+  const done = effectiveCompleted(tree, progress)
   if (node === undefined || !isNodeAvailable(node, done)) {
     return { completed: false, progress }
   }
@@ -180,6 +192,6 @@ export function activeSectionIndex(tree: SkillTree, progress: Progress): number 
 export function completionPercent(tree: SkillTree, progress: Progress): number {
   const ids = new Set(tree.sections.flatMap((s) => s.nodes.map((n) => n.id)))
   if (ids.size === 0) return 0
-  const done = new Set(progress.completed.filter((id) => ids.has(id)))
+  const done = new Set([...effectiveCompleted(tree, progress)].filter((id) => ids.has(id)))
   return Math.round((done.size / ids.size) * 100)
 }

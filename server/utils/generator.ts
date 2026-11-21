@@ -1,3 +1,4 @@
+import type { FinalProfile } from '../../shared/types/learner-profile'
 import type { Provider, ProviderConfig, StartLevel } from '../../shared/types/llm'
 import type { SkillTree } from '../../shared/types/skill-tree'
 import type { ValidationError } from '../../shared/types/validation'
@@ -14,6 +15,8 @@ export interface GeneratorDeps {
   adapters: Record<Provider, ProviderAdapter>
   systemPrompt: string
   signal?: AbortSignal
+  /** The learner's confirmed profile; with a goal, the last Node must be a milestone (spec: path-intake). */
+  profile?: FinalProfile | null
 }
 
 /** At most one retry, so at most two adapter calls per generation (Req 4.6). */
@@ -54,11 +57,13 @@ export async function generateSkillTree(
 ): Promise<GenerationResult> {
   const adapter = deps.adapters[config.provider]
   const { systemPrompt, signal } = deps
+  const profile = deps.profile ?? null
+  const requireFinalMilestone = profile?.goal != null
   let note: string | undefined
   let detail = 'unknown'
 
   for (let attempt = 1; attempt <= MAX_ATTEMPTS; attempt++) {
-    const result = await adapter.generateTree(hobby, config, { systemPrompt, level, retryNote: note, signal })
+    const result = await adapter.generateTree(hobby, config, { systemPrompt, level, retryNote: note, signal, profile })
     if (signal?.aborted) return { kind: 'error', code: 'timeout' }
 
     if (!result.ok) {
@@ -75,7 +80,7 @@ export async function generateSkillTree(
     const unwrapped = unwrapGenerationOutput(result.value)
     if (unwrapped.kind === 'not_a_hobby') return { kind: 'not_a_hobby' }
 
-    const loaded = loadSkillTree(unwrapped.value, { requireVideoFields: true, requirePathOrder: true })
+    const loaded = loadSkillTree(unwrapped.value, { requireVideoFields: true, requirePathOrder: true, requireFinalMilestone })
     if (loaded.ok) return { kind: 'tree', tree: loaded.value, model: config.model }
     note = retryNote(loaded.errors)
     detail = rejectionDetail(loaded.errors)

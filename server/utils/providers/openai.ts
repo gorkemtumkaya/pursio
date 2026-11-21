@@ -32,7 +32,7 @@ export function createOpenAIAdapter(fetcher: Fetcher): ProviderAdapter {
     async generateTree(hobby, config, options) {
       const messages = [
         { role: 'system', content: options.systemPrompt },
-        { role: 'user', content: userMessage(hobby, options.level) },
+        { role: 'user', content: userMessage(hobby, options.level, options.profile) },
       ]
       if (options.retryNote) messages.push({ role: 'user', content: options.retryNote })
       const body: Record<string, unknown> = {
@@ -62,7 +62,11 @@ export function createOpenAIAdapter(fetcher: Fetcher): ProviderAdapter {
           json_schema: { name: options.schemaName, strict: true, schema: options.schema },
         },
       }
-      const result = await callProvider(fetcher, URL, headers(config), body, options.signal)
+      const effort = options.fastMode?.reasoningEffort
+      if (effort !== undefined && effort !== '') body.reasoning_effort = effort
+      const result = await callProvider(fetcher, URL, headers(config), body, options.signal, {
+        redactContent: options.redactContent,
+      })
       if (!result.ok) return result
       const parsed = parsedContent(result.response)
       return parsed.ok ? { ok: true, value: parsed.value } : { ok: false, error: 'bad_output' }

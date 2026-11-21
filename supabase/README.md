@@ -20,11 +20,15 @@ Apply the files in `supabase/migrations/` in file-name order:
 11. `20261117000000_path_color_slot.sql`: `paths.color_slot` (1 to 5, the hobby's color on the Fresh page). It backfills existing paths per user in creation order and adds the `paths_assign_color_slot` trigger, which gives a new path the slot after the user's latest-created path. `save_generated_path` is unchanged.
 12. `20261118000000_waitlist.sql`: the `waitlist` table behind the landing page's founding section (`email`, `kind`, `created_at`). Row Level Security is on with no policy, so only the server writes to it with the service role key (`POST /api/waitlist`). Until it is applied, the landing page's email forms answer "Could not save that".
 
+13. `20261121000000_path_profile.sql`: `paths.profile` (the Learner_Profile a path was built for, or null) and an 8-argument `save_generated_path` whose last argument, `p_profile`, defaults to null. A 7-argument call still resolves, so it can be applied before the deploy.
+
 Either run `supabase db push` with the Supabase CLI linked to the project, or paste each file into the dashboard SQL editor and run them in that order.
 
 Rollout order: apply the quests migration before deploying the new client. The new client selects the new columns, so a database without them makes every load fail. An old client on the new database keeps working.
 
 The same holds for `20261117000000_path_color_slot.sql`: apply it before deploying the Fresh v2 client and server, which select `paths.color_slot`. An old client on the new database keeps working, because the trigger fills the slot for its inserts.
+
+The same holds for `20261121000000_path_profile.sql`: apply it before deploying the path intake client and server, which select `paths.profile` and send `p_profile`.
 
 ## 2. Dashboard settings
 

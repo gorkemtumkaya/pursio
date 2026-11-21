@@ -1,6 +1,7 @@
 // Pure numbers behind the Profile_Page: totals, hobby rows and milestones.
 import type { SkillNode } from '#shared/types/skill-tree'
-import { completionPercent } from '#shared/utils/progress-engine'
+import { knownNodeIds } from '#shared/utils/known-nodes'
+import { completionPercent, effectiveCompleted } from '#shared/utils/progress-engine'
 import { longestStreak, streakDays } from '#shared/utils/streak'
 import { LEVEL_THRESHOLDS, levelFor, weeklyRewardXp, xpFor, type XpLevel } from '#shared/utils/xp'
 import { activityTimes, type CloudPath } from './cloud-library'
@@ -45,9 +46,12 @@ interface PathCount {
 /** Completed Nodes and checked quests of one path; ids that are not in the tree are ignored. */
 function countPath({ record, progress }: CloudPath): PathCount {
   const nodes = record.tree.sections.flatMap((section) => section.nodes)
-  const completed = new Set(progress.completed)
+  const completed = effectiveCompleted(record.tree, progress)
+  // Refresher_Quests count for nothing (spec: path-intake, Req 10.4).
+  const known = new Set(knownNodeIds(record.tree))
   const quests = nodes.reduce(
-    (sum, node) => sum + (progress.quests[node.id]?.filter((checked) => checked === true).length ?? 0),
+    (sum, node) =>
+      known.has(node.id) ? sum : sum + (progress.quests[node.id]?.filter((checked) => checked === true).length ?? 0),
     0,
   )
   return { done: nodes.filter((node) => completed.has(node.id)), total: nodes.length, quests }

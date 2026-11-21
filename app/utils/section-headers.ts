@@ -1,6 +1,6 @@
 import type { Progress } from '#shared/types/progress'
 import type { SkillTree } from '#shared/types/skill-tree'
-import { activeSectionIndex } from '#shared/utils/progress-engine'
+import { activeSectionIndex, effectiveCompleted } from '#shared/utils/progress-engine'
 
 export interface SectionHeaderModel {
   /** 0-based; the eyebrow shows index + 1. */
@@ -20,7 +20,7 @@ export interface SectionHeaderModel {
  * Computed from `progress`, so a completion updates every header in the same render (Req 7.6, 7.7).
  */
 export function sectionHeaderModels(tree: SkillTree, progress: Progress): SectionHeaderModel[] {
-  const done = new Set(progress.completed)
+  const done = effectiveCompleted(tree, progress)
   const active = activeSectionIndex(tree, progress)
 
   return tree.sections.map((section, index): SectionHeaderModel => {

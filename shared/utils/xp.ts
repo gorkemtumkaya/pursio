@@ -1,5 +1,6 @@
 import type { Progress } from '../types/progress'
 import type { SkillTree } from '../types/skill-tree'
+import { HEAD_START_XP_PER_SKILL, knownNodeIds } from './known-nodes'
 
 export type XpLevel = 1 | 2 | 3 | 4 | 5
 
@@ -33,16 +34,34 @@ function cleanCount(count: number): number {
   return Number.isInteger(count) && count > 0 ? count : 0
 }
 
-/** 50 × the number of distinct completed ids that exist in the tree. */
-export function skillXpFor(tree: SkillTree, progress: Progress): number {
+/**
+ * Head_Start_XP: 30 × the Known_Nodes of the tree, at most 6 (spec: path-intake, Req 9.3).
+ * Computed from the tree, never stored, so it is the same on every device and never given twice.
+ */
+export function headStartXp(tree: SkillTree): number {
+  return knownNodeIds(tree).length * HEAD_START_XP_PER_SKILL
+}
+
+/** Node ids that earn skill and quest XP: every id of the tree except the Known_Nodes. */
+function earningIds(tree: SkillTree): Set<string> {
   const ids = treeIds(tree)
+  for (const id of knownNodeIds(tree)) ids.delete(id)
+  return ids
+}
+
+/**
+ * 50 × the number of distinct completed ids that exist in the tree and are not Known_Nodes.
+ * A Known_Node gives its 30 through `headStartXp`, never 50 (spec: path-intake, Req 9.4).
+ */
+export function skillXpFor(tree: SkillTree, progress: Progress): number {
+  const ids = earningIds(tree)
   const counted = new Set(progress.completed.filter((id) => ids.has(id)))
   return counted.size * XP_PER_NODE
 }
 
-/** 10 × the number of ticked quests of Nodes that exist in the tree. */
+/** 10 × the number of ticked quests of Nodes that exist in the tree. Refresher_Quests give 0 (Req 10.3). */
 export function questXpFor(tree: SkillTree, progress: Progress): number {
-  const ids = treeIds(tree)
+  const ids = earningIds(tree)
   let ticked = 0
   for (const id of ids) {
     const triple = progress.quests[id]
@@ -52,9 +71,10 @@ export function questXpFor(tree: SkillTree, progress: Progress): number {
   return ticked * XP_PER_QUEST
 }
 
-/** Hobby_XP = skill XP + quest XP + 20 × dailyBonusCount. */
+/** Hobby_XP = head start XP + skill XP + quest XP + 20 × dailyBonusCount. */
 export function xpFor(tree: SkillTree, progress: Progress, dailyBonusCount = 0): number {
   return (
+    headStartXp(tree) +
     skillXpFor(tree, progress) +
     questXpFor(tree, progress) +
     cleanCount(dailyBonusCount) * XP_PER_DAILY_BONUS

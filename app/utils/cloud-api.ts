@@ -76,7 +76,7 @@ export function createCloudApi(client: SupabaseClient, userId: string): CloudApi
     async listPaths(signal) {
       const query = client
         .from('paths')
-        .select('id, level, tree, model, archived, created_at, color_slot')
+        .select('id, level, tree, model, archived, created_at, color_slot, profile')
         .eq('user_id', userId)
         .order('created_at', { ascending: true })
       return rowsOf(await (signal ? query.abortSignal(signal) : query))

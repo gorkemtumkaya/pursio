@@ -1,21 +1,37 @@
 import { describe, expect, it } from 'vitest'
+import type { FinalProfile } from '../../shared/types/learner-profile'
 import { emptySettings, type LlmSettings } from '../../app/utils/llm-settings'
 import { buildTreeRequest, friendlyMessage } from '../../app/utils/tree-client'
 
 const withKey: LlmSettings = { ...emptySettings(), apiKey: 'test-key-placeholder' }
 
-describe('buildTreeRequest level', () => {
-  it('sends hobby and level without an own key', () => {
-    const request = buildTreeRequest('guitar', 'some', emptySettings())
-    expect(request.body.hobby).toBe('guitar')
-    expect(request.body.level).toBe('some')
+const PROFILE: FinalProfile = {
+  level: 'returning',
+  goal: null,
+  avoid: ['performing'],
+  taste: [],
+  known: [],
+  goalOptions: [
+    { id: 'a', label: 'A', finishLine: 'Finish A' },
+    { id: 'b', label: 'B', finishLine: 'Finish B' },
+  ],
+}
+
+describe('buildTreeRequest (spec: path-intake, Req 6.5)', () => {
+  it('sends the hobby and the level new without a profile, as a build worked before intake', () => {
+    const request = buildTreeRequest('guitar', null, emptySettings())
+    expect(request.body).toEqual({ hobby: 'guitar', level: 'new' })
     expect(request.usesOwnKey).toBe(false)
   })
 
-  it('keeps the level and adds provider and model with an own key', () => {
-    const request = buildTreeRequest('guitar', 'some', withKey)
-    expect(request.body.level).toBe('some')
-    expect(request.body.hobby).toBe('guitar')
+  it('sends the profile and no level with a profile', () => {
+    const request = buildTreeRequest('guitar', PROFILE, emptySettings(), ' play at home ')
+    expect(request.body).toEqual({ hobby: 'guitar', profile: PROFILE, goal: 'play at home' })
+  })
+
+  it('adds provider and model with an own key', () => {
+    const request = buildTreeRequest('guitar', PROFILE, withKey)
+    expect(request.body.profile).toBe(PROFILE)
     expect(request.body.provider).toBe(withKey.provider)
     expect(request.body.model).toBeTruthy()
     expect(request.usesOwnKey).toBe(true)

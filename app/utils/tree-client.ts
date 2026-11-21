@@ -1,22 +1,41 @@
 import type { ErrorCode, Provider, StartLevel } from '#shared/types/llm'
-import { KEY_HEADER, isErrorCode } from '#shared/utils/llm'
+import type { FinalProfile } from '#shared/types/learner-profile'
+import { DEFAULT_LEVEL, KEY_HEADER, isErrorCode } from '#shared/utils/llm'
 import { AUTH_MESSAGES } from './auth-logic'
 import { effectiveModel, type LlmSettings } from './llm-settings'
 
 export interface TreeRequest {
-  body: { hobby: string; level: StartLevel; goal?: string; provider?: Provider; model?: string }
+  body: {
+    hobby: string
+    /** Only without a profile; with one, the server takes the level from it (spec: path-intake, Req 7.3). */
+    level?: StartLevel
+    profile?: FinalProfile
+    goal?: string
+    provider?: Provider
+    model?: string
+  }
   headers: Record<string, string>
   usesOwnKey: boolean
 }
 
-/** Sends the key, provider and effective model only when the user set a key (Req 9.5, 11.2). */
-export function buildTreeRequest(hobby: string, level: StartLevel, settings: LlmSettings, goal?: string): TreeRequest {
+/**
+ * With a Final_Profile the body carries it; without one (an Intake_Failure) it carries the level
+ * `new`, as a build worked before intake (spec: path-intake, Req 3.6, 6.5). The key, provider and
+ * effective model are sent only when the user set a key (Req 9.5, 11.2).
+ */
+export function buildTreeRequest(
+  hobby: string,
+  profile: FinalProfile | null,
+  settings: LlmSettings,
+  goal?: string,
+): TreeRequest {
   const apiKey = settings.apiKey.trim()
   const trimmedGoal = goal?.trim() ?? ''
   const goalPart = trimmedGoal === '' ? {} : { goal: trimmedGoal }
-  if (apiKey.length === 0) return { body: { hobby, level, ...goalPart }, headers: {}, usesOwnKey: false }
+  const shape = profile === null ? { level: DEFAULT_LEVEL } : { profile }
+  if (apiKey.length === 0) return { body: { hobby, ...shape, ...goalPart }, headers: {}, usesOwnKey: false }
   return {
-    body: { hobby, level, ...goalPart, provider: settings.provider, model: effectiveModel(settings) },
+    body: { hobby, ...shape, ...goalPart, provider: settings.provider, model: effectiveModel(settings) },
     headers: { [KEY_HEADER]: apiKey },
     usesOwnKey: true,
   }

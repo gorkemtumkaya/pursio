@@ -1,17 +1,36 @@
-import { onScopeDispose, readonly, ref } from 'vue'
-import type { ErrorCode, StartLevel } from '#shared/types/llm'
-import { loadSkillTree } from '#shared/utils/skill-tree-load'
-import { DEFAULT_LEVEL } from '#shared/utils/llm'
-import { toWickOutfit, type WickOutfit } from '~/utils/wick'
+import { computed, onScopeDispose, readonly, ref, shallowRef, watch } from 'vue'
+import type { FinalProfile } from '#shared/types/learner-profile'
+import type { ErrorCode } from '#shared/types/llm'
 import { bearerHeader } from '#shared/utils/auth'
-import { hobbyPath } from '~/utils/hobby-store'
+import { startLevelFor } from '#shared/utils/learner-profile'
+import { normalizeHobby } from '#shared/utils/llm'
+import { loadSkillTree } from '#shared/utils/skill-tree-load'
+import { track } from '~/utils/analytics'
+import { hobbyPath, readTreeWithProfile } from '~/utils/hobby-store'
+import { buildIntakeRequest, runIntake } from '~/utils/intake-client'
+import {
+  answeredProps,
+  finalProfile,
+  openPanel,
+  removeChip as removePanelChip,
+  shownProps,
+  toggleGoal as togglePanelGoal,
+  toggleOption,
+  type PanelState,
+  type ProfileField,
+} from '~/utils/intake-panel'
 import { loadSettings } from '~/utils/llm-settings'
 import type { StorageLike } from '~/utils/progress-store'
 import { buildTreeRequest, errorCodeFrom, friendlyMessage } from '~/utils/tree-client'
 import { summarizeTree, type TreeSummary } from '~/utils/tree-summary'
-import { loadUserSettings } from '~/utils/user-settings'
+import { effectiveLanguage, loadUserSettings } from '~/utils/user-settings'
+import { toWickOutfit, type WickOutfit } from '~/utils/wick'
 
-export type BuilderState = 'input' | 'generating' | 'ready' | 'error'
+/**
+ * `reading`: intake runs. `panel`: the Panel is open under the inputs (spec: path-intake).
+ * The other states are those of the new-hobby-page spec.
+ */
+export type BuilderState = 'input' | 'reading' | 'panel' | 'generating' | 'ready' | 'error'
 
 export const BUILD_STEPS = [
   'Mapping the skills',
@@ -48,11 +67,13 @@ function errorData(e: unknown): unknown {
   return undefined
 }
 
-/** State and actions of the new hobby page (spec: new-hobby-page). */
+/** State and actions of the new hobby page (specs: new-hobby-page, path-intake). */
 export function useHobbyBuilder() {
   const hobby = ref('')
-  const level = ref<StartLevel>(DEFAULT_LEVEL)
+  /** The optional "Tell Wick more" text. Kept in memory only, never stored (spec: path-intake, AS7). */
+  const note = ref('')
   const state = ref<BuilderState>('input')
+  const panel = shallowRef<PanelState | null>(null)
   const stepIndex = ref(0)
   const errorCode = ref<ErrorCode | null>(null)
   const errorMessage = ref<string | null>(null)
@@ -67,6 +88,10 @@ export function useHobbyBuilder() {
   let preparing = false
   let timer: ReturnType<typeof setInterval> | null = null
   let controller: AbortController | null = null
+  let intakeController: AbortController | null = null
+  let disposed = false
+  /** What the last generation was for, so "Try again" can reuse it (Req 13.2). */
+  let lastBuild: { hobby: string; profile: FinalProfile | null } | null = null
 
   function stopTimer(): void {
     if (timer !== null) {
@@ -83,28 +108,148 @@ export function useHobbyBuilder() {
     }, STEP_INTERVAL_MS)
   }
 
-  async function build(): Promise<void> {
+  function usesOwnKey(): boolean {
+    return loadSettings(browserStorage).apiKey.trim() !== ''
+  }
+
+  function showError(code: ErrorCode): void {
+    errorCode.value = code
+    errorMessage.value = friendlyMessage(code, { usesOwnKey: usesOwnKey() })
+    state.value = 'error'
+  }
+
+  /** The token as held right now, read once per request; null shows the session error (Req 3.2). */
+  async function readToken(): Promise<string | null> {
+    preparing = true
+    const token = await auth.accessToken().finally(() => {
+      preparing = false
+    })
+    if (token === null) showError('unauthorized')
+    return token
+  }
+
+  /** The Settings language: the account value wins, else the browser copy. */
+  function learnerLanguage(): string {
+    const account = cloud.profile.value?.language ?? null
+    if (account !== null && account.trim() !== '') return account
+    return effectiveLanguage(loadUserSettings(browserStorage))
+  }
+
+  /**
+   * "Build my path" in the input state, and the landing handoff (Req 1.6, 3.1). Runs intake and
+   * opens the Panel; any Intake_Failure builds at once from the hobby alone (Req 3.6, decision 11).
+   */
+  async function start(): Promise<void> {
+    const value = hobby.value.trim()
+    if (value.length === 0 || state.value !== 'input' || preparing) return
+    const token = await readToken()
+    if (token === null) return
+    if (disposed) return
+
+    state.value = 'reading'
+    errorCode.value = null
+    errorMessage.value = null
+    outfit.value = 'none'
+    const current = new AbortController()
+    intakeController = current
+    const request = buildIntakeRequest(value, note.value, learnerLanguage(), loadSettings(browserStorage))
+    const outcome = await runIntake(request, {
+      fetch: (body, signal) =>
+        $fetch<unknown>('/api/intake', {
+          method: 'POST',
+          body: body.body,
+          headers: { ...body.headers, ...bearerHeader(token) },
+          signal,
+          retry: 0,
+        }),
+      setTimer: (run, ms) => setTimeout(run, ms),
+      clearTimer: (handle) => clearTimeout(handle as ReturnType<typeof setTimeout>),
+      signal: current.signal,
+    })
+    if (intakeController === current) intakeController = null
+    // The learner left the page: start nothing (Req 3.7).
+    if (disposed || current.signal.aborted) return
+
+    if (outcome.kind === 'profile') {
+      panel.value = openPanel(outcome.profile)
+      outfit.value = toWickOutfit(outcome.profile.mascotSet)
+      state.value = 'panel'
+      track('intake_shown', shownProps(panel.value))
+      return
+    }
+    track('intake_failed')
+    await generate(null)
+  }
+
+  function removeChip(field: ProfileField): void {
+    if (panel.value === null || state.value !== 'panel') return
+    panel.value = removePanelChip(panel.value, field)
+    track('intake_chip_removed', { field })
+  }
+
+  function toggleGoal(id: string): void {
+    if (panel.value !== null && state.value === 'panel') panel.value = togglePanelGoal(panel.value, id)
+  }
+
+  function toggleKnown(id: string): void {
+    if (panel.value !== null && state.value === 'panel') panel.value = toggleOption(panel.value, 'known', id)
+  }
+
+  function toggleTaste(id: string): void {
+    if (panel.value !== null && state.value === 'panel') panel.value = toggleOption(panel.value, 'taste', id)
+  }
+
+  /** "Build my path" in the Panel (Req 6.1). */
+  async function buildFromPanel(): Promise<void> {
+    const current = panel.value
+    if (current === null || state.value !== 'panel' || preparing) return
+    track('intake_answered', answeredProps(current))
+    await generate(finalProfile(current, 'build'))
+  }
+
+  /** "Skip, just build it": the remaining Chips only (Req 6.2). */
+  async function skip(): Promise<void> {
+    const current = panel.value
+    if (current === null || state.value !== 'panel' || preparing) return
+    track('intake_skipped')
+    await generate(finalProfile(current, 'skip'))
+  }
+
+  /**
+   * "Try again" in the error state (Req 13.2, 13.3): the same hobby builds again with the same
+   * profile and no intake; a changed hobby goes back to the input state and sends nothing.
+   */
+  async function retry(): Promise<void> {
+    if (state.value !== 'error' || preparing) return
+    const value = hobby.value.trim()
+    if (value.length === 0) return
+    if (lastBuild !== null && normalizeHobby(value) === lastBuild.hobby) {
+      await generate(lastBuild.profile)
+      return
+    }
+    lastBuild = null
+    errorCode.value = null
+    errorMessage.value = null
+    state.value = 'input'
+  }
+
+  /** Builds the path for the hobby and the Final_Profile, or with no profile after an Intake_Failure. */
+  async function generate(profile: FinalProfile | null): Promise<void> {
     const value = hobby.value.trim()
     if (value.length === 0 || state.value === 'generating' || preparing) return
     // The Settings goal: the account value wins, else the browser copy (spec: skill-video-pipeline, Req 1.11).
     const accountGoal = cloud.profile.value?.goal ?? null
     const goal = accountGoal !== null && accountGoal.trim() !== '' ? accountGoal : loadUserSettings(browserStorage).goal
-    const request = buildTreeRequest(value, level.value, loadSettings(browserStorage), goal)
-    const requestLevel = level.value
+    const request = buildTreeRequest(value, profile, loadSettings(browserStorage), goal)
+    const requestLevel = startLevelFor(profile?.level ?? null)
+    lastBuild = { hobby: normalizeHobby(value), profile }
     // The token as held right now; without one nothing is sent (spec: accounts-cloud-save, Req 9.12, 9.14).
-    preparing = true
-    const token = await auth.accessToken().finally(() => {
-      preparing = false
-    })
-    if (token === null) {
-      errorCode.value = 'unauthorized'
-      errorMessage.value = friendlyMessage('unauthorized', { usesOwnKey: request.usesOwnKey })
-      state.value = 'error'
-      return
-    }
+    const token = await readToken()
+    if (token === null) return
+    if (disposed) return
+    panel.value = null
     state.value = 'generating'
     stepIndex.value = 0
-    outfit.value = 'none'
     summary.value = null
     errorCode.value = null
     errorMessage.value = null
@@ -129,9 +274,11 @@ export function useHobbyBuilder() {
       const pathId = record.pathId
       if (loaded.ok && typeof model === 'string' && model.length > 0 && typeof pathId === 'string' && pathId !== '') {
         // The route already saved it to the account; nothing is written to localStorage (spec: accounts-cloud-save, Req 5.8).
-        hobbyId = cloud.addGenerated({ pathId, tree: loaded.value, model, level: requestLevel })
-        summary.value = summarizeTree(loaded.value)
-        outfit.value = toWickOutfit(loaded.value.mascot.set)
+        // The tree and its Stored_Profile are held together, as every store keeps them (spec: path-intake).
+        const saved = readTreeWithProfile(loaded.value, record.profile)
+        hobbyId = cloud.addGenerated({ pathId, tree: saved.tree, model, level: requestLevel, profile: saved.profile })
+        summary.value = summarizeTree(saved.tree, saved.profile)
+        outfit.value = toWickOutfit(saved.tree.mascot.set)
         posthog?.capture('skill_path_generated', { start_level: requestLevel })
         stopTimer()
         state.value = 'ready'
@@ -144,23 +291,31 @@ export function useHobbyBuilder() {
       clearTimeout(abortTimer)
       if (controller === current) controller = null
     }
-    // Keep the typed hobby so the learner can retry (Req 8.4).
+    // Keep the typed hobby, the Note and the profile so the learner can retry (Req 8.4, 13.1).
     stopTimer()
-    errorCode.value = code
-    errorMessage.value = friendlyMessage(code, { usesOwnKey: request.usesOwnKey })
-    state.value = 'error'
+    showError(code)
   }
 
+  /** Editing the hobby or the Note closes the Panel and drops its answers (Req 4.9). */
+  function closePanel(): void {
+    if (panel.value === null) return
+    panel.value = null
+    outfit.value = 'none'
+    if (state.value === 'panel') state.value = 'input'
+  }
+  watch([hobby, note], closePanel)
+
   function pickIdea(idea: string): void {
-    if (state.value === 'generating') return
+    if (state.value === 'generating' || state.value === 'reading') return
     hobby.value = idea
     errorCode.value = null
     errorMessage.value = null
     state.value = 'input'
+    closePanel()
   }
 
   function surprise(): void {
-    if (state.value === 'generating') return
+    if (state.value === 'generating' || state.value === 'reading') return
     const index = Math.floor(Math.random() * SURPRISE_POOL.length)
     pickIdea(SURPRISE_POOL[index] ?? SURPRISE_POOL[0])
   }
@@ -171,21 +326,33 @@ export function useHobbyBuilder() {
   }
 
   onScopeDispose(() => {
+    disposed = true
     stopTimer()
     controller?.abort()
     controller = null
+    intakeController?.abort()
+    intakeController = null
   })
 
   return {
     hobby,
-    level,
+    note,
     state: readonly(state),
+    /** Read only for callers: every change goes through the actions below. */
+    panel: computed(() => panel.value),
     stepIndex: readonly(stepIndex),
     errorCode: readonly(errorCode),
     errorMessage: readonly(errorMessage),
     summary: readonly(summary),
     outfit: readonly(outfit),
-    build,
+    start,
+    removeChip,
+    toggleGoal,
+    toggleKnown,
+    toggleTaste,
+    buildFromPanel,
+    skip,
+    retry,
     pickIdea,
     surprise,
     openPath,

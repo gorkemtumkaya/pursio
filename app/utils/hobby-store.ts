@@ -1,5 +1,8 @@
+import type { StoredProfile } from '#shared/types/learner-profile'
 import type { SkillTree } from '#shared/types/skill-tree'
 import { fillColorSlots, isColorSlot, slotForNewPath, type ColorSlot } from '#shared/utils/color-slot'
+import { alignKnownNodes } from '#shared/utils/known-nodes'
+import { parseStoredProfile } from '#shared/utils/learner-profile'
 import { normalizeHobby } from '#shared/utils/llm'
 import { completionPercent } from '#shared/utils/progress-engine'
 import { loadSkillTree } from '#shared/utils/skill-tree-load'
@@ -18,6 +21,25 @@ export interface HobbyRecord {
   archived: boolean
   /** Picks the hobby's colors. Assigned once when the hobby is added and never changed (spec: fresh-v2, Req 9.5, 9.6). */
   colorSlot: ColorSlot
+  /**
+   * The Stored_Profile the path was built for (spec: path-intake, Req 11.8). It travels with the
+   * tree in every store, so its Known_Nodes read back the same. Absent on paths without one.
+   */
+  profile?: StoredProfile | null
+}
+
+/** The `profile` key of a record: present only when there is a profile, so older shapes stay as they were. */
+export function profileField(profile: StoredProfile | null | undefined): { profile?: StoredProfile } {
+  return profile ? { profile } : {}
+}
+
+/**
+ * A stored tree and profile as every reader holds them: the profile read with the strict shape
+ * (anything else is null) and the tree's Known_Nodes aligned with it (spec: path-intake, Req 11.5).
+ */
+export function readTreeWithProfile(tree: SkillTree, rawProfile: unknown): { tree: SkillTree; profile: StoredProfile | null } {
+  const profile = parseStoredProfile(rawProfile)
+  return { tree: alignKnownNodes(tree, profile?.known.map((option) => option.id) ?? []).tree, profile }
 }
 
 export interface HobbyLibrary {
@@ -68,14 +90,16 @@ function parseEntry(value: unknown): ParsedEntry | null {
   if (typeof addedAt !== 'number' || !Number.isFinite(addedAt)) return null
   const loaded = loadSkillTree(value.tree)
   if (!loaded.ok) return null
+  const { tree, profile } = readTreeWithProfile(loaded.value, value.profile)
   // The id is recomputed from the tree, so it always matches its Progress key.
   return {
-    id: hobbyId(loaded.value),
-    tree: loaded.value,
+    id: hobbyId(tree),
+    tree,
     model,
     addedAt,
     archived: archived === true,
     colorSlot: isColorSlot(colorSlot) ? colorSlot : null,
+    ...profileField(profile),
   }
 }
 
@@ -112,13 +136,14 @@ export function parseHobbyLibrary(raw: string | null): { library: HobbyLibrary; 
 
 export function serializeHobbyLibrary(library: HobbyLibrary): string {
   return JSON.stringify({
-    hobbies: library.hobbies.map(({ id, tree, model, addedAt, archived, colorSlot }) => ({
+    hobbies: library.hobbies.map(({ id, tree, model, addedAt, archived, colorSlot, profile }) => ({
       id,
       tree,
       model,
       addedAt,
       archived,
       colorSlot,
+      ...profileField(profile),
     })),
     activeId: library.activeId,
   })

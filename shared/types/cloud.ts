@@ -1,3 +1,4 @@
+import type { StoredProfile } from './learner-profile'
 import type { StartLevel } from './llm'
 import type { QuestId } from './progress'
 import type { QuestTriple, SkillTree } from './skill-tree'
@@ -14,6 +15,8 @@ export interface PathSaveInput {
   model: string
   /** The classified Goal; missing means `none` (spec: skill-video-pipeline). */
   goalClass?: GoalClass
+  /** The Stored_Profile; missing means none (spec: path-intake, Req 11.2). */
+  profile?: StoredProfile | null
 }
 
 /** Arguments of the `save_generated_path` database function. */
@@ -25,6 +28,7 @@ export interface PathSaveArgs {
   p_mascot_set: string
   p_model: string
   p_goal_class: GoalClass
+  p_profile: StoredProfile | null
 }
 
 /** Completion_Timestamps: Node id to epoch ms. */
@@ -45,6 +49,8 @@ export interface PathInsertRow {
   created_at: string
   /** The path's Color_Slot. Left out, the database trigger assigns the next one (spec: fresh-v2, Req 9.5, 9.8). */
   color_slot?: ColorSlot
+  /** The Stored_Profile, so Undo and the legacy import keep the Known_Nodes (spec: path-intake, Req 11.8). */
+  profile?: StoredProfile | null
 }
 
 /** Tick_Times: Node id to one time per quest, null when that quest has none. All-null entries are left out. */

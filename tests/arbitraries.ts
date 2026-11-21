@@ -2,11 +2,13 @@
 // Explicit relative imports only, so vitest loads this file without Nuxt.
 import fc from 'fast-check'
 import type { CompletedAt, DailyPick, QuestData, QuestTicks } from '../shared/types/cloud'
+import type { FinalProfile, GoalOption, IntakeLevel, IntakeProfile, Option } from '../shared/types/learner-profile'
 import type { StartLevel } from '../shared/types/llm'
 import type { Progress, QuestId } from '../shared/types/progress'
 import type { Level, QuestTriple, Section, SkillNode, SkillTree } from '../shared/types/skill-tree'
 import { fillColorSlots, type ColorSlot } from '../shared/utils/color-slot'
 import { normalizeHobby } from '../shared/utils/llm'
+import { MASCOT_SETS } from '../shared/utils/mascot-sets'
 import { localDayKey } from '../shared/utils/streak'
 import { ACTIVITY_STORAGE_KEY } from '../app/utils/activity-store'
 import type { CloudPath } from '../app/utils/cloud-library'
@@ -890,3 +892,190 @@ export const arbAuthError: fc.Arbitrary<AuthErrorCase> = fc.oneof(
     })
     .map((error): AuthErrorCase => ({ error, expected: 'failed' })),
 )
+
+// ---------------------------------------------------------------------------
+// Learner profiles (spec: path-intake)
+// ---------------------------------------------------------------------------
+
+const PROFILE_WORDS = ['play', 'songs', 'at', 'home', 'şarkı', 'çal', '弾く', 'quick', 'lunch', 'spicy', 'tune', 'by', 'ear'] as const
+
+/** A trimmed text of 1 to 4 short words, at most 30 characters. */
+export const arbProfileText: fc.Arbitrary<string> = fc
+  .array(fc.constantFrom(...PROFILE_WORDS), { minLength: 1, maxLength: 4 })
+  .map(words => words.join(' '))
+
+/** A valid option id: 1 to 4 segments of lowercase letters and digits, joined by single hyphens. */
+export const arbOptionId: fc.Arbitrary<string> = fc
+  .array(fc.stringMatching(/^[a-z0-9]{1,6}$/), { minLength: 1, maxLength: 4 })
+  .map(parts => parts.join('-'))
+
+function arbOptions(min: number, max: number): fc.Arbitrary<Option[]> {
+  return fc
+    .uniqueArray(arbOptionId, { minLength: min, maxLength: max })
+    .chain(ids => fc.tuple(...ids.map(id => arbProfileText.map((label): Option => ({ id, label })))))
+}
+
+function arbGoalOptions(min: number, max: number): fc.Arbitrary<GoalOption[]> {
+  return arbOptions(min, max).chain(options =>
+    fc.tuple(...options.map(option => arbProfileText.map((finishLine): GoalOption => ({ ...option, finishLine })))),
+  )
+}
+
+/** Distinct entries without regard to case, as the Sanitizer returns them. */
+const arbEntries: fc.Arbitrary<string[]> = fc.uniqueArray(arbProfileText, {
+  maxLength: 5,
+  selector: text => text.toLowerCase(),
+})
+
+export const arbIntakeLevel: fc.Arbitrary<IntakeLevel | null> = fc.constantFrom<IntakeLevel | null>(
+  'new',
+  'returning',
+  'regular',
+  null,
+)
+
+/** A valid Intake_Profile in the form the Sanitizer returns: trimmed texts, unique ids, a listed goal. */
+export const arbIntakeProfile: fc.Arbitrary<IntakeProfile> = arbGoalOptions(2, 4).chain(goalOptions =>
+  fc.record({
+    level: arbIntakeLevel,
+    goal: fc.option(fc.constantFrom(...goalOptions), { nil: null }),
+    avoid: arbEntries,
+    taste: arbEntries,
+    goalOptions: fc.constant(goalOptions),
+    knownOptions: arbOptions(0, 6),
+    tasteOptions: arbOptions(0, 5),
+    mascotSet: fc.constantFrom(...MASCOT_SETS),
+  }),
+)
+
+const PROFILE_KEYS = ['level', 'goal', 'avoid', 'taste', 'goalOptions', 'knownOptions', 'tasteOptions', 'mascotSet'] as const
+const OPTION_LIST_KEYS = ['goalOptions', 'knownOptions', 'tasteOptions'] as const
+
+type Damage = (profile: Record<string, unknown>) => void
+
+function listOf(profile: Record<string, unknown>, key: string): unknown[] | null {
+  const value = profile[key]
+  return Array.isArray(value) ? value : null
+}
+
+const arbDamage: fc.Arbitrary<Damage> = fc.oneof(
+  // A field replaced by any JSON value, or removed.
+  fc.tuple(fc.constantFrom(...PROFILE_KEYS), fc.jsonValue()).map(([key, value]): Damage => (p) => { p[key] = value }),
+  fc.constantFrom(...PROFILE_KEYS).map((key): Damage => (p) => { delete p[key] }),
+  // An option list with entries repeated, so ids repeat and the list can pass its maximum.
+  fc.tuple(fc.constantFrom(...OPTION_LIST_KEYS), fc.integer({ min: 1, max: 3 })).map(([key, times]): Damage => (p) => {
+    const list = listOf(p, key)
+    if (list) p[key] = Array.from({ length: times + 1 }, () => list).flat()
+  }),
+  // Extra entries of any shape in a list.
+  fc.tuple(fc.constantFrom(...OPTION_LIST_KEYS, 'avoid', 'taste'), fc.array(fc.jsonValue(), { minLength: 1, maxLength: 6 }))
+    .map(([key, extra]): Damage => (p) => {
+      const list = listOf(p, key)
+      if (list) p[key] = [...extra, ...list, ...extra]
+    }),
+  // One field of one option replaced: a long or blank text, a bad id, a wrong type, or nothing.
+  fc.tuple(
+    fc.constantFrom(...OPTION_LIST_KEYS),
+    fc.nat({ max: 5 }),
+    fc.constantFrom('id', 'label', 'finishLine'),
+    fc.oneof(
+      fc.string({ unit: 'binary', minLength: 41, maxLength: 120 }),
+      fc.constantFrom('', '   ', 'Bad Id', 'a--b', '-a', undefined, null, 7),
+    ),
+  ).map(([key, index, field, value]): Damage => (p) => {
+    const list = listOf(p, key)
+    if (!list || list.length === 0) return
+    const at = index % list.length
+    const entry = list[at]
+    if (typeof entry !== 'object' || entry === null) return
+    const copy: Record<string, unknown> = { ...entry, [field]: value }
+    if (value === undefined) delete copy[field]
+    p[key] = list.map((item, i) => (i === at ? copy : item))
+  }),
+  // A goal that is not one of the options, and an outfit that does not exist.
+  fc.tuple(arbOptionId, arbProfileText).map(([id, label]): Damage => (p) => { p.goal = { id: `x-${id}`, label, finishLine: label } }),
+  fc.string().map((value): Damage => (p) => { p.mascotSet = value }),
+  // Long and padded avoid or taste entries.
+  fc.tuple(fc.constantFrom('avoid', 'taste'), fc.array(fc.string({ unit: 'binary', maxLength: 90 }), { maxLength: 8 }))
+    .map(([key, entries]): Damage => (p) => { p[key] = entries.map(entry => `  ${entry} `) }),
+)
+
+/** A valid Intake_Profile with 1 to 6 random slips, as a model might answer. */
+export const arbDamagedProfile: fc.Arbitrary<Record<string, unknown>> = fc
+  .tuple(arbIntakeProfile, fc.array(arbDamage, { minLength: 1, maxLength: 6 }))
+  .map(([profile, damages]) => {
+    const copy: Record<string, unknown> = { ...structuredClone(profile) }
+    for (const damage of damages) damage(copy)
+    return copy
+  })
+
+/** A Final_Profile as the Panel builds it: the Intake_Profile's fields, with some known options picked. */
+export const arbFinalProfile: fc.Arbitrary<FinalProfile> = arbIntakeProfile.chain(intake =>
+  fc.subarray(intake.knownOptions).map((known): FinalProfile => ({
+    level: intake.level,
+    goal: intake.goal,
+    avoid: intake.avoid,
+    taste: intake.taste,
+    known,
+    goalOptions: intake.goalOptions,
+  })),
+)
+
+/** A profile with a goal, for the Final_Milestone rules. */
+export const arbFinalProfileWithGoal: fc.Arbitrary<FinalProfile> = arbFinalProfile.chain(profile =>
+  fc.constantFrom(...profile.goalOptions).map(goal => ({ ...profile, goal })),
+)
+
+/** What a generator may put in `knownOptionId`: absent, null, a profile id, or an id nobody asked for. */
+type KnownSlot = { kind: 'absent' } | { kind: 'null' } | { kind: 'known'; pick: number } | { kind: 'unknown'; id: string }
+
+const arbKnownSlot: fc.Arbitrary<KnownSlot> = fc.oneof(
+  { weight: 4, arbitrary: fc.constant<KnownSlot>({ kind: 'absent' }) },
+  { weight: 2, arbitrary: fc.constant<KnownSlot>({ kind: 'null' }) },
+  { weight: 5, arbitrary: fc.nat().map((pick): KnownSlot => ({ kind: 'known', pick })) },
+  { weight: 1, arbitrary: arbOptionId.map((id): KnownSlot => ({ kind: 'unknown', id: `zz-${id}` })) },
+)
+
+/**
+ * A path tree whose Nodes carry random `knownOptionId` values, as a model might answer for
+ * `profile`: often the profile's ids, sometimes repeated, unknown, null, or on milestones and side quests.
+ */
+export const arbTreeAndProfile: fc.Arbitrary<{ tree: SkillTree; profile: FinalProfile }> = fc
+  .tuple(arbPathTree, arbFinalProfile)
+  .chain(([tree, profile]) => {
+    const count = allNodes(tree).length
+    return fc.array(arbKnownSlot, { minLength: count, maxLength: count }).map((slots) => {
+      const ids = profile.known.map(option => option.id)
+      let k = 0
+      const sections = tree.sections.map(section => ({
+        ...section,
+        nodes: section.nodes.map((node): SkillNode => {
+          const slot = slots[k++] ?? { kind: 'absent' }
+          if (slot.kind === 'absent') return node
+          if (slot.kind === 'null') return { ...node, knownOptionId: null }
+          if (slot.kind === 'unknown') return { ...node, knownOptionId: slot.id }
+          const id = ids.length === 0 ? null : (ids[slot.pick % ids.length] ?? null)
+          return { ...node, knownOptionId: id }
+        }),
+      }))
+      return { tree: { ...tree, sections }, profile }
+    })
+  })
+
+/** One thing a learner can do in the Panel. Ids are often offered ones, sometimes not. */
+export type PanelOp =
+  | { kind: 'remove'; field: 'level' | 'goal' | 'avoid' | 'taste' }
+  | { kind: 'goal'; pick: number; stray: boolean }
+  | { kind: 'known' | 'taste'; pick: number; stray: boolean }
+
+export const arbPanelOp: fc.Arbitrary<PanelOp> = fc.oneof(
+  fc.constantFrom('level', 'goal', 'avoid', 'taste').map((field): PanelOp => ({ kind: 'remove', field })),
+  fc.record({ kind: fc.constantFrom('goal', 'known', 'taste'), pick: fc.nat(), stray: fc.boolean() })
+    .map((op): PanelOp => op as PanelOp),
+)
+
+/** A profile and a sequence of Panel actions on it. */
+export const arbPanelRun = fc.record({
+  profile: arbIntakeProfile,
+  ops: fc.array(arbPanelOp, { maxLength: 12 }),
+})

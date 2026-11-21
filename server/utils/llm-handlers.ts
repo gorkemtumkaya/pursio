@@ -3,6 +3,8 @@ import type { ErrorCode, Provider, ProviderConfig, StartLevel, TestResponse, Tre
 import type { SkillTree } from '../../shared/types/skill-tree'
 import { parseBearer } from '../../shared/utils/auth'
 import { DEFAULT_LEVEL, HOBBY_MAX_LENGTH, MODEL_MAX_LENGTH, isProvider, isStartLevel } from '../../shared/utils/llm'
+import { applyProfileToTree } from '../../shared/utils/known-nodes'
+import { isPlainProfile, parseFinalProfile, startLevelFor } from '../../shared/utils/learner-profile'
 import type { GoalClass } from '../../shared/types/video'
 import { createAiObservabilityContext, withAiObservabilityContext } from './ai-observability'
 import { classifyGoal } from './goal-classifier'
@@ -188,10 +190,18 @@ export async function handleTreeRequest(
     if (goal.length > GOAL_MAX_LENGTH) return treeError('invalid_input')
   }
 
-  // 1b. Starting level: missing means the default, anything else must be a StartLevel.
+  // 1b. Learner_Profile (spec: path-intake, Req 7.1 to 7.3). Checked strictly, never repaired:
+  // the page only sends profiles that passed the Sanitizer.
+  const parsedProfile = parseFinalProfile(body.profile)
+  if (!parsedProfile.ok) return treeError('invalid_input')
+  const profile = parsedProfile.profile
+
+  // 1c. Starting level: from the profile when there is one, else the request's level as before.
   const rawLevel = body.level
-  if (rawLevel !== undefined && !isStartLevel(rawLevel)) return treeError('invalid_input')
-  const level: StartLevel = rawLevel ?? DEFAULT_LEVEL
+  if (profile === null && rawLevel !== undefined && !isStartLevel(rawLevel)) return treeError('invalid_input')
+  const level: StartLevel = profile !== null ? startLevelFor(profile.level) : (isStartLevel(rawLevel) ? rawLevel : DEFAULT_LEVEL)
+  // A tree made for a goal, avoid, taste or known skill is never shared through the cache (Req 7.4, 7.5).
+  const plain = isPlainProfile(profile)
 
   // 2. Provider_Config (Req 2.1 to 2.4).
   const resolved = resolveProviderConfig({ headerKey: input.headerKey, body, defaults: deps.defaults })
@@ -202,9 +212,9 @@ export async function handleTreeRequest(
     return treeError(code)
   }
 
-  // 3. Cache lookup; a hit is not counted (Req 6.2, 7.3).
+  // 3. Cache lookup, for a Plain_Profile only; a hit is not counted (Req 6.2, 7.3).
   const key = cacheKey(hobby, level, config.provider, config.model)
-  const cached = deps.cache.get(key)
+  const cached = plain ? deps.cache.get(key) : undefined
   let tree: SkillTree
   let model: string
   if (cached) {
@@ -227,7 +237,7 @@ export async function handleTreeRequest(
     try {
       result = await withTimeout(deps.timeoutMs, timeout, (signal) =>
         withAiObservabilityContext(aiContext, () =>
-          generateSkillTree(hobby, level, config, { adapters: deps.adapters, systemPrompt, signal }),
+          generateSkillTree(hobby, level, config, { adapters: deps.adapters, systemPrompt, signal, profile }),
         ),
       )
     } catch {
@@ -247,12 +257,19 @@ export async function handleTreeRequest(
       return fail(code, 'provider_call', httpReason ?? (thrown ? 'provider' : reason))
     }
 
-    // 6. Cache the tree BEFORE the save. If the save fails, the learner's retry hits the cache:
-    // no second provider call and no second use of the hourly limit (Req 9.10).
-    deps.cache.set(key, { tree: result.tree, model: result.model })
-    tree = result.tree
+    // 6. Cache a plain tree BEFORE the save. If the save fails, the learner's retry hits the cache:
+    // no second provider call and no second use of the hourly limit (Req 9.10). A tree made for
+    // a profile that is not plain is never cached (spec: path-intake, Req 7.5, AS8).
+    tree = applyProfileToTree(result.tree, profile).tree
     model = result.model
+    if (plain) deps.cache.set(key, { tree, model })
   }
+
+  // 6a. The tree as saved for the profile: the Finish_Line title and the repaired
+  // knownOptionId values; and the profile as stored (spec: path-intake, Req 8.3, 8.8, 11.3).
+  const applied = applyProfileToTree(tree, profile)
+  tree = applied.tree
+  const storedProfile = applied.profile
 
   // 7. Save as the user's Path_Row with the user's own token (Req 9.7 to 9.10).
   // The classifier is not billable and never throws; any failure gives 'none' (Req 1.11, 1.12).
@@ -264,7 +281,7 @@ export async function handleTreeRequest(
   } catch {
     goalClass = 'none'
   }
-  const saveInput: PathSaveInput = { hobby, level, tree, model, goalClass }
+  const saveInput: PathSaveInput = { hobby, level, tree, model, goalClass, profile: storedProfile }
   // null marks a timeout (the sentinel); a thrown error carries its own reason.
   let pathId: string | null
   let saveReason = 'unknown'
@@ -285,7 +302,7 @@ export async function handleTreeRequest(
   } catch {
     // afterSave must never fail the response.
   }
-  return { status: 200, body: { tree, model, pathId } }
+  return { status: 200, body: { tree, model, pathId, profile: storedProfile } }
 }
 
 export interface TestDeps {

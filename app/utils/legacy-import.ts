@@ -1,6 +1,7 @@
 // Legacy_Importer: copies the data earlier versions kept in localStorage into
 // the account, once (spec: accounts-cloud-save, Req 8).
 import type { CompletedAt, PathInsertRow, ProgressWriteRow } from '#shared/types/cloud'
+import type { StoredProfile } from '#shared/types/learner-profile'
 import type { Progress } from '#shared/types/progress'
 import type { SkillTree } from '#shared/types/skill-tree'
 import { nextColorSlot, type ColorSlot } from '#shared/utils/color-slot'
@@ -8,7 +9,7 @@ import { normalizeHobby } from '#shared/utils/llm'
 import { ACTIVITY_STORAGE_KEY, parseCompletionLog } from './activity-store'
 import { raceDeadline } from './deadline'
 import { GENERATED_PROGRESS_KEY, GENERATED_TREE_KEY, parseStoredGeneratedTree } from './generated-tree'
-import { HOBBY_LIBRARY_KEY, hobbyId, hobbyProgressKey, parseHobbyLibrary } from './hobby-store'
+import { HOBBY_LIBRARY_KEY, hobbyId, hobbyProgressKey, parseHobbyLibrary, profileField } from './hobby-store'
 import { parseStoredProgress, pruneProgress, type StorageLike } from './progress-store'
 
 type GetStorage = () => StorageLike | null
@@ -24,6 +25,8 @@ export interface LegacyEntry {
   /** The local Color_Slot, or `null` for the earlier Generated_Tree, which has none. */
   colorSlot: ColorSlot | null
   progress: Progress
+  /** The Stored_Profile of the local path, so the account copy keeps its Known_Nodes (spec: path-intake, Req 11.8). */
+  profile?: StoredProfile | null
 }
 
 export interface LegacyData {
@@ -94,6 +97,7 @@ export function readLegacyData(getStorage: GetStorage): LegacyData | null {
     addedAt: record.addedAt,
     colorSlot: record.colorSlot,
     progress: progressFor(readKey(storage, hobbyProgressKey(record.id)), record.tree),
+    ...profileField(record.profile),
   }))
 
   const generated = parseStoredGeneratedTree(rawGenerated).value
@@ -159,6 +163,7 @@ export function planImport(
       archived: entry.archived,
       created_at: isoTime(entry.addedAt, ctx.now),
       color_slot: colorSlot,
+      ...profileField(entry.profile),
     })
     const stamps: [string, number][] = []
     for (const nodeId of entry.progress.completed) {

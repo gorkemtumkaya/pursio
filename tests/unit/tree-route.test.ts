@@ -28,15 +28,15 @@ function ownKeyRequest(hobby: string, token = TOKEN) {
 }
 
 describe('handleTreeRequest success', () => {
-  it('answers 200 with exactly { tree, model, pathId }', async () => {
+  it('answers 200 with exactly { tree, model, pathId, profile }', async () => {
     const fake = fakeTreeDeps()
     const response = await handleTreeRequest(request('  Bouldering '), fake.deps)
 
     expect(response).toEqual({
       status: 200,
-      body: { tree: sampleTree(), model: DEFAULTS.model, pathId: 'path-1' },
+      body: { tree: sampleTree(), model: DEFAULTS.model, pathId: 'path-1', profile: null },
     })
-    expect(Object.keys(response.body).sort()).toEqual(['model', 'pathId', 'tree'])
+    expect(Object.keys(response.body).sort()).toEqual(['model', 'pathId', 'profile', 'tree'])
     expect(fake.calls.order).toEqual(['verify', 'cache.get', 'limiter', 'adapter', 'cache.set', 'save'])
   })
 
@@ -48,7 +48,7 @@ describe('handleTreeRequest success', () => {
     )
 
     expect(fake.calls.save).toEqual([
-      { token: TOKEN, input: { hobby: 'Bouldering', level: 'serious', tree: sampleTree(), model: DEFAULTS.model, goalClass: 'none' } },
+      { token: TOKEN, input: { hobby: 'Bouldering', level: 'serious', tree: sampleTree(), model: DEFAULTS.model, goalClass: 'none', profile: null } },
     ])
     expect(fake.calls.consume).toEqual([USER_ID])
   })
@@ -254,7 +254,7 @@ describe('handleTreeRequest save_failed', () => {
 
     expect(response).toEqual({
       status: 200,
-      body: { tree: sampleTree(), model: DEFAULTS.model, pathId: 'path-retry' },
+      body: { tree: sampleTree(), model: DEFAULTS.model, pathId: 'path-retry', profile: null },
     })
     expect(fake.calls.adapter).toHaveLength(1)
     expect(fake.calls.consume).toHaveLength(1)
@@ -273,9 +273,9 @@ describe('handleTreeRequest cache hit', () => {
       fake.deps,
     )
 
-    expect(response).toEqual({ status: 200, body: { tree: sampleTree(), model: 'cached-model', pathId: 'path-1' } })
+    expect(response).toEqual({ status: 200, body: { tree: sampleTree(), model: 'cached-model', pathId: 'path-1', profile: null } })
     expect(fake.calls.save).toEqual([
-      { token: TOKEN, input: { hobby: 'Guitar', level: 'some', tree: sampleTree(), model: 'cached-model', goalClass: 'none' } },
+      { token: TOKEN, input: { hobby: 'Guitar', level: 'some', tree: sampleTree(), model: 'cached-model', goalClass: 'none', profile: null } },
     ])
     expect(fake.calls.adapter).toEqual([])
     expect(fake.calls.consume).toEqual([])

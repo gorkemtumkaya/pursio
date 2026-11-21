@@ -1,4 +1,4 @@
-import type { SkillTree } from '../types/skill-tree'
+import type { SkillNode, SkillTree } from '../types/skill-tree'
 import type { Result, ValidationError, VideoFieldsError } from '../types/validation'
 import { findPathOrderViolation } from './path-order'
 import { repairSearchQueries, validateSearchQueries } from './search-queries'
@@ -10,6 +10,13 @@ export interface LoadSkillTreeOptions {
   requireVideoFields?: boolean
   /** Generation only: the tree must be drawable as a path (see `findPathOrderViolation`). */
   requirePathOrder?: boolean
+  /** Generation for a profile with a goal: the last Node of the last Section must be a milestone (spec: path-intake). */
+  requireFinalMilestone?: boolean
+}
+
+/** The last Node of the last Section, the place of the Finish_Line. */
+export function finalNode(tree: SkillTree): SkillNode | undefined {
+  return tree.sections.at(-1)?.nodes.at(-1)
 }
 
 /** Video field errors for every skill of a parsed tree (Req 1.10, 1.15). */
@@ -54,6 +61,10 @@ export function loadSkillTree(
   if (options.requirePathOrder === true && errors.length === 0) {
     const violation = findPathOrderViolation(tree, { strict: true })
     if (violation) errors.push({ kind: 'path_order', ...violation })
+  }
+  if (options.requireFinalMilestone === true && errors.length === 0) {
+    const last = finalNode(tree)
+    if (last !== undefined && !last.milestone) errors.push({ kind: 'final_milestone', nodeId: last.id })
   }
   if (options.requireVideoFields === true) errors.push(...videoFieldErrors(tree))
   if (errors.length > 0) return { ok: false, errors }
@@ -100,5 +111,7 @@ export function formatValidationError(error: ValidationError): string {
     case 'video_fields':
       if (error.field === 'quickTip') return `"${error.nodeId}": quickTip must be true or false`
       return `"${error.nodeId}": searchQueries invalid (${error.issues.join(', ')})`
+    case 'final_milestone':
+      return `"${error.nodeId}": the last skill of the last section must be a milestone (milestone: true), the learner's finish line`
   }
 }

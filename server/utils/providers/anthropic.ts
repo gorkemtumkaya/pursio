@@ -30,7 +30,7 @@ function toolInput(response: unknown, toolName = TOOL_NAME): { found: true; inpu
 export function createAnthropicAdapter(fetcher: Fetcher): ProviderAdapter {
   return {
     async generateTree(hobby, config, options) {
-      const text = [{ type: 'text', text: userMessage(hobby, options.level) }]
+      const text = [{ type: 'text', text: userMessage(hobby, options.level, options.profile) }]
       if (options.retryNote) text.push({ type: 'text', text: options.retryNote })
       const body: Record<string, unknown> = {
         model: config.model,
@@ -67,7 +67,11 @@ export function createAnthropicAdapter(fetcher: Fetcher): ProviderAdapter {
         ],
         tool_choice: { type: 'tool', name: options.schemaName },
       }
-      const result = await callProvider(fetcher, URL, headers(config), body, options.signal)
+      // Sent explicitly: leaving `thinking` out is not enough on models that think by default.
+      if (options.fastMode) body.thinking = { type: 'disabled' }
+      const result = await callProvider(fetcher, URL, headers(config), body, options.signal, {
+        redactContent: options.redactContent,
+      })
       if (!result.ok) return result
       const tool = toolInput(result.response, options.schemaName)
       return tool.found ? { ok: true, value: tool.input } : { ok: false, error: 'bad_output' }

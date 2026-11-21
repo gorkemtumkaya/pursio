@@ -32,4 +32,13 @@ export interface PathOrderError {
   prerequisiteId: string
 }
 
-export type ValidationError = SchemaError | GraphError | VideoFieldsError | PathOrderError
+/**
+ * A generated tree for a profile with a goal whose last Node of the last Section is not a
+ * milestone (generation only, spec: path-intake, Req 8.9). The title is never compared.
+ */
+export interface FinalMilestoneError {
+  kind: 'final_milestone'
+  nodeId: string
+}
+
+export type ValidationError = SchemaError | GraphError | VideoFieldsError | PathOrderError | FinalMilestoneError

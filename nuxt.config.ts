@@ -58,6 +58,13 @@ export default defineNuxtConfig({
     llmProvider: '',
     llmModel: '',
     llmApiKey: '',
+    // Small_Model of POST /api/intake per provider (spec: path-intake, decisions 32 and 37).
+    // Keep a Haiku model for Anthropic: the call turns thinking off and forces a tool call,
+    // which some larger Claude models reject.
+    llmIntakeModelAnthropic: 'claude-haiku-5-5',
+    llmIntakeModelOpenai: 'gpt-5-mini',
+    // Lowest reasoning effort of the OpenAI intake model; used only with a learner's own key.
+    llmIntakeReasoningEffortOpenai: 'minimal',
     // Read by server/utils/account-runtime.ts (DELETE /api/account) and
     // server/utils/video/runtime.ts (video pipeline tables).
     supabaseServiceRoleKey: '',

@@ -13,6 +13,8 @@ interface GenerationCapture {
   body: Record<string, unknown>
   result: { ok: true; response: unknown } | { ok: false; error: AdapterFailure; status?: number }
   latencySeconds: number
+  /** No input and no output text in the record (spec: path-intake, Req 2.15). */
+  redactContent?: boolean
 }
 
 const contexts = new AsyncLocalStorage<AiObservabilityContext>()
@@ -109,6 +111,7 @@ export async function captureAiGeneration(capture: GenerationCapture): Promise<v
   try {
     const providerName = provider(capture.url)
     const output = capture.result.ok ? outputFor(providerName, capture.result.response) : {}
+    const redact = capture.redactContent === true
     posthog.capture({
       distinctId: context.distinctId ?? context.sessionId,
       event: '$ai_generation',
@@ -117,8 +120,8 @@ export async function captureAiGeneration(capture: GenerationCapture): Promise<v
         $ai_session_id: context.sessionId,
         $ai_model: typeof capture.body.model === 'string' ? capture.body.model : 'unknown',
         $ai_provider: providerName,
-        $ai_input: inputFor(providerName, capture.body),
-        $ai_output_choices: output.choices,
+        $ai_input: redact ? undefined : inputFor(providerName, capture.body),
+        $ai_output_choices: redact ? undefined : output.choices,
         $ai_input_tokens: output.inputTokens,
         $ai_output_tokens: output.outputTokens,
         $ai_latency: capture.latencySeconds,

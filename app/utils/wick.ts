@@ -1,5 +1,6 @@
 // Wick, the Pursio mascot: types and palettes.
 // The Pursio name, logo and the Wick mascot are not covered by the code license.
+import { MASCOT_SETS } from '#shared/utils/mascot-sets'
  
 export type WickTheme = 'trail' | 'boulder' | 'halloween'
 /**
@@ -20,15 +21,7 @@ export type WickOutfit =
   | 'founding'
  
 /** Outfit keys the AI may return in `mascot.set` (everything except 'none'). */
-export const WICK_OUTFITS = [
-  'bouldering',
-  'photography',
-  'cooking',
-  'guitar',
-  'gardening',
-  'reading',
-  'explorer',
-] as const satisfies readonly WickOutfit[]
+export const WICK_OUTFITS = MASCOT_SETS satisfies readonly WickOutfit[]
  
 export interface WickPalette {
   /** Body gradient, top to bottom */

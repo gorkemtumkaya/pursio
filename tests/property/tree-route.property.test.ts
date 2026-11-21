@@ -217,7 +217,7 @@ describe('Property 13: Only the verified user id is used', () => {
 
           expect(response).toEqual({
             status: 200,
-            body: { tree: expectedTree, model: expectedModel, pathId: 'path-1' },
+            body: { tree: expectedTree, model: expectedModel, pathId: 'path-1', profile: null },
           })
           expect(fake.calls.verify).toEqual([token])
           expect(fake.calls.order[0]).toBe('verify')
@@ -227,7 +227,7 @@ describe('Property 13: Only the verified user id is used', () => {
           expect(fake.calls.save).toEqual([
             {
               token,
-              input: { hobby: hobby.trimmed, level: expectedLevel, tree: expectedTree, model: expectedModel, goalClass: 'none' },
+              input: { hobby: hobby.trimmed, level: expectedLevel, tree: expectedTree, model: expectedModel, goalClass: 'none', profile: null },
             },
           ])
         },
@@ -403,7 +403,7 @@ describe('Property 15: A save failure keeps the tree for a free retry', () => {
           const second = await handleTreeRequest(input, fake.deps)
           expect(second).toEqual({
             status: 200,
-            body: { tree: expectedTree, model: effective(config).model, pathId: 'path-ok' },
+            body: { tree: expectedTree, model: effective(config).model, pathId: 'path-ok', profile: null },
           })
           expect(fake.calls.adapter).toHaveLength(1)
           expect(fake.calls.consume).toEqual(consumed)
@@ -615,11 +615,11 @@ describe('Property 3: Preservation of status, body, cache and limiter effects', 
             expect(fake.calls.cacheSet).toEqual([])
             expect(fake.calls.save).toEqual([])
           } else {
-            expect(response.body).toEqual({ tree: expectedTree, model, pathId: 'path-1' })
+            expect(response.body).toEqual({ tree: expectedTree, model, pathId: 'path-1', profile: null })
             expect(fake.calls.cacheSet).toEqual([cacheKey(hobby.trimmed, level ?? 'new', provider, model)])
             // The learner's own token and the trimmed hobby reach the save.
             expect(fake.calls.save).toEqual([
-              { token, input: { hobby: hobby.trimmed, level: level ?? 'new', tree: expectedTree, model, goalClass: 'none' } },
+              { token, input: { hobby: hobby.trimmed, level: level ?? 'new', tree: expectedTree, model, goalClass: 'none', profile: null } },
             ])
           }
         },
@@ -699,7 +699,7 @@ describe('Property 3: Preservation of status, body, cache and limiter effects', 
             expect(fake.calls.cacheSet).toEqual([])
             expect(fake.calls.save).toEqual([])
           } else {
-            expect(response).toEqual({ status: 200, body: { tree: expectedTree, model, pathId: 'path-1' } })
+            expect(response).toEqual({ status: 200, body: { tree: expectedTree, model, pathId: 'path-1', profile: null } })
             expect(fake.calls.consume).toEqual([])
           }
         },
@@ -723,12 +723,12 @@ describe('Property 3: Preservation of status, body, cache and limiter effects', 
             fake.deps,
           )
 
-          expect(response).toEqual({ status: 200, body: { tree: expectedTree, model: cachedModel, pathId: 'path-1' } })
+          expect(response).toEqual({ status: 200, body: { tree: expectedTree, model: cachedModel, pathId: 'path-1', profile: null } })
           expect(fake.calls.adapter).toEqual([])
           expect(fake.calls.consume).toEqual([])
           expect(fake.calls.cacheSet).toEqual([])
           expect(fake.calls.save).toEqual([
-            { token, input: { hobby: hobby.trimmed, level: level ?? 'new', tree: expectedTree, model: cachedModel, goalClass: 'none' } },
+            { token, input: { hobby: hobby.trimmed, level: level ?? 'new', tree: expectedTree, model: cachedModel, goalClass: 'none', profile: null } },
           ])
         },
       ),
