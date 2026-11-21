@@ -11,6 +11,8 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 ### Added
 - You can now become a founding member from the landing page: one payment of $19.99 for the first 50, with lifetime Plus. A guest signs in first, so the purchase belongs to an account.
 - Paying is open: Subscribe on /pricing and the founding button now open Paddle Checkout with real payments.
+- Founding members get what they paid for right after checkout: Plus for life, a founder badge on the profile and Wick's founding outfit there. A refund ends them.
+- The founding offer stops at 50: when the spots are taken, the landing card says so instead of opening checkout.
 
 ### Changed
 - The paid plan is now called Plus (it was Premium), on the pricing page, in Settings and in the Terms, Privacy and Refund pages.

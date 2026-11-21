@@ -35,15 +35,8 @@ export const PRICE_IDS: Record<Environments, { plus: PaidPriceIds }> = {
   },
 }
 
-/**
- * The one-time Founding member price per environment ($19.99). Not sold yet:
- * nothing opens its checkout until the founding-checkout spec is built.
- * Sandbox product pro_01m7z53bqpv547tfxdvnfhj9e4, live product pro_01m7z648hw83fz0s35fp05qr8j.
- */
-export const FOUNDING_PRICE_ID: Record<Environments, string> = {
-  sandbox: 'pri_01m7z53bx7exmc85qm2cfkssbt',
-  production: 'pri_01m7z648r3tja83w8z89kry3bx',
-}
+/** The one-time Founding member price per environment; the server needs it too, so it lives in shared. */
+export { FOUNDING_PRICE_ID } from '#shared/utils/paddle-catalog'
 
 /** The tiers with the price IDs of one Paddle environment. */
 export function tiersFor(environment: Environments): readonly Tier[] {

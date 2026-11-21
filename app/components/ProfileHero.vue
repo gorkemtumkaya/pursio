@@ -18,6 +18,8 @@ defineProps<{
   questsDone: number
   theme: WickTheme
   outfit: WickOutfit
+  /** Shows the founder badge under the name. */
+  founding?: boolean
 }>()
 </script>
 
@@ -47,6 +49,12 @@ defineProps<{
       </h1>
       <span class="order-2 text-xs font-extrabold text-muted lg:order-1 lg:text-[13px] lg:tracking-widest lg:uppercase">
         {{ kicker }}
+      </span>
+      <span
+        v-if="founding"
+        class="order-2 self-start rounded-lg bg-gold px-2.5 py-1 text-xs font-extrabold tracking-[0.04em] text-gold-ink"
+      >
+        FOUNDING MEMBER
       </span>
       <div class="order-3 flex items-center gap-3 text-sm font-bold">
         <span class="shrink-0 rounded-lg bg-ink px-2.5 py-0.5 font-head text-sm font-semibold text-bg lg:px-3 lg:py-1 lg:text-base">

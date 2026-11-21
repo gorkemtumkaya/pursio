@@ -24,6 +24,8 @@ export function billingDate(iso: string, locale?: string): string {
 /** Title and one-line state for the Subscription row. */
 export function billingSummary(status: BillingStatusResponse, locale?: string): { title: string; hint: string } {
   const sub = status.subscription
+  // A founding member has Plus for life, whatever a subscription beside it says.
+  if (status.founding) return { title: 'Founding member', hint: 'Plus for life · nothing more to pay' }
   if (!sub) return { title: 'Free plan', hint: 'No subscription' }
   const change = sub.scheduledChange
   if (change?.action === 'cancel') return { title: 'Plus', hint: `Cancels on ${billingDate(change.at, locale)}` }

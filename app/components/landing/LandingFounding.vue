@@ -3,7 +3,9 @@
 // and the "follow along" card. Owner decision, 2026-11-21: the waitlist is gone
 // from the offer card. "Become a founding member" opens Paddle Checkout for the
 // one-time founding price; a guest signs in first, so the purchase belongs to
-// an account. The "follow along" form still stores an email through POST /api/waitlist.
+// an account. The first 50 limit is asked from GET /api/founding/availability on
+// load and again right before checkout opens; a member sees "You're a founding member".
+// The "follow along" form still stores an email through POST /api/waitlist.
 import type { CheckoutOpenOptions } from '@paddle/paddle-js'
 import { FOUNDING_PERKS, LANDING_COPY } from '~/utils/landing-copy'
 import { checkoutEnabled } from '~/utils/paddle-config'
@@ -15,11 +17,27 @@ const config = useRuntimeConfig().public
 const auth = useAuth()
 const dialog = useAuthDialog()
 const { load } = usePaddle()
+const billing = useBillingStatus()
 
 /** NUXT_PUBLIC_PADDLE_CHECKOUT_ENABLED: off shows a disabled "Opening soon" button. */
 const canCheckout = checkoutEnabled(config.paddleCheckoutEnabled)
 const busy = ref(false)
 const failed = ref(false)
+/** False once the first 50 are sold. Stays true while unknown, so a failed check never hides the offer. */
+const available = ref(true)
+
+/** Asks the server whether a spot is left. A failed request keeps the last answer. */
+async function checkAvailability(): Promise<void> {
+  try {
+    const response = await $fetch<unknown>('/api/founding/availability', { retry: 0 })
+    const value: unknown = typeof response === 'object' && response !== null ? (response as Record<string, unknown>).available : undefined
+    if (typeof value === 'boolean') available.value = value
+  } catch {
+    // Unknown: keep the last answer.
+  }
+}
+
+onMounted(() => void checkAvailability())
 
 async function becomeFoundingMember(): Promise<void> {
   if (!canCheckout || busy.value) return
@@ -31,6 +49,10 @@ async function becomeFoundingMember(): Promise<void> {
   }
   busy.value = true
   try {
+    // Ask again right before paying: the last spot may have gone since the page loaded,
+    // and this account may already be a member.
+    await Promise.all([checkAvailability(), billing.load(true)])
+    if (!available.value || billing.founding.value) return
     const paddle = await load()
     // load() has already rejected an unset or unknown NUXT_PUBLIC_PADDLE_ENV.
     const priceId = FOUNDING_PRICE_ID[config.paddleEnv === 'production' ? 'production' : 'sandbox']
@@ -106,8 +128,14 @@ const BUTTON =
           <span>{{ perk }}</span>
         </li>
       </ul>
+      <p v-if="billing.founding.value" role="status" class="rounded-2xl border-2 border-done bg-surface p-4 text-base font-extrabold text-ink">
+        {{ LANDING_COPY.foundingMember }}
+      </p>
+      <button v-else-if="!available" type="button" disabled :class="[BUTTON, 'cursor-not-allowed border-2 border-line bg-surface text-muted']">
+        {{ LANDING_COPY.foundingSoldOut }}
+      </button>
       <button
-        v-if="canCheckout"
+        v-else-if="canCheckout"
         type="button"
         :aria-disabled="busy ? 'true' : undefined"
         :class="[BUTTON, 'cursor-pointer bg-primary text-primary-ink shadow-[0_5px_0_var(--pursio-primary-deep)] aria-disabled:opacity-70']"

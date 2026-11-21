@@ -163,6 +163,42 @@ export function supabaseBillingStore(admin: SupabaseClient): BillingStore {
       const row: { customer_id?: unknown } | null = data
       return typeof row?.customer_id === 'string' ? row.customer_id : null
     },
+    async recordFoundingMember(row) {
+      const { error } = await admin.rpc('paddle_record_founding_member', {
+        p_transaction_id: row.transactionId,
+        p_customer_id: row.customerId,
+        p_user_id: row.userId,
+        p_purchased_at: row.purchasedAt,
+      })
+      return rpcResult('paddle_record_founding_member', error, true)
+    },
+    async markFoundingRefunded(transactionId, refundedAt) {
+      // Only a membership that is not refunded yet, so a redelivery keeps the first date.
+      const { data, error } = await admin
+        .from('founding_members')
+        .update({ refunded_at: refundedAt })
+        .eq('transaction_id', transactionId)
+        .is('refunded_at', null)
+        .select('transaction_id')
+      if (error) throw reasonError(dbReason('founding_refund', error))
+      return Array.isArray(data) && data.length > 0
+    },
+    async foundingSold() {
+      const { count, error } = await admin
+        .from('founding_members')
+        .select('transaction_id', { count: 'exact', head: true })
+        .is('refunded_at', null)
+      if (error || typeof count !== 'number') throw reasonError(dbReason('founding_count', error))
+      return count
+    },
+    async isFoundingMember({ userId, customerId }) {
+      const base = () => admin.from('founding_members').select('transaction_id', { count: 'exact', head: true }).is('refunded_at', null)
+      const queries = [base().eq('user_id', userId)]
+      if (customerId !== null) queries.push(base().eq('customer_id', customerId))
+      const results = await Promise.all(queries)
+      for (const { error } of results) if (error) throw reasonError(dbReason('founding_read', error))
+      return results.some(({ count }) => typeof count === 'number' && count > 0)
+    },
     async subscriptionsFor({ userId, customerId }) {
       // Two plain equality queries instead of an `or` filter string.
       const queries = [admin.from('subscriptions').select(SUBSCRIPTION_COLUMNS).eq('user_id', userId)]
@@ -196,6 +232,10 @@ const UNCONFIGURED_STORE: BillingStore = {
   upsertTransaction: () => Promise.reject(reasonError('not_configured')),
   customerIdByEmail: () => Promise.reject(reasonError('not_configured')),
   subscriptionsFor: () => Promise.reject(reasonError('not_configured')),
+  recordFoundingMember: () => Promise.reject(reasonError('not_configured')),
+  markFoundingRefunded: () => Promise.reject(reasonError('not_configured')),
+  foundingSold: () => Promise.reject(reasonError('not_configured')),
+  isFoundingMember: () => Promise.reject(reasonError('not_configured')),
 }
 
 // ---------------------------------------------------------------------------
@@ -226,6 +266,8 @@ export function paddleWebhookDeps(): WebhookDeps {
   return {
     // An unusable environment or missing database means "not configured": the route answers 500 and Paddle retries.
     secret: paddle && admin ? config.webhookSecret : '',
+    // Unused while `secret` is empty (no valid environment): the route answers 500 first.
+    environment: config.environment ?? 'sandbox',
     allowedCidrs: () => (config.environment ? paddleIps(config.environment) : Promise.reject(new Error('not_configured'))),
     ipAllowed: ipInCidrs,
     unmarshal: (rawBody, secret, signature) => {
@@ -273,4 +315,10 @@ export function accountBillingDeps(): AccountBillingDeps {
     },
     log: (entry) => console.error('[billing]', { code: entry.code }),
   }
+}
+
+/** Dependencies of `GET /api/founding/availability`. */
+export function foundingAvailabilityDeps(): { store: BillingStore } {
+  const admin = adminClient(billingConfig())
+  return { store: admin ? supabaseBillingStore(admin) : UNCONFIGURED_STORE }
 }

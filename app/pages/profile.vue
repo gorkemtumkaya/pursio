@@ -19,6 +19,7 @@ useHead({ title: 'Profile · Pursio' })
 const auth = useAuth()
 const cloud = useCloudStore()
 const { theme } = useTheme()
+const billing = useBillingStatus()
 
 const stats = computed(() => profileStats(cloud.paths.value, Date.now(), cloud.weeklyReward.value?.count ?? 0))
 const xp = computed(() => xpSummaryOf(stats.value.xp))
@@ -26,6 +27,8 @@ const xp = computed(() => xpSummaryOf(stats.value.xp))
 /** The path Wick dresses for and the hobby list marks: the Active_Hobby, else the last one added. */
 const activeId = computed(() => pickHobby(toHobbyLibrary(cloud.paths.value, getActiveHobbyId()), null)?.id ?? null)
 const outfit = computed<WickOutfit>(() => {
+  // A founding member's Wick wears the founding outfit on the profile.
+  if (billing.founding.value) return 'founding'
   const active = cloud.paths.value.find((path) => path.record.id === activeId.value)
   return active ? toWickOutfit(active.record.tree.mascot.set) : 'none'
 })
@@ -59,6 +62,7 @@ const kicker = computed(() => {
             :quests-done="stats.questsDone"
             :theme="theme"
             :outfit="outfit"
+            :founding="billing.founding.value"
           />
           <div class="grid gap-3.5 lg:grid-cols-[repeat(auto-fit,minmax(340px,1fr))] lg:gap-5">
             <ProfileHobbies :hobbies="stats.hobbies" :active-id="activeId" />

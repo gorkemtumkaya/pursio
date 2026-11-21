@@ -7,10 +7,12 @@ import {
   customDataUserId,
   handleBillingPortal,
   handleBillingStatus,
+  handleFoundingAvailability,
   handlePaddleWebhook,
   type AccountBillingDeps,
   type BillingStore,
   type CustomerRow,
+  type FoundingMemberRow,
   type SubscriptionRow,
   type TransactionRow,
   type UpsertResult,
@@ -18,6 +20,8 @@ import {
 } from '~~/server/utils/billing-handlers'
 import { paddleServerEnvironment } from '~~/server/utils/billing-runtime'
 import { createPaddleIpList, ipInCidrs, paddleIpsUrl, parseIpsResponse, sourceIp } from '~~/server/utils/paddle-ips'
+
+import { FOUNDING_LIMIT, FOUNDING_PRICE_ID } from '~~/shared/utils/paddle-catalog'
 
 const PADDLE_IP = '34.237.3.244'
 
@@ -125,11 +129,73 @@ function customerEvent(email: string, updatedAt = '2026-11-21T12:00:00Z'): strin
   })
 }
 
+function transactionEvent(opts: { id?: string; priceId: string; customData?: Record<string, unknown> | null; customerId?: string }): string {
+  return JSON.stringify({
+    event_id: `evt_${opts.id ?? 'txn'}`,
+    event_type: 'transaction.completed',
+    occurred_at: '2026-11-21T12:00:00Z',
+    notification_id: 'ntf_03',
+    data: {
+      id: opts.id ?? 'txn_01founding',
+      status: 'completed',
+      customer_id: opts.customerId ?? 'ctm_01test',
+      address_id: 'add_01test',
+      business_id: null,
+      custom_data: opts.customData === undefined ? { pursioUserId: USER_ID } : opts.customData,
+      currency_code: 'USD',
+      origin: 'web',
+      subscription_id: null,
+      invoice_id: null,
+      invoice_number: null,
+      collection_mode: 'automatic',
+      discount_id: null,
+      billing_details: null,
+      billing_period: null,
+      items: [{ price: price(opts.priceId), quantity: 1, proration: null }],
+      details: null,
+      payments: [],
+      checkout: null,
+      created_at: '2026-11-21T11:59:00Z',
+      updated_at: '2026-11-21T12:00:00Z',
+      billed_at: '2026-11-21T12:00:00Z',
+      revised_at: null,
+    },
+  })
+}
+
+function adjustmentEvent(opts: { action?: string; status?: string; transactionId?: string }): string {
+  return JSON.stringify({
+    event_id: 'evt_adj',
+    event_type: 'adjustment.updated',
+    occurred_at: '2026-11-25T09:00:00Z',
+    notification_id: 'ntf_04',
+    data: {
+      id: 'adj_01test',
+      action: opts.action ?? 'refund',
+      type: 'full',
+      transaction_id: opts.transactionId ?? 'txn_01founding',
+      subscription_id: null,
+      customer_id: 'ctm_01test',
+      reason: 'changed mind',
+      credit_applied_to_balance: null,
+      currency_code: 'USD',
+      status: opts.status ?? 'approved',
+      items: [],
+      totals: { subtotal: '1999', tax: '0', total: '1999', fee: '0', earnings: '0', currency_code: 'USD' },
+      payout_totals: null,
+      tax_rates_used: [],
+      created_at: '2026-11-25T08:00:00Z',
+      updated_at: '2026-11-25T09:00:00Z',
+    },
+  })
+}
+
 /** In-memory mirror with the SQL functions' rules: forward-only upserts and a customer foreign key. */
 function memoryStore() {
   const customers = new Map<string, CustomerRow>()
   const subscriptions = new Map<string, SubscriptionRow>()
   const transactions = new Map<string, TransactionRow>()
+  const founding = new Map<string, FoundingMemberRow & { refundedAt: string | null }>()
   function forward<R extends { paddleUpdatedAt: string }>(map: Map<string, R>, key: string, row: R, merge?: (old: R) => R): UpsertResult {
     const old = map.get(key)
     if (old && Date.parse(old.paddleUpdatedAt) > Date.parse(row.paddleUpdatedAt)) return 'stale'
@@ -144,6 +210,21 @@ function memoryStore() {
         : 'missing_customer',
     upsertTransaction: async (row) =>
       row.customerId !== null && !customers.has(row.customerId) ? 'missing_customer' : forward(transactions, row.transactionId, row),
+    recordFoundingMember: async (row) => {
+      if (!customers.has(row.customerId)) return 'missing_customer'
+      const old = founding.get(row.transactionId)
+      founding.set(row.transactionId, old ? { ...old, userId: old.userId ?? row.userId } : { ...row, refundedAt: null })
+      return 'written'
+    },
+    markFoundingRefunded: async (transactionId, refundedAt) => {
+      const row = founding.get(transactionId)
+      if (!row || row.refundedAt !== null) return false
+      row.refundedAt = refundedAt
+      return true
+    },
+    foundingSold: async () => [...founding.values()].filter((f) => f.refundedAt === null).length,
+    isFoundingMember: async ({ userId, customerId }) =>
+      [...founding.values()].some((f) => f.refundedAt === null && (f.userId === userId || (customerId !== null && f.customerId === customerId))),
     customerIdByEmail: async (email) => [...customers.values()].find((c) => c.email === email)?.customerId ?? null,
     subscriptionsFor: async ({ userId, customerId }) =>
       [...subscriptions.values()]
@@ -162,12 +243,13 @@ function memoryStore() {
           }),
         ),
   }
-  return { store, customers, subscriptions, transactions }
+  return { store, customers, subscriptions, transactions, founding }
 }
 
 function webhookDeps(store: BillingStore, overrides: Partial<WebhookDeps> = {}): WebhookDeps {
   return {
     secret: SECRET,
+    environment: 'sandbox',
     allowedCidrs: async () => [`${PADDLE_IP}/32`, '34.195.105.136/32'],
     ipAllowed: ipInCidrs,
     unmarshal: (body, secret, signature) => paddle.webhooks.unmarshal(body, secret, signature),
@@ -407,13 +489,105 @@ describe('billing status and customer portal', () => {
       status: 200,
       body: {
         access: true,
+        founding: false,
         subscription: { status: 'trialing', priceId: 'pri_01m7yxc793p1af7c9vnmqcmw3n', scheduledChange: null, nextBilledAt: '2026-11-28T12:00:00Z' },
         canManage: true,
         customerId: 'ctm_01test',
       },
     })
     const stranger = await handleBillingStatus({ authorization: 'Bearer good' }, accountDeps(mem.store, { id: 'stranger', email: 'x@example.com' }))
-    expect(stranger.body).toEqual({ access: false, subscription: null, canManage: false, customerId: null })
+    expect(stranger.body).toEqual({ access: false, founding: false, subscription: null, canManage: false, customerId: null })
+  })
+})
+
+describe('founding membership', () => {
+  const FOUNDING = FOUNDING_PRICE_ID.sandbox
+  const PLUS = 'pri_01m7yxc793p1af7c9vnmqcmw3n'
+
+  function statusDeps(store: BillingStore, user: { id: string; email: string | null }): AccountBillingDeps {
+    return { verifyUser: async () => user, store, configured: true, createPortalUrl: async () => 'https://x' }
+  }
+
+  it('makes the buyer of the founding price a member with lifetime access, and is idempotent', async () => {
+    const mem = memoryStore()
+    const deps = webhookDeps(mem.store)
+    const body = transactionEvent({ priceId: FOUNDING })
+    expect((await deliver(body, deps)).status).toBe(200)
+    expect((await deliver(body, deps)).status).toBe(200)
+    expect(mem.founding.size).toBe(1)
+    expect(mem.founding.get('txn_01founding')).toMatchObject({ userId: USER_ID, customerId: 'ctm_01test', purchasedAt: '2026-11-21T12:00:00Z', refundedAt: null })
+    const status = await handleBillingStatus({ authorization: 'Bearer t' }, statusDeps(mem.store, { id: USER_ID, email: null }))
+    expect(status.body).toMatchObject({ access: true, founding: true, subscription: null })
+  })
+
+  it('matches a purchase without an account id by the verified email', async () => {
+    const mem = memoryStore()
+    await deliver(transactionEvent({ priceId: FOUNDING, customData: null }), webhookDeps(mem.store))
+    const byEmail = await handleBillingStatus({ authorization: 'Bearer t' }, statusDeps(mem.store, { id: 'other', email: 'buyer@example.com' }))
+    expect(byEmail.body).toMatchObject({ founding: true, access: true })
+    const stranger = await handleBillingStatus({ authorization: 'Bearer t' }, statusDeps(mem.store, { id: 'other', email: 'x@example.com' }))
+    expect(stranger.body).toMatchObject({ founding: false, access: false })
+  })
+
+  it('ignores other prices, and the founding price of the other environment', async () => {
+    const mem = memoryStore()
+    const deps = webhookDeps(mem.store)
+    await deliver(transactionEvent({ priceId: PLUS }), deps)
+    await deliver(transactionEvent({ id: 'txn_02live', priceId: FOUNDING_PRICE_ID.production }), deps)
+    expect(mem.transactions.size).toBe(2)
+    expect(mem.founding.size).toBe(0)
+  })
+
+  it('ends the membership on an approved refund or chargeback, and frees the spot', async () => {
+    for (const action of ['refund', 'chargeback']) {
+      const mem = memoryStore()
+      const deps = webhookDeps(mem.store)
+      await deliver(transactionEvent({ priceId: FOUNDING }), deps)
+      expect((await deliver(adjustmentEvent({ action, status: 'pending_approval' }), deps)).status).toBe(200)
+      expect(await mem.store.foundingSold()).toBe(1)
+      expect((await deliver(adjustmentEvent({ action }), deps)).status).toBe(200)
+      expect((await deliver(adjustmentEvent({ action }), deps)).status).toBe(200)
+      expect(mem.founding.get('txn_01founding')?.refundedAt).toBe('2026-11-25T09:00:00Z')
+      expect(await mem.store.foundingSold()).toBe(0)
+      const status = await handleBillingStatus({ authorization: 'Bearer t' }, statusDeps(mem.store, { id: USER_ID, email: null }))
+      expect(status.body).toMatchObject({ founding: false, access: false })
+    }
+  })
+
+  it('leaves memberships alone for credits and for refunds of other transactions', async () => {
+    const mem = memoryStore()
+    const deps = webhookDeps(mem.store)
+    await deliver(transactionEvent({ priceId: FOUNDING }), deps)
+    await deliver(adjustmentEvent({ action: 'credit' }), deps)
+    await deliver(adjustmentEvent({ transactionId: 'txn_09other' }), deps)
+    expect(mem.founding.get('txn_01founding')?.refundedAt).toBeNull()
+  })
+
+  it(`is available until ${FOUNDING_LIMIT} are sold, and again after a refund`, async () => {
+    const mem = memoryStore()
+    const log = vi.fn()
+    const deps = webhookDeps(mem.store, { log })
+    expect((await handleFoundingAvailability({ store: mem.store })).body).toEqual({ available: true })
+    for (let i = 1; i <= FOUNDING_LIMIT; i++) {
+      await deliver(transactionEvent({ id: `txn_${String(i).padStart(4, '0')}`, priceId: FOUNDING }), deps)
+    }
+    expect(await mem.store.foundingSold()).toBe(FOUNDING_LIMIT)
+    expect((await handleFoundingAvailability({ store: mem.store })).body).toEqual({ available: false })
+    expect(log).not.toHaveBeenCalledWith(expect.objectContaining({ code: 'founding_over_limit' }))
+
+    // A purchase beyond the limit is still recorded and honored, and logged.
+    await deliver(transactionEvent({ id: 'txn_extra', priceId: FOUNDING }), deps)
+    expect(await mem.store.foundingSold()).toBe(FOUNDING_LIMIT + 1)
+    expect(log).toHaveBeenCalledWith(expect.objectContaining({ code: 'founding_over_limit' }))
+
+    await deliver(adjustmentEvent({ transactionId: 'txn_extra' }), deps)
+    await deliver(adjustmentEvent({ transactionId: 'txn_0001' }), deps)
+    expect((await handleFoundingAvailability({ store: mem.store })).body).toEqual({ available: true })
+  })
+
+  it('answers 502 when the count cannot be read', async () => {
+    const result = await handleFoundingAvailability({ store: { foundingSold: () => Promise.reject(new Error('down')) } })
+    expect(result.status).toBe(502)
   })
 })
 

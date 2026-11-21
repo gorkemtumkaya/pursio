@@ -58,6 +58,8 @@ export const LANDING_COPY = {
   foundingPriceLater: 'Plus will be $29.99 a year after the first 50.',
   foundingCta: 'Become a founding member',
   foundingClosedCta: 'Opening soon',
+  foundingSoldOut: 'All 50 founding spots are taken',
+  foundingMember: 'You’re a founding member. Thank you for backing Pursio early.',
   foundingFailed: 'Checkout couldn’t open. Reload the page and try again.',
   foundingNote: 'One payment. Full refund within 30 days of buying, no questions asked.',
   foundingSeePlans: 'See plans and prices',

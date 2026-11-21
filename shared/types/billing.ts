@@ -20,8 +20,10 @@ export interface MirroredSubscription {
 
 /** GET /api/billing/status */
 export interface BillingStatusResponse {
-  /** Whether the account has paid access now (see `grantsPaidAccess`). */
+  /** Whether the account has paid access now: a subscription that grants it (see `grantsPaidAccess`) or a founding membership. */
   access: boolean
+  /** Whether the account holds a founding membership that was not refunded: lifetime Plus, the badge and the Founding Wick outfit. */
+  founding: boolean
   subscription: {
     status: string
     priceId: string
@@ -43,4 +45,10 @@ export interface BillingErrorResponse {
 /** POST /api/billing/portal */
 export interface PortalResponse {
   url: string
+}
+
+/** GET /api/founding/availability */
+export interface FoundingAvailabilityResponse {
+  /** False once the first 50 memberships are sold. */
+  available: boolean
 }

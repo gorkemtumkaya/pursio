@@ -1,5 +1,7 @@
 import {
   EventName,
+  type AdjustmentCreatedEvent,
+  type AdjustmentUpdatedEvent,
   type CustomerCreatedEvent,
   type CustomerUpdatedEvent,
   type EventEntity,
@@ -12,12 +14,14 @@ import type {
   BillingErrorCode,
   BillingErrorResponse,
   BillingStatusResponse,
+  FoundingAvailabilityResponse,
   MirroredSubscription,
   PortalResponse,
   ScheduledChangeAction,
 } from '../../shared/types/billing'
 import { parseBearer } from '../../shared/utils/auth'
 import { currentSubscription, grantsPaidAccess } from '../../shared/utils/billing-access'
+import { FOUNDING_LIMIT, isFoundingPrice, type PaddleEnvironment } from '../../shared/utils/paddle-catalog'
 import type { HandlerResponse } from './llm-handlers'
 
 // Paddle fulfillment: verified webhooks mirror customers, subscriptions and
@@ -60,6 +64,14 @@ export interface TransactionRow {
   paddleUpdatedAt: string
 }
 
+/** A completed founding purchase (table `founding_members`). */
+export interface FoundingMemberRow {
+  transactionId: string
+  customerId: string
+  userId: string | null
+  purchasedAt: string
+}
+
 /** `written`, `stale` (the stored row is newer) or `missing_customer` (the customer row doesn't exist yet). */
 export type UpsertResult = 'written' | 'stale' | 'missing_customer'
 
@@ -72,6 +84,14 @@ export interface BillingStore {
   customerIdByEmail(email: string): Promise<string | null>
   /** Subscriptions linked to this account by custom data, or belonging to this customer. */
   subscriptionsFor(query: { userId: string; customerId: string | null }): Promise<MirroredSubscription[]>
+  /** Records a founding purchase. Idempotent; needs the customer row, like the other writes. */
+  recordFoundingMember(row: FoundingMemberRow): Promise<UpsertResult>
+  /** Ends the membership bought with this transaction. False when the transaction is not a founding purchase. */
+  markFoundingRefunded(transactionId: string, refundedAt: string): Promise<boolean>
+  /** Founding memberships sold and not refunded. */
+  foundingSold(): Promise<number>
+  /** Whether this account (by custom data) or this customer holds a membership that was not refunded. */
+  isFoundingMember(query: { userId: string; customerId: string | null }): Promise<boolean>
 }
 
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
@@ -125,6 +145,7 @@ export function transactionRow(data: TransactionCompletedEvent['data']): Transac
 // POST /api/paddle/webhook
 
 export type WebhookLogCode =
+  | 'founding_over_limit'
   | 'missing_input'
   | 'not_configured'
   | 'source_denied'
@@ -135,6 +156,8 @@ export type WebhookLogCode =
 export interface WebhookDeps {
   /** The notification destination's signing secret (not the API key). */
   secret: string
+  /** The Paddle environment the server runs against; picks which price ID is the founding one. */
+  environment: PaddleEnvironment
   /** Paddle's current webhook source CIDRs for this environment (from its /ips endpoint). Throws when unavailable. */
   allowedCidrs(): Promise<string[]>
   /** Whether the source address is inside the CIDRs. */
@@ -180,6 +203,41 @@ async function withCustomer(
   return second
 }
 
+/**
+ * Founding fulfillment: a completed transaction that contains the founding price
+ * makes its buyer a founding member. Runs on every delivery of the event, stale
+ * ones included, and is idempotent. The limit of 50 is enforced before checkout
+ * (see `handleFoundingAvailability`); a purchase that still lands beyond it is
+ * recorded and honored, and logged so the owner can decide what to do.
+ */
+async function fulfilFounding(event: TransactionCompletedEvent, row: TransactionRow, deps: WebhookDeps): Promise<void> {
+  const founding = event.data.items.some((item) => isFoundingPrice(item.price?.id, deps.environment))
+  if (!founding) return
+  if (row.customerId === null) throw reasonError('founding_no_customer')
+  const member: FoundingMemberRow = {
+    transactionId: row.transactionId,
+    customerId: row.customerId,
+    userId: row.userId,
+    purchasedAt: row.billedAt ?? event.data.createdAt,
+  }
+  // The customer row exists: the transaction upsert just before this needed it.
+  if ((await deps.store.recordFoundingMember(member)) === 'missing_customer') throw reasonError('missing_customer')
+  if ((await deps.store.foundingSold()) > FOUNDING_LIMIT) {
+    deps.log?.({ code: 'founding_over_limit', eventType: event.eventType, eventId: event.eventId })
+  }
+}
+
+/**
+ * An approved refund or chargeback of a founding purchase ends the membership
+ * (the perks end and the spot is free again). Adjustments of other transactions,
+ * and ones still pending approval, change nothing.
+ */
+async function revokeFoundingOnRefund(event: AdjustmentCreatedEvent | AdjustmentUpdatedEvent, deps: WebhookDeps): Promise<boolean> {
+  const { action, status, transactionId, updatedAt } = event.data
+  if ((action !== 'refund' && action !== 'chargeback') || status !== 'approved') return false
+  return deps.store.markFoundingRefunded(transactionId, updatedAt)
+}
+
 /** Routes a verified event. Handled types upsert; every other type is ignored. Idempotent for redeliveries. */
 export async function processEvent(event: EventEntity, deps: WebhookDeps): Promise<WebhookOutcome> {
   switch (event.eventType) {
@@ -196,8 +254,13 @@ export async function processEvent(event: EventEntity, deps: WebhookDeps): Promi
     }
     case EventName.TransactionCompleted: {
       const row = transactionRow(event.data)
-      return withCustomer(row.customerId, () => deps.store.upsertTransaction(row), deps)
+      const outcome = await withCustomer(row.customerId, () => deps.store.upsertTransaction(row), deps)
+      await fulfilFounding(event, row, deps)
+      return outcome
     }
+    case EventName.AdjustmentCreated:
+    case EventName.AdjustmentUpdated:
+      return (await revokeFoundingOnRefund(event, deps)) ? 'written' : 'ignored'
     default:
       return 'ignored'
   }
@@ -313,11 +376,15 @@ export async function handleBillingStatus(
   if (!deps.configured) return billingError('not_configured', deps)
   try {
     const customerId = await customerIdFor(user, deps.store)
-    const sub = currentSubscription(await deps.store.subscriptionsFor({ userId: user.id, customerId }))
+    const query = { userId: user.id, customerId }
+    const [subs, founding] = await Promise.all([deps.store.subscriptionsFor(query), deps.store.isFoundingMember(query)])
+    const sub = currentSubscription(subs)
     return {
       status: 200,
       body: {
-        access: grantsPaidAccess(sub),
+        // A founding member has Plus for life, with or without a subscription.
+        access: founding || grantsPaidAccess(sub),
+        founding,
         subscription: sub && {
           status: sub.status,
           priceId: sub.priceId,
@@ -358,5 +425,24 @@ export async function handleBillingPortal(
     return { status: 200, body: { url } }
   } catch {
     return billingError('failed', deps)
+  }
+}
+
+// ---------------------------------------------------------------------------
+// GET /api/founding/availability
+
+/**
+ * Whether a founding membership can still be bought: fewer than 50 are sold
+ * and not refunded. Public, with no input. The card asks this before it opens
+ * checkout. Paddle itself has no stock limit, so two buyers who check out at
+ * the same moment for the last spot can both get through; see `fulfilFounding`.
+ */
+export async function handleFoundingAvailability(deps: {
+  store: Pick<BillingStore, 'foundingSold'>
+}): Promise<HandlerResponse<FoundingAvailabilityResponse | BillingErrorResponse>> {
+  try {
+    return { status: 200, body: { available: (await deps.store.foundingSold()) < FOUNDING_LIMIT } }
+  } catch {
+    return { status: 502, body: { error: 'failed' } }
   }
 }
