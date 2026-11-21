@@ -21,7 +21,6 @@ export const PRICING_COPY = {
   loading: '…',
   pricesFailed: "We couldn't load prices. Reload the page to try again.",
   checkoutFailed: "Checkout couldn't open. Reload the page and try again.",
-  featuredBadge: 'MOST POPULAR',
   // taxNote: 'Prices are shown in your local currency. Tax is calculated for your country at checkout.',
   taxNote: 'Tax is calculated for your country at checkout.',
   welcomeTitle: 'Welcome to Plus',

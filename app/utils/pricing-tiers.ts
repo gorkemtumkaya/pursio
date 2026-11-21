@@ -2,8 +2,7 @@ import type { Environments } from '@paddle/paddle-js'
 
 /**
  * The tiers on /pricing. Edit names, text and features in TIER_TEXT and price
- * IDs in PRICE_IDS; the page renders `tiersFor(environment)`, in order
- * (founding membership sits in the middle).
+ * IDs in PRICE_IDS; the page renders `tiersFor(environment)`, in order.
  *
  * Sandbox and live are separate Paddle accounts with separate IDs, so each
  * environment (NUXT_PUBLIC_PADDLE_ENV) has its own set. A price ID from the
@@ -26,7 +25,7 @@ export interface Tier {
   oneTimePriceId?: string
   /** A short line under the price, e.g. "First 50 only". */
   note?: string
-  /** Highlights the card. The "MOST POPULAR" badge shows on it for yearly billing only. */
+  /** Highlights the card (border and shadow). */
   featured: boolean
 }
 
@@ -67,20 +66,6 @@ export function tiersFor(environment: Environments): readonly Tier[] {
       featured: false,
     },
     {
-      name: 'Founding member',
-      description: 'Back Pursio early. One payment, Plus for life.',
-      features: [
-        'Unlimited hobbies',
-        'Lifetime Pursio Plus, with nothing more to pay',
-        'Founder badge and the Founding Wick outfit',
-        'A vote on which hobbies and features come next',
-      ],
-      priceId: null,
-      oneTimePriceId: FOUNDING_PRICE_ID[environment],
-      note: 'First 50 only',
-      featured: false,
-    },
-    {
       name: 'Plus',
       description: 'For learners who want more from every path.',
       featuresHeading: 'What you get today',
@@ -96,6 +81,20 @@ export function tiersFor(environment: Environments): readonly Tier[] {
         note: 'Plus members get each of these as it ships, at no extra cost.',
       },
       priceId: PRICE_IDS[environment].plus,
+      featured: false,
+    },
+    {
+      name: 'Founding member',
+      description: 'Back Pursio early. One payment, Plus for life.',
+      features: [
+        'Unlimited hobbies',
+        'Lifetime Pursio Plus, with nothing more to pay',
+        'Founder badge and the Founding Wick outfit',
+        'A vote on which hobbies and features come next',
+      ],
+      priceId: null,
+      oneTimePriceId: FOUNDING_PRICE_ID[environment],
+      note: 'First 50 only',
       featured: true,
     },
   ]
