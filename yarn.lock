@@ -780,6 +780,16 @@
   resolved "https://registry.yarnpkg.com/@oxc-project/types/-/types-0.156.0.tgz#00e35b1ead490d81b4c7fe1dbfe35fc55e89c5e6"
   integrity sha512-1Duyg48TdJNdyhEB8Xn1L36bT9Pv6GUtlKjHxOys8xkaF/rQq3XJE+bAurSK/AgIz5mGFsb77cn9Pb20+WCScw==
 
+"@paddle/paddle-js@1.6.6":
+  version "1.6.6"
+  resolved "https://registry.yarnpkg.com/@paddle/paddle-js/-/paddle-js-1.6.6.tgz#8e2e547ad1d906449de4704d77a4add362cffeae"
+  integrity sha512-MHkqW4b7DP6F0HvbNG6HnGcSUdX2znwsvENIqJQuMqTtwcRPo6tTg8m1ail02mAODbFu/wsWUcRdsW7a9DVyTQ==
+
+"@paddle/paddle-node-sdk@3.12.0":
+  version "3.12.0"
+  resolved "https://registry.yarnpkg.com/@paddle/paddle-node-sdk/-/paddle-node-sdk-3.12.0.tgz#413ab9942c4e4a510ad9d2c4c89f88509aa6d380"
+  integrity sha512-xys3kymfnx8uhdO/aKuT5oxX+14SKMB2pv9QT/wDXwuzhghb+5POxOP5GdqXQH7pgAhznCz3AYVJaCIoX//FVw==
+
 "@parcel/watcher-wasm@^2.5.6":
   version "2.6.0"
   resolved "https://registry.yarnpkg.com/@parcel/watcher-wasm/-/watcher-wasm-2.6.0.tgz#1112d5314d593689e38912853d14c213313f0244"

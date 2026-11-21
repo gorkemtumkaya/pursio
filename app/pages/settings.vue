@@ -312,6 +312,12 @@ const fieldLabelClass = 'font-head text-[15px] font-semibold text-ink'
         </form>
       </section>
 
+      <!-- Paddle billing: plan state and the Paddle-hosted customer portal. -->
+      <h2 id="settings-subscription" :class="[groupLabelClass, 'mt-3']">Subscription</h2>
+      <section aria-labelledby="settings-subscription" :class="cardClass">
+        <BillingSettings />
+      </section>
+
       <h2 id="settings-app" :class="[groupLabelClass, 'mt-3']">App</h2>
       <section aria-labelledby="settings-app" :class="cardClass">
         <div :class="[rowClass, dividerClass]">

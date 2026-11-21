@@ -19,6 +19,7 @@ Apply the files in `supabase/migrations/` in file-name order:
 10. `20261112000200_fresh_check_cron.sql`: schedules the `fresh-check` job (every 15 minutes). See "Fresh check job" below for the Vault secret it needs.
 11. `20261117000000_path_color_slot.sql`: `paths.color_slot` (1 to 5, the hobby's color on the Fresh page). It backfills existing paths per user in creation order and adds the `paths_assign_color_slot` trigger, which gives a new path the slot after the user's latest-created path. `save_generated_path` is unchanged.
 12. `20261118000000_waitlist.sql`: the `waitlist` table behind the landing page's founding section (`email`, `kind`, `created_at`). Row Level Security is on with no policy, so only the server writes to it with the service role key (`POST /api/waitlist`). Until it is applied, the landing page's email forms answer "Could not save that".
+13. `20261121000100_paddle_billing.sql`: the Paddle mirror. Tables `customers`, `subscriptions` and `transactions`, and the functions `paddle_upsert_customer`, `paddle_upsert_subscription` and `paddle_upsert_transaction`. Each upsert is keyed on the Paddle id and only moves a row forward, so redelivered and out-of-order webhooks are safe. Row Level Security is on with no policy, and only `service_role` can execute the functions, so only the server writes here (`POST /api/paddle/webhook`). Until it is applied, every webhook delivery answers 500 and Paddle keeps retrying it.
 
 Either run `supabase db push` with the Supabase CLI linked to the project, or paste each file into the dashboard SQL editor and run them in that order.
 
@@ -46,13 +47,13 @@ Notes:
 
 ## 3. Environment keys
 
-Set these three keys in your local environment file and in the hosting environment. Names only; never commit the values.
+Set these keys in your local environment file and in the hosting environment. Names only; never commit the values.
 
 | Key | Used by |
 | --- | --- |
 | `NUXT_PUBLIC_SUPABASE_URL` | Browser and server |
 | `NUXT_PUBLIC_SUPABASE_ANON_KEY` | Browser and server |
-| `NUXT_SUPABASE_SERVICE_ROLE_KEY` | Server only, by `DELETE /api/account` |
+| `NUXT_SUPABASE_SERVICE_ROLE_KEY` | Server only, by `DELETE /api/account`, `POST /api/waitlist` and the Paddle billing routes |
 
 ### Video drain job
 

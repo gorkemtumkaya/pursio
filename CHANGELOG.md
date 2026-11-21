@@ -6,6 +6,13 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+## [0.7.0] - 2026-11-21
+
+### Added
+- A pricing page at /pricing shows Free and Premium with prices in your local currency, a monthly/yearly switch and a 7-day free trial; Subscribe opens Paddle Checkout and lands on a welcome page when you're done. (Paddle sandbox)
+- Premium subscriptions now reach your account: Paddle's billing events update Pursio within seconds, so a trial or subscription unlocks Premium and a cancellation takes effect only when it actually ends. (Paddle sandbox)
+- Settings has a Subscription section that shows your plan and opens Paddle's billing portal, where you can change your card, cancel or download invoices. (Paddle sandbox)
+
 ## [0.6.3] - 2026-11-20
 
 ### Changed

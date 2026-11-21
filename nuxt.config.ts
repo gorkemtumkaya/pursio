@@ -22,6 +22,12 @@ if (process.env.NODE_ENV !== 'production') {
   }
 }
 
+for (const variable of ['NUXT_PUBLIC_PADDLE_ENV', 'NUXT_PUBLIC_PADDLE_CLIENT_TOKEN']) {
+  if (!process.env[variable]) {
+    console.warn(`${variable} is unset: /pricing cannot load prices or open Paddle Checkout until it is set.`)
+  }
+}
+
 // https://nuxt.com/docs/api/configuration/nuxt-config
 export default defineNuxtConfig({
   compatibilityDate: '2026-11-08',
@@ -32,6 +38,9 @@ export default defineNuxtConfig({
   },
   vite: {
     plugins: [tailwindcss()],
+    // Dev server only: lets an ngrok tunnel reach `yarn dev`, so Paddle can deliver
+    // sandbox webhooks to POST /api/paddle/webhook locally. Ignored by production builds.
+    server: { allowedHosts: ['.ngrok-free.dev', '.ngrok-free.app'] },
   },
   app: {
     head: {
@@ -69,11 +78,22 @@ export default defineNuxtConfig({
     videoDrainSecret: '',
     // Secret for POST /api/fresh/check (header x-fresh-check-secret). Server-only.
     freshCheckSecret: '',
+    // Paddle billing (server-only, never under public). NUXT_PADDLE_API_KEY is a
+    // pdl_sdbx_apikey_/pdl_live_apikey_ key for the portal and customer lookups;
+    // NUXT_PADDLE_WEBHOOK_SECRET is the notification destination's signing secret
+    // (pdl_ntfset_...), a different value. Read by server/utils/billing-runtime.ts.
+    paddleApiKey: '',
+    paddleWebhookSecret: '',
     public: {
       supabaseUrl: '',
       supabaseAnonKey: '',
       posthogKey: '',
       posthogHost: '',
+      // Paddle.js on /pricing. No default: usePaddle() throws when either is unset.
+      // NUXT_PUBLIC_PADDLE_ENV is "sandbox" or "production"; the client-side token
+      // NUXT_PUBLIC_PADDLE_CLIENT_TOKEN starts with test_ or live_ to match it.
+      paddleEnv: '',
+      paddleClientToken: '',
     },
   },
   nitro: {
