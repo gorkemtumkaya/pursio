@@ -191,6 +191,8 @@ async function onConfirmReset(): Promise<void> {
       :archived="archived"
       :active-id="shown.record.id"
       :initial-skill-id="initialSkillId"
+      :finish-line="shown.record.profile?.goal?.finishLine ?? null"
+      :completed-at="shown.completedAt"
       @archive-hobby="onArchiveHobby"
       @delete-hobby="onDeleteHobby"
       :reset-epoch="cloud.resetEpoch.value"

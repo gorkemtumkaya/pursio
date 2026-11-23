@@ -11,6 +11,7 @@ import { useViewportClass } from '~/composables/useViewportClass'
 import { useSkillVideos, type SkillVideosParams } from '~/composables/useSkillVideos'
 import { dismissSavePrompt, isSavePromptDismissed } from '~/utils/active-hobby'
 import { shouldShowSavePrompt } from '~/utils/auth-logic'
+import { finishLineView } from '~/utils/finish-line'
 import { freshFor } from '~/utils/fresh-samples'
 import type { HobbyEntry } from '~/utils/hobby-store'
 import { detailTitleId } from '~/utils/node-visual'
@@ -48,6 +49,10 @@ const props = defineProps<{
   resetEpoch?: number
   /** Skill whose Skill_Sheet opens once after mount, from `?skill=` (spec: fresh, Req 13.4). Unknown ids are ignored. */
   initialSkillId?: string | null
+  /** The path's Finish_Line; null or absent shows no finish line card (a path without a goal, the demo). */
+  finishLine?: string | null
+  /** Completion_Timestamps of this path, for the day the finish line was reached. */
+  completedAt?: Readonly<Record<string, number>>
 }>()
 
 /** The page does the storage work and re-chooses the shown hobby when needed. */
@@ -131,6 +136,11 @@ const hobbyList = computed<HobbyEntry[]>(() => {
   const live = completionPercent(tree, progress.value)
   return props.hobbies.map(entry => (entry.id === props.activeId ? { ...entry, percent: live } : entry))
 })
+
+/** Finish line card at the end of the path: follows live Progress like the header stats. */
+const finishLine = computed(() =>
+  props.finishLine ? finishLineView(tree, progress.value, props.finishLine, props.completedAt) : null,
+)
 
 /** Mobile hobby Bottom_Sheet (spec: local-progress-data, Req 4.3). */
 const hobbySheetOpen = ref(false)
@@ -433,6 +443,7 @@ function onContinue(): void {
         :xp="xp"
         :streak="activity.streak.value"
         :switcher-open="hobbySheetOpen"
+        :goal="finishLine?.title ?? null"
         @switch="hobbySheetOpen = true"
       />
       <div class="hidden px-6 pt-7 pb-4 lg:block">
@@ -442,6 +453,7 @@ function onContinue(): void {
           :streak="activity.streak.value"
           :theme="theme"
           :outfit="outfit"
+          :goal="finishLine?.title ?? null"
         />
       </div>
 
@@ -465,6 +477,11 @@ function onContinue(): void {
             :message="status === 'error' ? 'This path could not be drawn.' : undefined"
           />
         </div>
+        <PathFinishLine
+          v-if="finishLine && status === 'ready' && layout"
+          :view="finishLine"
+          class="px-4 pt-6 pb-1.5 lg:px-0"
+        />
       </div>
     </main>
 

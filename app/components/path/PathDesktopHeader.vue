@@ -1,14 +1,16 @@
 <script setup lang="ts">
 import type { XpSummary } from '#shared/utils/xp'
 import MascotWick from '~/components/mascot/wick.vue'
+import { FINISH_LINE_COPY } from '~/utils/finish-line'
 import type { WickOutfit, WickTheme } from '~/utils/wick'
 
 /**
  * Desktop header (Req 11.8): "YOUR PATH" eyebrow, the hobby title, then
  * streak, level, XP bar and XP text. Wick stands on the right in the hobby's
- * outfit; it is decorative, so screen readers skip it.
+ * outfit; it is decorative, so screen readers skip it. A path with a goal
+ * shows it as one line under the title.
  */
-defineProps<{ hobby: string; xp: XpSummary; streak: number; theme: WickTheme; outfit: WickOutfit }>()
+defineProps<{ hobby: string; xp: XpSummary; streak: number; theme: WickTheme; outfit: WickOutfit; goal?: string | null }>()
 </script>
 
 <template>
@@ -17,6 +19,7 @@ defineProps<{ hobby: string; xp: XpSummary; streak: number; theme: WickTheme; ou
       <div class="flex flex-col gap-1">
         <span class="text-[13px] font-extrabold tracking-widest text-muted">YOUR PATH</span>
         <h1 class="font-display text-[40px] leading-none font-semibold text-ink">{{ hobby }}</h1>
+        <p v-if="goal" class="pt-1 text-[15px] font-bold text-muted">{{ FINISH_LINE_COPY.goal(goal) }}</p>
       </div>
       <div class="flex flex-wrap items-center gap-x-4 gap-y-2 text-[15px] font-extrabold text-ink">
         <span class="flex items-center gap-1.5">

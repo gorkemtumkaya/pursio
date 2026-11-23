@@ -1,13 +1,15 @@
 <script setup lang="ts">
 import { useTemplateRef } from 'vue'
 import type { XpSummary } from '#shared/utils/xp'
+import { FINISH_LINE_COPY } from '~/utils/finish-line'
 
 /**
  * Mobile header, two rows (Req 11.7): Hobby_Switcher, streak and XP on top;
  * level, XP bar and XP text below. The Hobby_Switcher asks the Path_View to
- * open the hobby Bottom_Sheet (spec: local-progress-data, Req 4.3).
+ * open the hobby Bottom_Sheet (spec: local-progress-data, Req 4.3). A path
+ * with a goal shows it as one line under the Hobby_Switcher row.
  */
-defineProps<{ hobby: string; xp: XpSummary; streak: number; switcherOpen: boolean }>()
+defineProps<{ hobby: string; xp: XpSummary; streak: number; switcherOpen: boolean; goal?: string | null }>()
 const emit = defineEmits<{ switch: [] }>()
 
 const switcher = useTemplateRef<HTMLButtonElement>('switcher')
@@ -47,6 +49,7 @@ defineExpose({ focusSwitcher: () => switcher.value?.focus() })
         </span>
       </div>
     </div>
+    <p v-if="goal" class="text-sm font-bold text-muted">{{ FINISH_LINE_COPY.goal(goal) }}</p>
     <div class="flex items-center gap-2.5 text-sm font-bold">
       <span class="font-head text-[15px] text-ink">Lv {{ xp.level }}</span>
       <PathXpBar :percent="xp.barPercent" class="flex-1" />

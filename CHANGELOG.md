@@ -6,6 +6,11 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+## [0.11.0] - 2026-11-23
+
+### Added
+- Your path now ends with your finish line: how many skills are left, a progress bar with your next milestone once you start, and a green card with the date when you reach it. Your goal also shows as one line under the path title. Paths built without a goal show neither. (spec: path-intake)
+
 ## [0.10.0] - 2026-11-23
 
 ### Added
