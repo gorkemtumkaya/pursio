@@ -261,6 +261,7 @@ The owner asked for the "SAMPLE PATH" tag at the right edge on phones, and found
 | [app/components/sample/SampleIntroCard.vue](../../../app/components/sample/SampleIntroCard.vue) | A grid: on phones Wick (48 px) and the counted line share the top row, and the heading and the help text (14 px) take the full width below; from `lg` Wick spans the three rows on the left as before. Wick's CSS width overrides its width attribute; its viewBox keeps the shape |
 
 - **Result:** at 360 px the guitar intro card is about 220 px tall instead of about 540; desktop unchanged (screenshots at 360, 390 and 1440 px).
+- **Smaller bar button (owner, 2026-11-23):** [app/components/AppButton.vue](../../../app/components/AppButton.vue) gains `size="sm"`: 44 px tall, the smallest that keeps the tap target, 16 px side padding, 15 px text; `md` and `lg` unchanged. [SampleMineBar.vue](../../../app/components/sample/SampleMineBar.vue) uses it, so "Make it yours", "Free. No signup." and the button fit side by side at 360 px and the full width fallback of G7 is gone (Requirement 9.4 back to its first wording). Below 380 px the bar heading is 16 px instead of 17.
 
 ## Decisions
 

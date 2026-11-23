@@ -272,7 +272,7 @@ Desktop, from the mockup:
 Mobile:
 
 - Top bar with logo and tag, intro card, path, finish card, then `pb` equal to the bar's height plus the safe area.
-- `SampleMineBar`: `fixed inset-x-0 bottom-0 z-30`, `border-t-2 border-line bg-surface`, `pb-[env(safe-area-inset-bottom)]`. The sheets use the existing `z-40` and `z-50`, so they cover it. Below 380 px the text block hides and the button takes the full width: at 360 px the text and the button at its fixed padding need about 335 of the 328 px.
+- `SampleMineBar`: `fixed inset-x-0 bottom-0 z-30`, `border-t-2 border-line bg-surface`, `pb-[env(safe-area-inset-bottom)]`. The sheets use the existing `z-40` and `z-50`, so they cover it. The button uses `AppButton`'s `sm` size (44 px tall), so text and button fit side by side at 360 px (owner, 2026-11-23: the button should be smaller).
 - Skill sheet: `PathBottomSheet` with `SampleSkillPreview` and the "Make this path mine" button.
 - Mine_Sheet: a second `PathBottomSheet` with `SampleMineBox` and the Skip text button.
 

@@ -17,7 +17,8 @@ const props = withDefaults(
     href?: string
     /** Only for a `<button>`. */
     type?: 'button' | 'submit'
-    size?: 'md' | 'lg'
+    /** `sm` is the smallest that keeps a 44 px tap target, for tight bars. */
+    size?: 'sm' | 'md' | 'lg'
     bouncy?: boolean
   }>(),
   { to: undefined, href: undefined, type: 'button', size: 'lg', bouncy: false },
@@ -32,7 +33,7 @@ const BASE =
   'inline-flex items-center justify-center gap-2 rounded-2xl bg-primary font-head font-semibold whitespace-nowrap text-primary-ink ' +
   'shadow-[0_5px_0_var(--pursio-primary-deep)] focus-visible:outline-3 focus-visible:outline-offset-2 focus-visible:outline-primary ' +
   'disabled:cursor-not-allowed disabled:opacity-60'
-const SIZE = { md: 'h-12 px-6 text-base', lg: 'h-14 px-8 text-lg' } as const
+const SIZE = { sm: 'h-11 px-4 text-[15px]', md: 'h-12 px-6 text-base', lg: 'h-14 px-8 text-lg' } as const
 /** The `bouncy` utility of main.css, told that this button's shadow is 5 px deep. */
 const BOUNCY = 'bouncy [--bouncy-depth:5px]'
 </script>
