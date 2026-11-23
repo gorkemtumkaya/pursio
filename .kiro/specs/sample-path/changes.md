@@ -3,9 +3,9 @@
 Implementation of the `sample-path` spec ([scenarios](scenarios.md), [requirements](requirements.md), [design](design.md), [tasks](tasks.md)). This file grows with the work. So far it covers task 1, the analytics bug APP-ANALYTICS-01, which the owner asked to fix first and on its own (plan reviewed by the owner on 2026-11-23 before the code changed), and task 2, the sample data.
 
 - **Repos and branches:** `pursio`. G1 was made on `fix/analytics-funnel-chain` and merged into `main`; everything after it is on `main`
-- **State:** G1 committed in `f5101ed` and merged into `main` (fast forward) on 2026-11-23; checked alone in a clean worktree: 1434 passed, 16 skipped. Spec documents in `9fccee2`. G2 in `6afec4a`. G3 in `43dac82`. G4 in `42c4730`. G5 in `0abcd39`. G6 in `9a355d8`. G7 committed with this update. From G2 on, work is on `main` and each separate task is committed when done (owner, 2026-11-23)
+- **State:** G1 committed in `f5101ed` and merged into `main` (fast forward) on 2026-11-23; checked alone in a clean worktree: 1434 passed, 16 skipped. Spec documents in `9fccee2`. G2 in `6afec4a`. G3 in `43dac82`. G4 in `42c4730`. G5 in `0abcd39`. G6 in `9a355d8`. G7 in `2f7206d`. G8 committed with this update. From G2 on, work is on `main` and each separate task is committed when done (owner, 2026-11-23)
 - **Status:** 1 of 1 done *(bug fixes)*; the production check F4 waits for the deploy
-- **Size:** G1: 9 files changed, 4 added. G2: 2 files changed, 13 added (incl. 3 generated data files). G3: 4 files changed, 7 added. G4: 7 files changed, 5 added. G5: 7 files changed, 3 added. G6: 2 files changed, 2 added. G7: 2 files changed, 3 added. 7 groups
+- **Size:** G1: 9 files changed, 4 added. G2: 2 files changed, 13 added (incl. 3 generated data files). G3: 4 files changed, 7 added. G4: 7 files changed, 5 added. G5: 7 files changed, 3 added. G6: 2 files changed, 2 added. G7: 2 files changed, 3 added. G8: 3 files changed, 7 added. 8 groups
 
 ## Scenarios *(bug fixes)*
 
@@ -52,6 +52,7 @@ So the report has two parts:
 5. G5. The page: top bar, intro card, path and finish card, built from the components of G4.
 6. G6. Skill preview and selection: the read only skill detail, its videos with no recording, and the mobile sheet.
 7. G7. Make it yours: the box, the mobile bar and sheet, the founding line. The build buttons do nothing until G8.
+8. G8. Handoff and events: the only code that leaves the sample page, and the funnel events.
 
 ## Groups
 
@@ -219,6 +220,24 @@ The sample page now draws the whole path as in the mockups. The right column (pr
   - Both build buttons and Skip do nothing until task 10, so this commit must not ship on its own; it is not linked from anywhere yet.
   - The mine sheet puts first focus on its close button, as the skill sheet does (`PathBottomSheet`), not in the textarea, so a phone's keyboard does not jump up on open.
 
+### G8. Handoff and events (task 10; Req 10, 11)
+
+| File | Why it changed |
+|---|---|
+| [app/utils/sample-handoff.ts](../../../app/utils/sample-handoff.ts) | New. `handoffTarget` (`/new` with the hobby and the Campaign_Params, never the note); `setSampleHandoff` keeps the trimmed note, cut to 800, in a module variable; `takeSampleHandoff` gives it once, for the same hobby after normalizing, within 60 s, and clears it either way |
+| [app/utils/sample-events.ts](../../../app/utils/sample-events.ts) | New. `utmProps` (the five utm keys, 1 to 200 characters) and `createSampleTracker`: viewed, mine opened and build clicked once per page load, skill opened each time. Its API takes no note |
+| [app/utils/analytics.ts](../../../app/utils/analytics.ts) | The four event names |
+| [app/components/sample/SampleView.vue](../../../app/components/sample/SampleView.vue) | `sample_viewed` on mount; `sample_skill_opened` on a desktop change of skill and on each mobile sheet opening; `sample_mine_opened` from the bar, the skill sheet, the top bar button or the first note focus on desktop; `build()` sends `sample_build_clicked` with `has_note` and `skipped`, sets the handoff and navigates, once, and works again if the navigation is refused |
+| [app/pages/new.vue](../../../app/pages/new.vue) | On the `start` step of the hobby handoff, the note comes from `takeSampleHandoff` before `start()`; `start=0` never takes it |
+| [tests/unit/sample-handoff.test.ts](../../../tests/unit/sample-handoff.test.ts) | New. Acceptance check 5: with a note, `/new` gets the hobby and the note and starts intake, no word of the note is in the URL, utm stays after `hobby` is removed; refresh, session wait, Skip, spaces, other hobby, 60 s, clock going back, 800 cut, `start=0` |
+| [tests/unit/sample-events.test.ts](../../../tests/unit/sample-events.test.ts) | New. Acceptance check 6: the walk through sends each event once with the hobby and utm; once-only rules; `utmProps`; the page sends `sample_viewed` after mount and passes no note to the tracker |
+| [tests/property/sample-path-handoff.property.test.ts](../../../tests/property/sample-path-handoff.property.test.ts) | New. Properties 4 and 5, 100 runs each |
+
+- **Related, not changed:** [app/composables/useHobbyBuilder.ts](../../../app/composables/useHobbyBuilder.ts): `start()` reads the note after its first await, so setting it just before the call is enough; everything after it (intake, Panel, generation, limit card, errors) is the existing flow (Req 10.8).
+- **Watch for:**
+  - The visitor sees `/new`'s loading state while the session starts, then the form with the hobby and the note filled while Wick reads, then the Panel: never the empty input state (Req 10.4).
+  - PostHog keeps its own cookie and storage keys on the sample page. Requirement 3.5 is about the page's own storage; analytics is allowed by Requirement 3.3.
+
 ## Decisions
 
 1. **Where `skill_path_generated` is sent.** Decided 2026-11-23 (OD1, decision 13): server only, with the browser's distinct id.
@@ -247,6 +266,8 @@ No open decision in this group.
 - **G6, not run:** playing a video (needs a real YouTube embed), focus return and Escape with a keyboard; manual rows C3, C5, C7.
 - **G7, run:** `yarn typecheck`: 0 errors. `yarn test`: 1523 passed. Screenshots: desktop 1440×900, the box, the button and the founding line fully in view with the first skill's preview scrolling above them; 360 px, the bar as one full-width button, the Make it yours sheet as in its mockup with the photography placeholder, Skip and the small line; 390 px, the bar as in the mockup; guitar at 360 px, the finish card clear of the bar.
 - **G7, not run:** typing, the counter, focus return, Escape; manual rows D2 to D7.
+- **G8, run:** `yarn typecheck`: 0 errors. `yarn test`: 1541 passed, 16 skipped (18 new). A real browser with a fresh profile against the dev server (Chrome through the DevTools protocol): `/try/guitar?utm_source=reddit&utm_campaign=t1` loaded, a skill opened, a note typed. **Before the press**, the only hosts were `localhost:3000`, `fonts.googleapis.com`, `fonts.gstatic.com`, `i.ytimg.com` and `eu-assets.i.posthog.com`: no Supabase request, no `/api/` request (acceptance check 1, manual row A1 in part); storage held only PostHog's keys. **After "Build my path"**, the URL was `/new?utm_source=reddit&utm_campaign=t1&hobby=Guitar`, with no word of the note (acceptance check 5, in part). The first request after the press was the anonymous sign up to Supabase, blocked by the script on purpose so the check created no user and spent no model call.
+- **G8, not run:** the rest of acceptance check 5 in a browser (the note filled on `/new`, intake, the Panel), because it needs a real session and an intake call; manual row E1, in the launch gate. The events in PostHog live events: manual row F1, in the launch gate.
 
 ## Manual checks before release
 

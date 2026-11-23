@@ -155,20 +155,20 @@ The owner answered OD1 to OD6 on 2026-11-23 (scenarios.md, decisions 13 to 17). 
     - "Make this path mine" at the end of the skill sheet: closes it and opens the Mine_Sheet (Req 7.8)
     - _Requirements: 4.3, 9.3, 9.4, 9.6, 9.7_
 
-- [ ] 9. Checkpoint - the page matches the four mockups on desktop and at 360 px
+- [x] 9. Checkpoint - the page matches the four mockups on desktop and at 360 px
   - Run `yarn typecheck` and `yarn test`, and ask the user if questions arise.
 
-- [ ] 10. Handoff and events
-  - [ ] 10.1 Implement the handoff
+- [x] 10. Handoff and events
+  - [x] 10.1 Implement the handoff
     - `app/utils/sample-handoff.ts`: `handoffTarget`, `setSampleHandoff`, `takeSampleHandoff`
     - `SampleView.build(skipped)` with the `leaving` guard
     - `new.vue`: `note.value = takeSampleHandoff(value) ?? ''` before `start()`
     - _Requirements: 10.1 to 10.9_
-  - [ ] 10.2 Implement the events
+  - [x] 10.2 Implement the events
     - `analytics.ts`: the four names; `app/utils/sample-events.ts`: `utmProps`, `createSampleTracker`
     - `SampleView`: `viewed()` on mount; skill, mine and build calls as in Requirement 11
     - _Requirements: 11.1 to 11.8_
-  - [ ] 10.3 Write the handoff and event tests (acceptance checks 5 and 6)
+  - [x] 10.3 Write the handoff and event tests (acceptance checks 5 and 6)
     - `tests/unit/sample-handoff.test.ts`: target for a hobby with and without Campaign_Params; take once; other hobby; after 60 s; a note of spaces; the flow helper: note taken, `start` called once, `start=0` calls nothing
     - `tests/unit/sample-events.test.ts`: the walk through view, skill, mine, build gives each event once with `hobby` and the utm properties; no utm in the URL gives none
     - **Property 4: Handoff never leaks the note**

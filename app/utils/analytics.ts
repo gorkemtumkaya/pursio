@@ -16,6 +16,11 @@ export type AnalyticsEvent =
   // Free plan hobby limit: the card on the new hobby page. No properties.
   | 'hobby_limit_shown'
   | 'hobby_limit_checkout_clicked'
+  // Sample path pages (spec: sample-path, Requirement 11). Hobby, utm and flags only, never the note.
+  | 'sample_viewed'
+  | 'sample_skill_opened'
+  | 'sample_mine_opened'
+  | 'sample_build_clicked'
 
 export type AnalyticsProps = Readonly<Record<string, string | number | boolean | readonly string[]>>
 export type AnalyticsClient = Pick<PostHog, 'capture'>

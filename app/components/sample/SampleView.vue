@@ -1,11 +1,14 @@
 <script setup lang="ts">
-import { computed, nextTick, ref, useTemplateRef, watch } from 'vue'
+import { computed, nextTick, onMounted, ref, useTemplateRef, watch } from 'vue'
 import type { SamplePath } from '#shared/types/sample-path'
 import { deriveNodeStates, emptyProgress } from '#shared/utils/progress-engine'
 import { sampleToTree } from '#shared/utils/sample-path'
 import { usePathLayout } from '~/composables/usePathLayout'
 import { useViewportClass } from '~/composables/useViewportClass'
+import { track } from '~/utils/analytics'
 import { SAMPLE_COPY } from '~/utils/sample-copy'
+import { createSampleTracker, utmProps, type MineSource } from '~/utils/sample-events'
+import { handoffTarget, setSampleHandoff } from '~/utils/sample-handoff'
 import { canvasPreview, finishView, firstSkillId, previewModel } from '~/utils/sample-view'
 
 /**
@@ -26,6 +29,12 @@ const placeholder = SAMPLE_COPY.placeholder(props.sample.slug)
 
 const viewport = useViewportClass()
 const { status, layout } = usePathLayout(tree, viewport)
+
+const route = useRoute()
+/** The four events, with the hobby and the utm of the landing URL (Requirement 11). */
+const tracker = createSampleTracker(track, { hobby: props.sample.slug, ...utmProps(route.query) })
+// After mount, so the prerender at build time sends nothing (Req 11.3).
+onMounted(() => tracker.viewed())
 
 /** Selected skill: the first one until the visitor picks another (Req 7.1). Kept across viewports (Req 7.9). */
 const selectedId = ref<string | null>(firstSkillId(props.sample))
@@ -57,11 +66,13 @@ function onSelect(id: string): void {
     activeVideoId.value = null
     openerId.value = id
     skillSheetOpen.value = true
+    tracker.skillOpened(id)
     return
   }
   if (id === selectedId.value) return
   selectedId.value = id
   activeVideoId.value = null
+  tracker.skillOpened(id)
 }
 
 function focusNodeLater(id: string): void {
@@ -78,6 +89,11 @@ function closeSkillSheet(): void {
 function openMineFromBar(opener: HTMLElement): void {
   mineReturn = { kind: 'element', el: opener }
   mineSheetOpen.value = true
+  mineOpened('bar')
+}
+
+function mineOpened(source: MineSource): void {
+  tracker.mineOpened(source)
 }
 
 /** "Make this path mine" at the end of the skill sheet swaps the sheets (Req 7.8). */
@@ -86,6 +102,7 @@ function openMineFromSkill(): void {
   activeVideoId.value = null
   mineReturn = openerId.value === null ? null : { kind: 'node', id: openerId.value }
   mineSheetOpen.value = true
+  mineOpened('skill_sheet')
 }
 
 function closeMineSheet(): void {
@@ -98,11 +115,31 @@ function closeMineSheet(): void {
 
 /** "Build my own path" in the desktop top bar (Req 4.3). */
 function focusNote(): void {
+  mineOpened('top_bar')
   mineBox.value?.focusNote()
 }
 
-/** "Build my path" and "Skip" (Requirement 10): the handoff is wired in task 10. */
-function build(_skipped: boolean): void {}
+/** True from the first build press on, so a second press does nothing (Req 10.7). */
+let leaving = false
+
+/**
+ * "Build my path" and "Skip" (Requirement 10): the hobby and the note go to `/new` through memory,
+ * the hobby and the campaign params through the URL. From there the new hobby flow takes over.
+ */
+async function build(skipped: boolean): Promise<void> {
+  if (leaving) return
+  leaving = true
+  const text = skipped ? '' : note.value.trim()
+  tracker.buildClicked({ hasNote: text !== '', skipped })
+  setSampleHandoff(props.sample.hobby, text)
+  try {
+    const result = await navigateTo(handoffTarget(props.sample.hobby, route.query))
+    // A refused navigation leaves the visitor here: let the button work again.
+    if (result === false || result instanceof Error) leaving = false
+  } catch {
+    leaving = false
+  }
+}
 
 // Each layout shows its own way in; a change of viewport opens nothing (Req 7.9, 9.7).
 watch(viewport, (next) => {
@@ -171,7 +208,14 @@ watch(viewport, (next) => {
           />
         </div>
         <div class="flex shrink-0 flex-col gap-1">
-          <SampleMineBox ref="mineBox" v-model="note" :placeholder="placeholder" layout="panel" @build="build(false)" />
+          <SampleMineBox
+            ref="mineBox"
+            v-model="note"
+            :placeholder="placeholder"
+            layout="panel"
+            @build="build(false)"
+            @note-focus="mineOpened('note_focus')"
+          />
           <SampleFoundingLine />
         </div>
       </aside>

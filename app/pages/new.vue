@@ -6,6 +6,7 @@ import { INTAKE_COPY } from '~/utils/intake-copy'
 import { detectedFields } from '~/utils/intake-panel'
 import MascotWick from '~/components/mascot/wick.vue'
 import { hobbyHandoffStep, parseHobbyQuery, withoutHobbyQuery } from '~/utils/landing'
+import { takeSampleHandoff } from '~/utils/sample-handoff'
 import type { WickMood } from '~/utils/wick'
 import { getActiveHobbyId } from '~/utils/active-hobby'
 import { cloudEntries, toHobbyLibrary } from '~/utils/cloud-library'
@@ -168,7 +169,11 @@ watchEffect(() => {
   handoffDone = true
   if (step.kind === 'none') return
   hobby.value = step.hobby
-  if (step.kind === 'start') void start()
+  // A note handed over by a sample page for this hobby (spec: sample-path, Req 10.4): taken once.
+  if (step.kind === 'start') {
+    note.value = takeSampleHandoff(step.hobby) ?? ''
+    void start()
+  }
   void router.replace({ query: withoutHobbyQuery(route.query) })
 })
 
