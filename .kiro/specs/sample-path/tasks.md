@@ -199,15 +199,15 @@ The owner answered OD1 to OD6 on 2026-11-23 (scenarios.md, decisions 13 to 17). 
     - Track each row in `changes.md` under "Manual checks after launch" as it is done; a failing row becomes a bug in `KNOWN_BUGS.md`
     - _Requirements: 14.1 to 14.7, 16.9, 16.10_
 
-- [ ] 13. Change summary and changelog
-  - [ ] 13.1 Finish `.kiro/specs/sample-path/changes.md`
+- [x] 13. Change summary and changelog
+  - [x] 13.1 Finish `.kiro/specs/sample-path/changes.md`
     - Groups by purpose (bug fix, data and script, route, shared components, page, handoff, events), each file with its reason, the review order, what was not changed on purpose, what was run and what was not, the launch gate results of 12.1, and an empty "Manual checks after launch" list of the remaining rows for 12.2
     - Write it while doing the work, and finish it here
-  - [ ] 13.2 Add the `CHANGELOG.md` entry under "## [Unreleased]"
+  - [x] 13.2 Add the `CHANGELOG.md` entry under "## [Unreleased]"
     - Added: one line for the sample path pages, written for a user, with "(spec: sample-path)"
     - Do not stage the file
 
-- [ ] 14. Final checkpoint - Ensure all tests pass
+- [x] 14. Final checkpoint - Ensure all tests pass
   - Run `yarn typecheck` and `yarn test`, and ask the user if questions arise.
 
 ## Notes

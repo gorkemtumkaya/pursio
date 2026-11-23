@@ -1,6 +1,6 @@
 # Changes: Sample path page
 
-Implementation of the `sample-path` spec ([scenarios](scenarios.md), [requirements](requirements.md), [design](design.md), [tasks](tasks.md)). This file grows with the work. So far it covers task 1, the analytics bug APP-ANALYTICS-01, which the owner asked to fix first and on its own (plan reviewed by the owner on 2026-11-23 before the code changed), and task 2, the sample data.
+Implementation of the `sample-path` spec ([scenarios](scenarios.md), [requirements](requirements.md), [design](design.md), [tasks](tasks.md)). It covers every task of the spec: task 1, the analytics bug APP-ANALYTICS-01, fixed first and on its own as the owner asked (plan reviewed on 2026-11-23 before the code changed), and tasks 2 to 13, the sample path page. What is left is the owner's: the rows E1 and F1 of the launch gate, the production check of the bug fix, and the manual rows after launch.
 
 - **Repos and branches:** `pursio`. G1 was made on `fix/analytics-funnel-chain` and merged into `main`; everything after it is on `main`
 - **State:** G1 committed in `f5101ed` and merged into `main` (fast forward) on 2026-11-23; checked alone in a clean worktree: 1434 passed, 16 skipped. Spec documents in `9fccee2`. G2 in `6afec4a`. G3 in `43dac82`. G4 in `42c4730`. G5 in `0abcd39`. G6 in `9a355d8`. G7 in `2f7206d`. G8 in `0676bcd`. G9 committed with this update. From G2 on, work is on `main` and each separate task is committed when done (owner, 2026-11-23)
@@ -262,6 +262,10 @@ No open decision in this group.
 - Past events are not rewritten. Server events before the fix stay under separate persons, so funnels that include `$ai_generation` or that start before the deploy undercount for anonymous visitors.
 - No `identify` for anonymous visitors (see "Related, not changed").
 - The `tracing_headers` option stays in the plugin; nothing depends on it.
+- **Sample page:** no change to path generation, prompts, the video pipeline, billing or the database (Req 15.1). The real path screen only gained optional props that are off by default (G4). `/new` changed only in its hobby handoff (G3, G8) and the analytics headers (G1).
+- `data/sample-paths.json` stays in the repo as the source of the samples; the converter script is committed (decision 16).
+- `app/pages/new.vue` keeps its literal `rounded-[14px]`; it is outside this spec.
+- No browser test framework was added (decision 13). The browser checks in Verification were run by hand with a throwaway script, not committed.
 
 ## Verification
 
@@ -281,16 +285,41 @@ No open decision in this group.
 - **G7, not run:** typing, the counter, focus return, Escape; manual rows D2 to D7.
 - **G8, run:** `yarn typecheck`: 0 errors. `yarn test`: 1541 passed, 16 skipped (18 new). A real browser with a fresh profile against the dev server (Chrome through the DevTools protocol): `/try/guitar?utm_source=reddit&utm_campaign=t1` loaded, a skill opened, a note typed. **Before the press**, the only hosts were `localhost:3000`, `fonts.googleapis.com`, `fonts.gstatic.com`, `i.ytimg.com` and `eu-assets.i.posthog.com`: no Supabase request, no `/api/` request (acceptance check 1, manual row A1 in part); storage held only PostHog's keys. **After "Build my path"**, the URL was `/new?utm_source=reddit&utm_campaign=t1&hobby=Guitar`, with no word of the note (acceptance check 5, in part). The first request after the press was the anonymous sign up to Supabase, blocked by the script on purpose so the check created no user and spent no model call.
 - **G9, run:** `yarn typecheck`: 0 errors. `yarn test`: 1561 passed, 16 skipped (20 new).
+- **Final (task 14):** `yarn typecheck`: 0 errors. `yarn test`: 1561 passed, 16 skipped, against 1415 passed before this spec (146 new tests; existing test files changed only by additions: the route tests of G1, the shared generators in `tests/arbitraries.ts` of G2, and the conventions scan of G9).
 - **G8, not run:** the rest of acceptance check 5 in a browser (the note filled on `/new`, intake, the Panel), because it needs a real session and an intake call; manual row E1, in the launch gate. The events in PostHog live events: manual row F1, in the launch gate.
 
 ## Manual checks before release
 
-- [ ] F4: on production after the deploy, clear site data, open `/?utm_source=test`, type a hobby, build. In PostHog, the person holds `landing_viewed`, `intake_shown`, `intake_answered`, `skill_path_generated` and the `$ai_generation` events under one distinct id (Req 12.7).
+**Analytics fix (G1), on production after the deploy:**
+
+- [ ] F4: clear site data, open `/?utm_source=test`, type a hobby, build. In PostHog, the person holds `landing_viewed`, `intake_shown`, `intake_answered`, `skill_path_generated` and the `$ai_generation` events under one distinct id (Req 12.7).
 - [ ] F4b: start a build and close the tab after 15 s. `skill_path_generated` still appears.
 - [ ] F5: block PostHog in the browser, build. The path builds; server events appear under the user id.
 - [ ] S1: signed in account, build. Events stay on the same person as before.
 
+**Sample page launch gate (decision 17): all four before the ad links go live.**
+
+- [x] A1 (dev server, 2026-11-23): a fresh browser on `/try/guitar?utm_source=reddit&utm_campaign=t1` sent no Supabase and no `/api/` request, and stored nothing but PostHog's keys, until "Build my path". Repeat once on the production build or preview, since the static file is what ad visitors get.
+- [x] B5 (dev server, 2026-11-23): photography (3 sections, 14 skills), birdwatching (2, 13) and guitar (2, 9) at a true 360 px viewport and at 1440 px: no sideways scroll, no overlap, every title and the finish card in full, the bar clear of the finish card.
+- [ ] E1 (owner): on `/try/guitar?utm_source=reddit`, write a note, press "Build my path". `/new` shows its loading state, then the hobby and the note filled while Wick reads, then the Panel with chips. The URL holds `utm_source` and no part of the note at every step. Needs a real session and an intake call.
+- [ ] F1 (owner): with PostHog live events open, view a sample, open a skill, open Make it yours, build. Four events, once each, with `hobby` and the utm properties, no note.
+
+**After launch (decision 17):** every other row of the manual matrix in [design.md](design.md), in the three themes, with a keyboard and a screen reader for both sheets. Record each here as it is done; a failing row becomes a bug in [KNOWN_BUGS.md](../../../KNOWN_BUGS.md).
+
+- [ ] A2, A3, A4, A5, A6, A7, A8, A9
+- [ ] B1, B2, B3, B4, B6 (compare with the four mockups)
+- [ ] C1 to C10
+- [ ] D1 to D7
+- [ ] E2 to E11 (E7 answers V2)
+- [ ] F2, F3, F4, F5
+- [ ] V4: every video of the three files plays in the embed
+- [ ] V6: confirmed in B5
+
 ## Follow-ups
 
-- After the deploy: move APP-ANALYTICS-01 to Fixed in [KNOWN_BUGS.md](../../../KNOWN_BUGS.md) with the commit and the result of the F4 check.
-- Then task 2 of the spec (sample data).
+- After the deploy: the F4 check, then set "Fixed in" of APP-ANALYTICS-01 in [KNOWN_BUGS.md](../../../KNOWN_BUGS.md) to `f5101ed` and the release.
+- The founding line uses the draft wording "Founding members keep Plus for life. See the offer" until the owner confirms it (decision 14); only `app/utils/sample-copy.ts` and its test change.
+- The fallback placeholder for other hobbies is a draft; no current page shows it.
+- The pages carry `noindex` for now; removing it is one line in `app/pages/try/[hobby].vue`.
+- When a new export with more videos arrives: replace `data/sample-paths.json`, `yarn samples`, `yarn test`, then check the videos (manual row C5).
+- The `CHANGELOG.md` entry is written and left unstaged: staging it triggers the release.
