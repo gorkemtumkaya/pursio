@@ -2,10 +2,10 @@
 
 Implementation of the `sample-path` spec ([scenarios](scenarios.md), [requirements](requirements.md), [design](design.md), [tasks](tasks.md)). This file grows with the work. So far it covers task 1, the analytics bug APP-ANALYTICS-01, which the owner asked to fix first and on its own (plan reviewed by the owner on 2026-11-23 before the code changed), and task 2, the sample data.
 
-- **Repos and branches:** `pursio` `fix/analytics-funnel-chain`. The owner chose on 2026-11-23 not to commit the fix before task 2, so G1 and G2 share the branch and the working tree. They touch no common file except this one, so they can still be committed apart
-- **State:** G1 committed in `f5101ed` on 2026-11-23 (15 files; checked alone in a clean worktree: 1434 passed, 16 skipped). G2 and this spec folder are uncommitted
+- **Repos and branches:** `pursio`. G1 was made on `fix/analytics-funnel-chain` and merged into `main`; everything after it is on `main`
+- **State:** G1 committed in `f5101ed` and merged into `main` (fast forward) on 2026-11-23; checked alone in a clean worktree: 1434 passed, 16 skipped. Spec documents in `9fccee2`. G2 in `6afec4a`. G3 committed with this update. From G2 on, work is on `main` and each separate task is committed when done (owner, 2026-11-23)
 - **Status:** 1 of 1 done *(bug fixes)*; the production check F4 waits for the deploy
-- **Size:** G1: 9 files changed, 4 added. G2: 2 files changed, 13 added (incl. 3 generated data files). 2 groups
+- **Size:** G1: 9 files changed, 4 added. G2: 2 files changed, 13 added (incl. 3 generated data files). G3: 4 files changed, 7 added. 3 groups
 
 ## Scenarios *(bug fixes)*
 
@@ -47,6 +47,7 @@ So the report has two parts:
 
 1. G1. One identity for browser and server events: the bug fix, independent of the rest.
 2. G2. Sample data and the converter script: the base every later sample page task reads.
+3. G3. The route without a session: the first code that runs for an ad visitor.
 
 ## Groups
 
@@ -115,6 +116,29 @@ The three Sample_Files, written by a committed script from the export, with the 
   - Tests are not type checked in this project (only `tests/nuxt/` is in the type check), so the `@ts-expect-error` on the `.mjs` import in `sample-files.test.ts` is not verified by `yarn typecheck`.
   - `hobbyTextFromSlug` allows letters of any script, so `/try/ölçüm` gives "ölçüm".
 
+### G3. The route without a session (task 3; Req 1, 3.1, 3.2, 3.7)
+
+`/try/<slug>` starts no session; the three sample slugs are static pages with noindex; any other slug answers 302 to `/new` with the hobby filled and nothing started.
+
+| File | Why it changed |
+|---|---|
+| [app/utils/session-start.ts](../../../app/utils/session-start.ts) | New. `startsSession(path, query)`: false for Demo_Mode (moved here unchanged) and for `/try` and every `/try/…` path |
+| [app/middleware/auth.global.ts](../../../app/middleware/auth.global.ts) | Calls `startsSession` instead of its own demo check |
+| [app/utils/sample-route.ts](../../../app/utils/sample-route.ts) | New. `sampleRedirect(slug, query)`: null for a sample slug whose file loads, else the `/new` target. Takes no session or account |
+| [app/middleware/sample-slug.ts](../../../app/middleware/sample-slug.ts) | New. Named route middleware: the 302 on the server, a replace in the browser |
+| [app/pages/try/[hobby].vue](../../../app/pages/try/%5Bhobby%5D.vue) | New. Shell only: the middleware, the title "<Hobby> sample path · Pursio", robots noindex, and the hobby and finish line. The real page comes in tasks 5 to 8 |
+| [app/utils/sample-copy.ts](../../../app/utils/sample-copy.ts) | New. The copy module, with the page title so far; task 5.2 adds the rest |
+| [nuxt.config.ts](../../../nuxt.config.ts) | `routeRules` prerender the three sample pages, from `SAMPLE_SLUGS` |
+| [app/utils/landing.ts](../../../app/utils/landing.ts) | `hobbyHandoffStep(query, sessionReady)`: the handoff decision of `/new` as a pure function (`none`, `fill` with `start=0`, `wait`, `start`). `withoutHobbyQuery` also drops `start` |
+| [app/pages/new.vue](../../../app/pages/new.vue) | The handoff effect acts on `hobbyHandoffStep`. With `start=0` it fills the hobby at once and sends nothing; otherwise as before, `start()` still runs before the URL is rewritten |
+| [tests/unit/sample-route.test.ts](../../../tests/unit/sample-route.test.ts) | New. Acceptance check 2: `/try/unknown` goes to `/new` with the hobby and `start=0`; slug to hobby text; campaign params; the handoff steps; `withoutHobbyQuery` |
+| [tests/unit/sample-no-cost.test.ts](../../../tests/unit/sample-no-cost.test.ts) | New. Acceptance checks 1 and 3, first part: no session for any `/try/` path and any query (100 runs); demo unchanged; sessions elsewhere, `/new` included; the middleware calls the rule |
+
+- **Related, not changed:** [app/composables/useAuth.ts](../../../app/composables/useAuth.ts) (builds the Supabase client only in `ensure()`, which no longer runs on `/try/`); [app/plugins/cloud.client.ts](../../../app/plugins/cloud.client.ts) (watches the user id, which stays empty; checked in task 11.2).
+- **Watch for:**
+  - **Free plan limit with `start=0`:** `new.vue` shows the limit card instead of the form when the account is at 3 hobbies and the URL has no `hobby`. After the `start=0` fill the URL has none, so an account at the limit sees the card even when the slug names a hobby it already has. Typing that hobby on `/new` behaves the same today, so this is not new behavior. Only reachable from an unknown slug.
+  - The static guard over the page's own files (no auth, cloud or API code) waits for task 11.1, when the page has its components.
+
 ## Decisions
 
 1. **Where `skill_path_generated` is sent.** Decided 2026-11-23 (OD1, decision 13): server only, with the browser's distinct id.
@@ -133,6 +157,8 @@ No open decision in this group.
 - **The tests catch the bug:** with the old line `createAiObservabilityContext(userId)` put back in the tree handler, 2 of the new tests fail (the browser id case and Property 6). The fix was then restored.
 - **Not run:** lint (the project has no linter configured). No request against a real PostHog; F4 is checked on production after the deploy.
 - **G2, run:** `yarn samples` twice (written, then unchanged). `yarn typecheck`: 0 errors. `yarn test`: 1476 passed, 16 skipped (42 new in G2).
+- **G3, run:** `yarn typecheck`: 0 errors. `yarn test`: 1507 passed, 16 skipped (31 new). `yarn build` (Vercel preset): the prerenderer made `/try/guitar`, `/try/photography` and `/try/birdwatching` with their payloads; the HTML holds the title, `<meta name="robots" content="noindex">` and the finish line; Vercel routing serves static files first and sends any other `/try/<slug>` to the `[hobby]` function (V3 answered). Against the dev server: `/try/calligraphy?utm_source=reddit&utm_campaign=t1` → 302 `/new?utm_source=reddit&utm_campaign=t1&hobby=calligraphy&start=0`; `/try/film-photography` → `hobby=film+photography`; `/try/---` → `/new`; `/try/Guitar` → `hobby=Guitar`; `/try/guitar?utm_source=reddit` → 200.
+- **G3, not run:** a browser pass of `/new?hobby=calligraphy&start=0` (field filled, no intake request): manual row A3.
 
 ## Manual checks before release
 

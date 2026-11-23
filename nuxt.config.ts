@@ -1,5 +1,6 @@
 import tailwindcss from '@tailwindcss/vite'
 import { pathHintInitScript } from './shared/utils/path-hint'
+import { SAMPLE_SLUGS } from './shared/utils/sample-slugs'
 import { THEME_STORAGE_KEY, THEMES } from './shared/utils/theme'
 
 const googleFontsUrl =
@@ -107,6 +108,9 @@ export default defineNuxtConfig({
       paddleCheckoutEnabled: false,
     },
   },
+  // The sample path pages are static files made at build time (spec: sample-path, Req 1.6). Any other
+  // /try/<slug> reaches the server, which answers 302 to /new.
+  routeRules: Object.fromEntries(SAMPLE_SLUGS.map((slug) => [`/try/${slug}`, { prerender: true }])),
   nitro: {
     // Hosted on Vercel; supabase is only the database, Auth and pg_cron + pg_net.
     preset: 'vercel',

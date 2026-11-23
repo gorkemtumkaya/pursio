@@ -83,19 +83,19 @@ The owner answered OD1 to OD6 on 2026-11-23 (scenarios.md, decisions 13 to 17). 
     - `tests/unit/sample-layout.test.ts`: photography (3 sections, 14 skills) and guitar (2 sections, 9 skills), mobile and desktop, `computePathLayout` succeeds, with the overlap assertions already used in `path-layout.test.ts`, and label widths for a 360 px column
     - _Requirements: 2.5, 14.5, 16.7_
 
-- [ ] 3. Route without a session
-  - [ ] 3.1 Add `startsSession` and use it in the global middleware
+- [x] 3. Route without a session
+  - [x] 3.1 Add `startsSession` and use it in the global middleware
     - `app/utils/session-start.ts`; `auth.global.ts` calls it; the two demo conditions move into it unchanged
     - _Requirements: 3.1, 3.2, 3.7_
-  - [ ] 3.2 Add the page shell
+  - [x] 3.2 Add the page shell
     - `app/pages/try/[hobby].vue`: the inline middleware with the 302, the head (title, `robots: noindex`), a placeholder body
     - `nuxt.config.ts`: `routeRules` from `SAMPLE_SLUGS` with `prerender: true`
     - Run `yarn build` and check that the three pages are static files and that another slug is not (V3)
     - _Requirements: 1.1, 1.2, 1.4, 1.6 to 1.9_
-  - [ ] 3.3 Let `/new` fill a hobby without starting
+  - [x] 3.3 Let `/new` fill a hobby without starting
     - `new.vue`: the `start=0` branch of the handoff effect; `withoutHobbyQuery` also drops `start`
     - _Requirements: 1.5_
-  - [ ] 3.4 Write the route tests (acceptance checks 1, 2 and 3, first part)
+  - [x] 3.4 Write the route tests (acceptance checks 1, 2 and 3, first part)
     - `tests/unit/sample-route.test.ts`: `unknownSlugTarget` for calligraphy, film-photography, Guitar, `---`, a slug with `<`, with and without Campaign_Params
     - `tests/unit/sample-no-cost.test.ts`: `startsSession` is false for every `/try/` path and any query, true for `/new`, `/path`, `/`, and false for the two demo URLs as before
     - Extend `landing` tests for `withoutHobbyQuery`

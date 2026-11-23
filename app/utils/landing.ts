@@ -53,11 +53,32 @@ export function parseHobbyQuery(value: unknown): string | null {
   return text === '' ? null : text
 }
 
-/** Req 11.5: the same query without `hobby`, every other key and value kept. */
+/**
+ * What `/new` does with `?hobby=` on load (Req 11.1 to 11.5; spec: sample-path, Req 1.5):
+ * `none` without a usable hobby; `fill` with `start=0`, at once, sending nothing; otherwise
+ * `wait` until a session is ready, then `start`, which fills the hobby and starts intake.
+ */
+export type HobbyHandoffStep =
+  | { kind: 'none' }
+  | { kind: 'fill'; hobby: string }
+  | { kind: 'wait' }
+  | { kind: 'start'; hobby: string }
+
+export function hobbyHandoffStep(query: LocationQuery, sessionReady: boolean): HobbyHandoffStep {
+  const hobby = parseHobbyQuery(query.hobby)
+  if (hobby === null) return { kind: 'none' }
+  if (query.start === '0') return { kind: 'fill', hobby }
+  return sessionReady ? { kind: 'start', hobby } : { kind: 'wait' }
+}
+
+/**
+ * Req 11.5: the same query without `hobby`, every other key and value kept. `start` goes too: it
+ * only says whether that hobby starts (spec: sample-path, Req 1.5), so it means nothing without it.
+ */
 export function withoutHobbyQuery(query: LocationQuery): LocationQueryRaw {
   const rest: LocationQueryRaw = {}
   for (const [key, value] of Object.entries(query)) {
-    if (key !== 'hobby') rest[key] = value
+    if (key !== 'hobby' && key !== 'start') rest[key] = value
   }
   return rest
 }

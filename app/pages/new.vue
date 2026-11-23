@@ -5,7 +5,7 @@ import { HOBBY_LIMIT_COPY, hobbyLimitHeading } from '~/utils/hobby-limit-copy'
 import { INTAKE_COPY } from '~/utils/intake-copy'
 import { detectedFields } from '~/utils/intake-panel'
 import MascotWick from '~/components/mascot/wick.vue'
-import { parseHobbyQuery, withoutHobbyQuery } from '~/utils/landing'
+import { hobbyHandoffStep, parseHobbyQuery, withoutHobbyQuery } from '~/utils/landing'
 import type { WickMood } from '~/utils/wick'
 import { getActiveHobbyId } from '~/utils/active-hobby'
 import { cloudEntries, toHobbyLibrary } from '~/utils/cloud-library'
@@ -155,19 +155,20 @@ const status = computed(() => {
  * builds at once when intake fails. The URL then loses `hobby`, so refresh and back start nothing.
  * `start()` reads the hobby before its first await, so the replace right after it does not change
  * the request. A failed build is not retried.
+ *
+ * With `start=0` (an unknown sample slug; spec: sample-path, Req 1.5) the hobby is only filled:
+ * no intake, no session wait, and the visitor presses "Build my path" when ready.
  */
 let handoffDone = false
 watchEffect(() => {
   if (handoffDone || !import.meta.client) return
-  const value = parseHobbyQuery(route.query.hobby)
-  if (value === null) {
-    handoffDone = true
-    return
-  }
-  if (auth.status.value !== 'anonymous' && auth.status.value !== 'signed_in') return
+  const sessionReady = auth.status.value === 'anonymous' || auth.status.value === 'signed_in'
+  const step = hobbyHandoffStep(route.query, sessionReady)
+  if (step.kind === 'wait') return
   handoffDone = true
-  hobby.value = value
-  void start()
+  if (step.kind === 'none') return
+  hobby.value = step.hobby
+  if (step.kind === 'start') void start()
   void router.replace({ query: withoutHobbyQuery(route.query) })
 })
 

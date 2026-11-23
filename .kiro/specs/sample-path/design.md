@@ -175,16 +175,14 @@ It lives in `shared/` because `nuxt.config.ts` imports `SAMPLE_SLUGS` for the pr
 ### Route (`app/pages/try/[hobby].vue`, `nuxt.config.ts`)
 
 ```ts
-definePageMeta({
-  middleware: (to) => {
-    const slug = String(to.params.hobby ?? '')
-    if (isSampleSlug(slug) && getSample(slug) !== null) return
-    return navigateTo(unknownSlugTarget(slug, to.query), { redirectCode: 302, replace: true })
-  },
-})
+// app/utils/sample-route.ts
+export function sampleRedirect(slug: string, query): { path: '/new'; query } | null   // null: show the page
+// app/middleware/sample-slug.ts, named in the page's definePageMeta
+const target = sampleRedirect(slug, to.query)
+if (target !== null) return navigateTo(target, { redirectCode: 302, replace: true })
 ```
 
-An inline page middleware runs on the server for a direct request (a real 302) and in the browser for an in-app navigation. The page itself only reads `getSample(slug)`, sets the head (`title`, `robots: noindex`) and renders `SampleView`. It calls no composable of auth, cloud, billing or videos.
+A named route middleware runs on the server for a direct request (a real 302) and in the browser for an in-app navigation. The decision is the pure `sampleRedirect`, which takes the slug and the query only, so tests cover it without Nuxt. The page itself only reads `getSample(slug)`, sets the head (`title`, `robots: noindex`) and renders `SampleView`. It calls no composable of auth, cloud, billing or videos.
 
 `nuxt.config.ts`:
 
@@ -350,6 +348,8 @@ note.value = takeSampleHandoff(value) ?? ''  // Requirement 10.4
 void start()
 void router.replace({ query: withoutHobbyQuery(route.query) })
 ```
+
+The effect's decision is the pure `hobbyHandoffStep(query, sessionReady)` in `app/utils/landing.ts` (task 3): `none`, `fill` (with `start=0`), `wait` or `start`. `new.vue` only acts on it.
 
 `start()` reads the note after its first await, when it is already set. With a note, intake returns the detected fields and the Panel opens on its chips. With none, the result is today's landing handoff. The `start=0` branch does not wait for the session, because it sends nothing.
 
