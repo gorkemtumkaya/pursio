@@ -50,7 +50,7 @@ const FOCUS = 'focus-visible:outline-3 focus-visible:outline-offset-2 focus-visi
   >
     <div class="flex min-w-0 flex-[1_1_420px] flex-col gap-[18px]">
       <span
-        class="self-start rounded-[10px] bg-primary-soft px-3 py-1.5 text-[13px] font-extrabold tracking-[0.04em] text-accent-text"
+        class="self-start rounded-[10px] bg-surface-2 px-3 py-1.5 text-[13px] font-extrabold tracking-[0.04em] text-ink"
       >
         {{ LANDING_COPY.heroBadge }}
       </span>
@@ -68,7 +68,7 @@ const FOCUS = 'focus-visible:outline-3 focus-visible:outline-offset-2 focus-visi
         novalidate
         @submit.prevent="onSubmit"
       >
-        <label :for="inputId" class="text-[13px] font-extrabold tracking-[0.06em] text-muted">
+        <label :for="inputId" class="text-[15px] font-extrabold tracking-[0.04em] text-ink">
           {{ LANDING_COPY.hobbyLabel }}
         </label>
         <div class="flex flex-wrap gap-2.5">
@@ -83,13 +83,13 @@ const FOCUS = 'focus-visible:outline-3 focus-visible:outline-offset-2 focus-visi
             :placeholder="LANDING_COPY.hobbyPlaceholder"
             :aria-describedby="message ? messageId : undefined"
             :aria-invalid="message ? 'true' : undefined"
-            class="h-14 min-w-0 flex-[1_1_200px] rounded-2xl border-2 bg-bg px-4 text-[17px] font-bold text-ink placeholder:text-muted"
-            :class="[hobby ? 'border-primary' : 'border-line', FOCUS]"
+            class="h-14 min-w-0 flex-[1_1_200px] rounded-2xl border-[3px] bg-bg px-4 text-[17px] font-bold text-ink placeholder:text-muted"
+            :class="[hobby ? 'border-primary' : 'border-ink', 'outline-none focus:border-primary']"
             @input="onInput"
           >
           <button
             type="submit"
-            class="flex h-14 flex-[1_1_160px] items-center justify-center rounded-2xl bg-primary font-head text-lg font-semibold whitespace-nowrap text-primary-ink shadow-[0_5px_0_var(--pursio-primary-deep)]"
+            class="flex h-14 flex-[1_1_160px] items-center justify-center rounded-2xl bg-primary font-head text-lg font-semibold whitespace-nowrap text-primary-ink shadow-[0_5px_0_var(--pursio-primary-deep)] bouncy [--bouncy-depth:5px]"
             :class="FOCUS"
           >
             {{ LANDING_COPY.buildMyPath }}
@@ -113,7 +113,9 @@ const FOCUS = 'focus-visible:outline-3 focus-visible:outline-offset-2 focus-visi
       <span class="text-sm font-bold text-muted">{{ LANDING_COPY.heroNote }}</span>
     </div>
 
-    <div class="flex min-w-0 flex-[1_1_340px] justify-center">
+    <!-- Side by side (from about 900 px) the preview sits on the right edge of the content,
+         in line with the cards below; stacked, it is centered. -->
+    <div class="flex min-w-0 flex-[1_1_340px] justify-center min-[900px]:justify-end">
       <LandingPathPreview />
     </div>
   </section>

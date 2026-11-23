@@ -31,6 +31,7 @@
   --pursio-done: #4e7a38;
   --pursio-done-deep: #345325;
   --pursio-done-ink: #ffffff;
+  --pursio-done-text: #345325; /* text of a finished item on bg or surface */
 
   --pursio-locked: #d7cdbf;
   --pursio-locked-deep: #b2a390;
@@ -98,6 +99,7 @@
   --pursio-done: #1c8468;
   --pursio-done-deep: #12634d;
   --pursio-done-ink: #ffffff;
+  --pursio-done-text: #12634d; /* text of a finished item on bg or surface */
 
   --pursio-locked: #dce2d9;
   --pursio-locked-deep: #bac3b6;
@@ -165,6 +167,7 @@
   --pursio-done: #8f49ff;
   --pursio-done-deep: #5b2bb0;
   --pursio-done-ink: #ffffff;
+  --pursio-done-text: #c9a8ff; /* text of a finished item on bg or surface */
 
   --pursio-locked: #2c2140;
   --pursio-locked-deep: #120b1c;

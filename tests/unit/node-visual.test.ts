@@ -120,19 +120,27 @@ describe('chipFor', () => {
 })
 
 describe('buttonFor', () => {
-  it('enables "Mark complete" for current and side quest nodes (Req 8.10)', () => {
+  it('enables "Mark complete" for current and side quest nodes with every quest ticked (Req 8.10)', () => {
     for (const state of ['current', 'side_quest'] as const) {
-      expect(buttonFor(state)).toMatchObject({ label: 'Mark complete', enabled: true })
+      expect(buttonFor(state, true)).toMatchObject({ label: 'Mark complete', enabled: true })
+    }
+  })
+
+  it('keeps the button enabled as "Skip this skill" while quests are open (Req 8.10)', () => {
+    for (const state of ['current', 'side_quest'] as const) {
+      const skip = buttonFor(state, false)
+      expect(skip).toMatchObject({ label: 'Skip this skill', enabled: true })
+      expect(skip.classes).not.toBe(buttonFor(state, true).classes)
     }
   })
 
   it('disables "Completed" for completed nodes (Req 8.11)', () => {
-    expect(buttonFor('completed')).toMatchObject({ label: 'Completed', enabled: false })
+    expect(buttonFor('completed', false)).toMatchObject({ label: 'Completed', enabled: false })
   })
 
   it('disables "Locked" for locked and non-current milestone nodes (Req 8.12)', () => {
     for (const state of ['locked', 'milestone'] as const) {
-      expect(buttonFor(state)).toMatchObject({ label: 'Locked', enabled: false })
+      expect(buttonFor(state, true)).toMatchObject({ label: 'Locked', enabled: false })
     }
   })
 })

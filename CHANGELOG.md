@@ -6,6 +6,18 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+## [0.10.0] - 2026-11-23
+
+### Added
+- The landing page ends with a "Choose a hobby" button that takes you back to the hobby box at the top.
+
+### Changed
+- On the landing page, the hobby box stands out more, the sample path is labelled "Example path" and no longer looks clickable, and the "Free to try" badge no longer looks like a warning.
+- "How it works" and the questions on the landing page are each one card, so every section reads as one block.
+- Finished quests stay readable: the text turns green and is no longer struck through. (spec: skill-path-ui)
+- The button under a skill says "Skip this skill" until all three quests are ticked, then "Mark complete". It works the same either way. (spec: skill-path-ui)
+- On the Quests page, today's counter and its quests are one card, and the skill name shows once when all three quests belong to the same skill. (spec: quests-page)
+
 ## [0.9.2] - 2026-11-21
 
 ### Changed

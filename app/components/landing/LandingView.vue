@@ -17,6 +17,7 @@ useHead({ htmlAttrs: { class: 'motion-safe:scroll-smooth' } })
       <LandingWick />
       <LandingFounding />
       <LandingFaq />
+      <LandingClosing />
     </main>
     <LandingFooter />
   </div>

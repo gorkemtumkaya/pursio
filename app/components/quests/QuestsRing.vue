@@ -2,9 +2,10 @@
 import { computed } from 'vue'
 
 /**
- * Round ring with "1/3" in the middle, for the dark Today banner (Req 5.1, 15.7).
+ * Round ring with "1/3" in the middle, for the Today card (Req 5.1, 15.7).
  * `degrees` is the filled part (360 * done / total); `label` is the screen reader text.
- * Meant for a dark (`bg-ink`) surface: the inner disc and text use `ink` and `bg`.
+ * The inner disc is dark (`ink` with `bg` text) and the open part of the ring uses `line`,
+ * so it reads on the light card surface.
  */
 const props = defineProps<{ done: number; total: number; degrees: number; label: string }>()
 
@@ -26,6 +27,6 @@ const style = computed(() => ({ '--ring-deg': `${props.degrees}deg` }))
 
 <style scoped>
 .quests-ring {
-  background: conic-gradient(var(--pursio-primary) 0 var(--ring-deg), var(--pursio-muted) 0);
+  background: conic-gradient(var(--pursio-primary) 0 var(--ring-deg), var(--pursio-line) 0);
 }
 </style>

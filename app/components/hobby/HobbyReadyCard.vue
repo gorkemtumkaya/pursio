@@ -82,7 +82,7 @@ onMounted(() => {
     <button
       ref="openButton"
       type="button"
-      class="h-14 w-full rounded-2xl bg-primary font-head text-lg font-semibold text-primary-ink shadow-raised-primary focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink"
+      class="h-14 w-full rounded-2xl bg-primary font-head text-lg font-semibold text-primary-ink shadow-raised-primary bouncy focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink"
       @click="$emit('open')"
     >
       Open my path

@@ -161,23 +161,29 @@ export function chipFor(state: NodeState): ChipVisual {
 }
 
 export interface ButtonVisual {
-  label: 'Mark complete' | 'Completed' | 'Locked'
+  label: 'Mark complete' | 'Skip this skill' | 'Completed' | 'Locked'
   enabled: boolean
   classes: string
 }
 
-const BUTTON_ENABLED = 'bg-primary text-primary-ink shadow-raised-primary font-head'
+/** `bouncy`: a lift on hover, as the reward for reaching 3 of 3 ("Skip this skill" stays still). */
+const BUTTON_ENABLED = 'bg-primary text-primary-ink shadow-raised-primary font-head bouncy'
+/** Skipping is allowed but quieter than finishing: a surface button, not the primary one. */
+const BUTTON_SKIP = 'border-2 border-line bg-surface text-ink shadow-raised-line font-head'
 const BUTTON_DISABLED = 'bg-surface-2 text-muted'
 
 /**
  * Node_Detail action button (Req 8.10–8.12). A milestone Current_Node has
- * state `current`, so it gets the enabled button.
+ * state `current`, so it gets the enabled button. The button always completes the
+ * skill; with quests still open it says so, as "Skip this skill".
  */
-export function buttonFor(state: NodeState): ButtonVisual {
+export function buttonFor(state: NodeState, allQuestsTicked: boolean): ButtonVisual {
   switch (state) {
     case 'current':
     case 'side_quest':
-      return { label: 'Mark complete', enabled: true, classes: BUTTON_ENABLED }
+      return allQuestsTicked
+        ? { label: 'Mark complete', enabled: true, classes: BUTTON_ENABLED }
+        : { label: 'Skip this skill', enabled: true, classes: BUTTON_SKIP }
     case 'completed':
       return { label: 'Completed', enabled: false, classes: BUTTON_DISABLED }
     case 'milestone':

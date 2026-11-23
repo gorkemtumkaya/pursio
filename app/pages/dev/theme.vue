@@ -26,6 +26,7 @@ const colorTokens = [
   { name: 'done', swatchClass: 'bg-done' },
   { name: 'done-deep', swatchClass: 'bg-done-deep' },
   { name: 'done-ink', swatchClass: 'bg-done-ink' },
+  { name: 'done-text', swatchClass: 'bg-done-text' },
   { name: 'locked', swatchClass: 'bg-locked' },
   { name: 'locked-deep', swatchClass: 'bg-locked-deep' },
   { name: 'locked-ink', swatchClass: 'bg-locked-ink' },

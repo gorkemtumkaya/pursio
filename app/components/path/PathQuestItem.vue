@@ -3,6 +3,7 @@ import type { RankedVideo } from '#shared/types/video'
 
 /**
  * One quest checkbox in the Node_Detail (Req 8.6–8.8, 13.8).
+ * A ticked quest keeps readable text in the `done-text` color, with no strike-through.
  * Optional `subtitle`, `badge` and `ariaLabel` serve the Quests page (Req 5.2, 15.6).
  * `watchHow` adds a "Watch how" link when a video matches this quest's text
  * (spec: skill-video-pipeline, Req 12.11, 12.12).
@@ -36,10 +37,10 @@ const emit = defineEmits<{ toggle: []; watch: [videoId: string] }>()
       <PathIcon v-if="checked" name="check" class="size-4" />
     </span>
     <span v-if="subtitle" class="flex min-w-0 flex-1 flex-col">
-      <span :class="checked ? 'text-muted line-through' : 'text-ink'">{{ text }}</span>
+      <span :class="checked ? 'text-done-text' : 'text-ink'">{{ text }}</span>
       <span class="text-xs font-semibold text-muted">{{ subtitle }}</span>
     </span>
-    <span v-else :class="[checked ? 'text-muted line-through' : 'text-ink', badge ? 'min-w-0 flex-1' : '']">{{ text }}</span>
+    <span v-else :class="[checked ? 'text-done-text' : 'text-ink', badge ? 'min-w-0 flex-1' : '']">{{ text }}</span>
     <span
       v-if="badge"
       aria-hidden="true"

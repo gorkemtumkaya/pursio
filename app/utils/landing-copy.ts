@@ -35,6 +35,7 @@ export const LANDING_COPY = {
   heroNote: '',
 
   // Path preview (decorative, hidden from assistive technology)
+  previewLabel: 'EXAMPLE PATH',
   previewEyebrow: 'SECTION 1 · BEGINNER',
   previewSection: 'First sessions',
   previewCount: '2/7',
@@ -76,6 +77,11 @@ export const LANDING_COPY = {
 
   // FAQ
   faqHeading: 'Questions',
+
+  // Closing call to action: takes the visitor back to the hobby input of the hero.
+  closingHeading: 'Ready to start? Pick a hobby.',
+  closingText: 'Type it in and see your path. No signup needed.',
+  closingCta: 'Choose a hobby',
 
   // Footer
   footerNavLabel: 'Footer',

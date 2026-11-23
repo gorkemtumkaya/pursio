@@ -13,7 +13,7 @@ const { theme } = useTheme()
     <p class="max-w-sm text-[15px] leading-normal text-muted">Pick a hobby and Wick builds a path, with daily quests to go with it.</p>
     <NuxtLink
       :to="NEW_HOBBY_PATH"
-      class="flex h-12 items-center justify-center rounded-2xl bg-primary px-6 font-head text-base font-semibold text-primary-ink shadow-raised-primary focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink"
+      class="flex h-12 items-center justify-center rounded-2xl bg-primary px-6 font-head text-base font-semibold text-primary-ink shadow-raised-primary bouncy focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink"
     >
       Build a path
     </NuxtLink>

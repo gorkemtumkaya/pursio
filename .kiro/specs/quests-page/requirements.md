@@ -130,8 +130,8 @@ The Fresh quest and any Fresh content, Wick accessories as rewards, per-hobby we
 #### Acceptance Criteria
 
 1. THE Quests_Page SHALL show the card "Today's quests" with a ring that shows the number of Ticked Quests of the Daily_Pick over the size of the Daily_Pick, written like "1/3".
-2. THE Quests_Page SHALL list each Quest of the Daily_Pick with a checkbox, the quest text, the title of its Node and the label "+10 XP".
-3. WHILE a Quest of the Daily_Pick is Ticked, THE Quests_Page SHALL show its text with a strike-through and its checkbox as checked.
+2. THE Quests_Page SHALL list each Quest of the Daily_Pick with a checkbox, the quest text, the title of its Node and the label "+10 XP". WHILE the Daily_Pick holds 2 or more Quests that all belong to one Node, THE Quests_Page SHALL show the title of that Node once above the list and not on each Quest. (Changed 2026-11-23.)
+3. WHILE a Quest of the Daily_Pick is Ticked, THE Quests_Page SHALL show its text in the `done-text` color, not struck through, and its checkbox as checked. (Changed 2026-11-23.)
 4. WHEN the learner activates the checkbox of a Quest, THE Quests_Page SHALL toggle the Ticked state of that Quest_Id.
 5. WHILE the Daily_Pick holds 3 Quests, THE Quests_Page SHALL show the text "Finish all 3 for +20 bonus XP".
 6. THE Quests_Page SHALL show the time until the next local midnight on the card as "RESETS IN 9H", rounded down to whole hours when 1 hour or more remains, and as "RESETS IN 42M" in whole minutes otherwise.

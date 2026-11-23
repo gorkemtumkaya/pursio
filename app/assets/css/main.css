@@ -31,6 +31,7 @@
   --color-done: var(--pursio-done);
   --color-done-deep: var(--pursio-done-deep);
   --color-done-ink: var(--pursio-done-ink);
+  --color-done-text: var(--pursio-done-text);
 
   --color-locked: var(--pursio-locked);
   --color-locked-deep: var(--pursio-locked-deep);
@@ -140,6 +141,39 @@
 }
 
 /*
+ * Bouncy primary button: a springy lift on hover and a quick press on click, for the one
+ * main action of a screen and for reward moments. Add `bouncy` to a `bg-primary` button
+ * with a solid bottom shadow. On hover it rises 4 px and the shadow grows by 4 px, so its
+ * base stays in place; on press it drops onto the base. `--bouncy-depth` is the depth of
+ * the button's own shadow: 6 px (`shadow-raised-primary`) unless set, e.g.
+ * `[--bouncy-depth:5px]`. Still under reduced motion, when disabled, and no hover on touch.
+ * It changes `--tw-shadow`, the variable behind Tailwind's shadow utilities, and not
+ * `box-shadow` itself: the shadow then keeps its shape and color and only its depth moves.
+ * Setting `box-shadow` made the browser cross-fade two different shadow lists, which
+ * showed as a color change during the bounce.
+ */
+@utility bouncy {
+  @media (prefers-reduced-motion: no-preference) {
+    transition:
+      translate 300ms cubic-bezier(0.34, 1.8, 0.64, 1),
+      box-shadow 300ms cubic-bezier(0.34, 1.8, 0.64, 1);
+
+    @media (hover: hover) {
+      &:not(:disabled, [aria-disabled="true"]):hover {
+        translate: 0 -4px;
+        --tw-shadow: 0 calc(var(--bouncy-depth, 6px) + 4px) 0 var(--pursio-primary-deep);
+      }
+    }
+
+    &:not(:disabled, [aria-disabled="true"]):active {
+      translate: 0 var(--bouncy-depth, 6px);
+      --tw-shadow: 0 0 0 var(--pursio-primary-deep);
+      transition-duration: 75ms;
+    }
+  }
+}
+
+/*
  * Unlock moment: a quick scale pop on the newly unlocked node. Kept outside
  * @theme so it always ships; applied with
  * `motion-safe:animate-[pursio-unlock_450ms_ease-out]`.
@@ -164,5 +198,16 @@
     background-color: var(--pursio-bg);
     color: var(--pursio-ink);
     font-family: var(--pursio-font-body);
+  }
+
+  /*
+   * Tailwind v4 leaves buttons with the default arrow cursor. Every enabled button gets
+   * the pointer here, so a component does not need `cursor-pointer`. In the base layer,
+   * so a utility such as `cursor-not-allowed` still wins.
+   */
+  button:not(:disabled),
+  [role="button"]:not([aria-disabled="true"]),
+  summary {
+    cursor: pointer;
   }
 }

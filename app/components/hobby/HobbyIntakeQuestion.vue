@@ -5,6 +5,8 @@ import type { Option } from '#shared/types/learner-profile'
 /**
  * One tap question of the Panel (spec: path-intake, Req 5.2 to 5.6): a labelled group of toggle
  * buttons. Single or multi select is decided by the parent's toggle action.
+ * Kept compact so two questions fit on one screen: options are 44 px high for touch and
+ * 36 px with a mouse (`pointer-fine`).
  */
 defineProps<{
   title: string
@@ -25,15 +27,15 @@ defineExpose({
 <template>
   <div role="group" :aria-labelledby="titleId" class="flex flex-col gap-3">
     <p :id="titleId" ref="heading" tabindex="-1" class="flex flex-wrap items-baseline gap-x-2 outline-none">
-      <span class="font-display text-[21px] leading-tight font-semibold text-ink">{{ title }}</span>
-      <span v-if="hint" class="text-[15px] font-bold text-muted">{{ hint }}</span>
+      <span class="font-display text-lg leading-tight font-semibold text-ink">{{ title }}</span>
+      <span v-if="hint" class="text-sm font-bold text-muted">{{ hint }}</span>
     </p>
     <ul class="flex flex-wrap gap-2">
       <li v-for="option in options" :key="option.id">
         <button
           type="button"
           :aria-pressed="selected.includes(option.id)"
-          class="flex min-h-11 items-center gap-1.5 rounded-full border-2 px-4 py-1.5 text-left text-[15px] font-extrabold focus-visible:outline-3 focus-visible:outline-offset-2 focus-visible:outline-primary"
+          class="flex min-h-11 items-center gap-1.5 rounded-full border-2 px-3.5 py-1 text-left text-sm font-extrabold pointer-fine:min-h-9 focus-visible:outline-3 focus-visible:outline-offset-2 focus-visible:outline-primary"
           :class="
             selected.includes(option.id)
               ? 'border-primary bg-primary text-primary-ink'

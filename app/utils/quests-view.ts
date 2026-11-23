@@ -42,6 +42,8 @@ export interface TodayRow {
 
 export interface TodayView {
   rows: TodayRow[]
+  /** The skill title when every row comes from the same skill, so the card names it once; else null. */
+  sharedNodeTitle: string | null
   done: number
   total: number
   ringDegrees: number
@@ -74,8 +76,11 @@ export function todayView(
   const total = rows.length
   const done = rows.filter((row) => row.ticked).length
   const hint = pick?.bonus === true ? 'earned' : total === 3 ? 'bonus' : null
+  const firstTitle = rows[0]?.nodeTitle ?? null
+  const sharedNodeTitle = rows.length > 1 && rows.every((row) => row.nodeTitle === firstTitle) ? firstTitle : null
   return {
     rows,
+    sharedNodeTitle,
     done,
     total,
     ringDegrees: total === 0 ? 0 : (360 * done) / total,

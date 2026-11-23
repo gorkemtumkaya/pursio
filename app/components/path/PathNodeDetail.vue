@@ -51,9 +51,9 @@ const chip = computed(() => chipFor(props.state))
  * aligned with their profile when they are read, so the key alone tells it.
  */
 const known = computed(() => typeof props.node.knownOptionId === 'string')
-const button = computed(() => buttonFor(props.state))
 const locked = computed(() => props.state === 'locked')
 const checkedCount = computed(() => props.checks.filter(Boolean).length)
+const button = computed(() => buttonFor(props.state, checkedCount.value === props.checks.length))
 const titleId = computed(() => detailTitleId(props.layout))
 const lockedNote = computed(() =>
   props.lockedBy.length > 0

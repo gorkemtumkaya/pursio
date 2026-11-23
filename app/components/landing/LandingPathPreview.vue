@@ -6,6 +6,8 @@ import { LANDING_COPY, PREVIEW_NODES } from '~/utils/landing-copy'
  * Path preview of the hero (design: dev_docs "Landing page"): a static picture
  * of a path card with four nodes, the trail dots, a speech bubble and Wick.
  * Decorative, so the whole card is aria-hidden and holds nothing focusable.
+ * It must read as a sample, not as the visitor's path or a control: an "Example path"
+ * label sits above it, and the card is flat with a dashed border (no raised shadow).
  * Positions are the design's: nodes of 64 px, 98 px apart, offset from the center.
  */
 const SIZE = 64
@@ -53,9 +55,12 @@ const dots = PREVIEW_NODES.slice(0, -1).flatMap((from, index) => {
 </script>
 
 <template>
+  <div aria-hidden="true" class="pointer-events-none flex w-full max-w-[400px] flex-col items-center gap-2.5 select-none">
+  <span class="rounded-[10px] bg-surface-2 px-3 py-1.5 text-xs font-extrabold tracking-[0.08em] text-muted">
+    {{ LANDING_COPY.previewLabel }}
+  </span>
   <div
-    aria-hidden="true"
-    class="relative h-[520px] w-full max-w-[400px] overflow-hidden rounded-4xl border-2 border-line bg-surface shadow-[0_8px_0_var(--pursio-line)] select-none"
+    class="relative h-[520px] w-full overflow-hidden rounded-4xl border-2 border-dashed border-locked-deep bg-surface"
   >
     <div
       class="m-4 flex items-center justify-between rounded-[18px] bg-banner px-4 py-3 text-banner-ink shadow-[0_4px_0_var(--pursio-banner-deep)]"
@@ -104,5 +109,6 @@ const dots = PREVIEW_NODES.slice(0, -1).flatMap((from, index) => {
       <span class="max-[699px]:hidden"><MascotWick outfit="bouldering" :theme="theme" :size="130" /></span>
       <span class="min-[700px]:hidden"><MascotWick outfit="bouldering" :theme="theme" :size="110" /></span>
     </div>
+  </div>
   </div>
 </template>

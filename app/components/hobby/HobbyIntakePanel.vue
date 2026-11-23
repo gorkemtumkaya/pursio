@@ -86,16 +86,16 @@ async function onRemove(field: ProfileField): Promise<void> {
 defineExpose({ focusStart })
 
 const primaryButtonClass =
-  'h-[58px] flex-1 max-[700px]:flex-none rounded-[18px] bg-primary px-6 font-head text-[19px] font-semibold text-primary-ink '
+  'h-[52px] flex-1 max-[700px]:flex-none rounded-2xl bg-primary px-6 font-head text-lg font-semibold text-primary-ink '
   + 'shadow-[0_5px_0_var(--color-primary-deep)] transition-[translate,box-shadow] duration-75 '
   + 'active:translate-y-1 active:shadow-[0_1px_0_var(--color-primary-deep)] '
   + 'focus-visible:outline-3 focus-visible:outline-offset-2 focus-visible:outline-primary'
 </script>
 
 <template>
-  <section aria-label="Your answers" class="flex flex-col gap-5 rounded-[22px] bg-surface-2 p-5 max-[700px]:p-4">
+  <section aria-label="Your answers" class="flex flex-col gap-6 rounded-[22px] bg-surface-2 p-6 max-[700px]:gap-5 max-[700px]:p-4">
     <div v-if="chips.length > 0" class="flex flex-col gap-3">
-      <h2 ref="heading" tabindex="-1" class="font-display text-[21px] leading-tight font-semibold text-ink outline-none">
+      <h2 ref="heading" tabindex="-1" class="font-display text-lg leading-tight font-semibold text-ink outline-none">
         {{ INTAKE_COPY.chipsHeading }}
       </h2>
       <ul class="flex flex-wrap gap-2">

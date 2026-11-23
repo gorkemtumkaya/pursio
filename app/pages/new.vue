@@ -82,8 +82,7 @@ const inputClass = computed(() => [
 ])
 const primaryButtonClass =
   'h-[58px] w-full rounded-[18px] bg-primary font-head text-[19px] font-semibold text-primary-ink '
-  + 'shadow-[0_5px_0_var(--color-primary-deep)] transition-[translate,box-shadow] duration-75 '
-  + 'active:translate-y-1 active:shadow-[0_1px_0_var(--color-primary-deep)] '
+  + 'shadow-[0_5px_0_var(--color-primary-deep)] bouncy [--bouncy-depth:5px] '
   + 'focus-visible:outline-3 focus-visible:outline-offset-2 focus-visible:outline-primary'
 
 /**
@@ -182,7 +181,8 @@ watch(state, async (next) => {
 
 <template>
   <div class="flex min-h-dvh flex-col">
-    <header class="flex items-center justify-between px-7 py-5 max-[700px]:px-4 max-[700px]:py-3">
+    <!-- Same width and side padding as <main>, so the logo and the actions line up with the content. -->
+    <header class="mx-auto flex w-full max-w-[1048px] items-center justify-between px-4 py-5 max-[700px]:py-3">
       <NuxtLink
         :to="backTo ?? '/'"
         class="flex items-center gap-2.5 rounded-[14px] font-head text-[26px] font-bold text-ink focus-visible:outline-3 focus-visible:outline-offset-2 focus-visible:outline-primary max-[700px]:text-[21px]"
@@ -219,9 +219,11 @@ watch(state, async (next) => {
     </header>
 
     <AuthSessionGate>
-    <main class="mx-auto flex w-full max-w-[1048px] flex-col gap-8 px-4 pb-12">
-      <div class="flex flex-wrap items-center gap-6 max-[700px]:gap-2">
-        <div class="flex flex-[1_1_340px] flex-col items-center gap-1.5">
+    <main class="mx-auto flex w-full max-w-[1048px] flex-col gap-8 px-4 pt-10 pb-12 max-[700px]:pt-3">
+      <!-- The form column takes most of the width (about 640 of 1016 px), so the intake
+           options fit several to a row; Wick's column keeps about a third. -->
+      <div class="flex flex-wrap items-center gap-12 max-[700px]:gap-2">
+        <div class="flex flex-[1_1_280px] flex-col items-center gap-1.5">
           <p
             class="max-w-[436px] rounded-[18px] bg-ink px-[18px] py-3 text-center font-display text-[clamp(17px,2.4vw,26px)] leading-tight font-semibold text-bg"
           >
@@ -230,7 +232,7 @@ watch(state, async (next) => {
           <MascotWick :theme="theme" :mood="mood" :outfit="outfit" :size="240" />
         </div>
 
-        <div class="flex min-w-0 flex-[1_1_400px] flex-col gap-6">
+        <div class="flex min-w-0 flex-[5_1_400px] flex-col gap-6">
           <div
             class="flex flex-col rounded-[26px] border-2 border-line bg-surface p-5 shadow-raised-line max-[700px]:rounded-[22px] max-[700px]:p-4"
           >

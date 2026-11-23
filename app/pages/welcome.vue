@@ -20,7 +20,7 @@ useHead({ title: `${title} · ${LANDING_COPY.brandName}` })
       <p class="text-base leading-[1.55] text-ink min-[700px]:text-[19px]">{{ text }}</p>
       <NuxtLink
         :to="NEW_PAGE"
-        class="flex h-14 items-center justify-center rounded-2xl bg-primary px-6 font-head text-lg font-semibold text-primary-ink shadow-raised-primary focus-visible:outline-3 focus-visible:outline-offset-2 focus-visible:outline-primary"
+        class="flex h-14 items-center justify-center rounded-2xl bg-primary px-6 font-head text-lg font-semibold text-primary-ink shadow-raised-primary bouncy focus-visible:outline-3 focus-visible:outline-offset-2 focus-visible:outline-primary"
       >
         {{ PRICING_COPY.welcomeCta }}
       </NuxtLink>
