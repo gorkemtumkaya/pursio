@@ -16,6 +16,8 @@ function allStrings(): string[] {
     c.introLine('Photography', 14, 3),
     c.introLine('Guitar', 1, 1),
     c.introText,
+    c.loading,
+    c.drawFailed,
     c.nodeTag,
     c.tapToPreview,
     c.milestone,
@@ -60,7 +62,7 @@ describe('SAMPLE_COPY', () => {
     // A new key must be added here and to allStrings() above.
     expect(Object.keys(SAMPLE_COPY).sort()).toEqual(
       [
-        'pageTitle', 'tag', 'logIn', 'buildOwn', 'introLine', 'introText', 'nodeTag', 'tapToPreview', 'milestone',
+        'pageTitle', 'tag', 'logIn', 'buildOwn', 'introLine', 'introText', 'loading', 'drawFailed', 'nodeTag', 'tapToPreview', 'milestone',
         'firstStatus', 'bannerCount', 'opensAfter', 'previewFirst', 'previewOther', 'position', 'questsHeading',
         'questXp', 'videosHeading', 'noVideos', 'makeMine', 'mineHeading', 'mineLabel', 'build', 'smallLine',
         'barLine', 'barButton', 'skip', 'placeholder', 'foundingLine', 'foundingLink',

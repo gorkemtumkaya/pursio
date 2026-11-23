@@ -3,9 +3,9 @@
 Implementation of the `sample-path` spec ([scenarios](scenarios.md), [requirements](requirements.md), [design](design.md), [tasks](tasks.md)). This file grows with the work. So far it covers task 1, the analytics bug APP-ANALYTICS-01, which the owner asked to fix first and on its own (plan reviewed by the owner on 2026-11-23 before the code changed), and task 2, the sample data.
 
 - **Repos and branches:** `pursio`. G1 was made on `fix/analytics-funnel-chain` and merged into `main`; everything after it is on `main`
-- **State:** G1 committed in `f5101ed` and merged into `main` (fast forward) on 2026-11-23; checked alone in a clean worktree: 1434 passed, 16 skipped. Spec documents in `9fccee2`. G2 in `6afec4a`. G3 in `43dac82`. G4 committed with this update. From G2 on, work is on `main` and each separate task is committed when done (owner, 2026-11-23)
+- **State:** G1 committed in `f5101ed` and merged into `main` (fast forward) on 2026-11-23; checked alone in a clean worktree: 1434 passed, 16 skipped. Spec documents in `9fccee2`. G2 in `6afec4a`. G3 in `43dac82`. G4 in `42c4730`. G5 committed with this update. From G2 on, work is on `main` and each separate task is committed when done (owner, 2026-11-23)
 - **Status:** 1 of 1 done *(bug fixes)*; the production check F4 waits for the deploy
-- **Size:** G1: 9 files changed, 4 added. G2: 2 files changed, 13 added (incl. 3 generated data files). G3: 4 files changed, 7 added. G4: 7 files changed, 5 added. 4 groups
+- **Size:** G1: 9 files changed, 4 added. G2: 2 files changed, 13 added (incl. 3 generated data files). G3: 4 files changed, 7 added. G4: 7 files changed, 5 added. G5: 7 files changed, 3 added. 5 groups
 
 ## Scenarios *(bug fixes)*
 
@@ -49,6 +49,7 @@ So the report has two parts:
 2. G2. Sample data and the converter script: the base every later sample page task reads.
 3. G3. The route without a session: the first code that runs for an ad visitor.
 4. G4. Preview_Mode of the shared components: the only changes to files the real path screen uses; check that every default keeps today's output.
+5. G5. The page: top bar, intro card, path and finish card, built from the components of G4.
 
 ## Groups
 
@@ -166,6 +167,26 @@ Optional props on the path and new hobby components, each off by default, and th
   - The "START HERE" tag sits above the node, where "NEXT UP" sits on the path screen. The desktop mockup puts it beside the title. Kept above the node to reuse the existing tag position without a layout change.
   - A first skill that is a milestone gets its content line ("3 quests · 2 videos"), not "Milestone". No supplied file starts with a milestone.
 
+### G5. The page: top bar, intro card, path and finish card (task 6; Req 4, 5, 6, 14.5)
+
+The sample page now draws the whole path as in the mockups. The right column (preview, Make it yours) is an empty placeholder until tasks 7 and 8.
+
+| File | Why it changed |
+|---|---|
+| [app/components/sample/SampleTopBar.vue](../../../app/components/sample/SampleTopBar.vue) | New. Logo with the new hobby page's markup, dashed "SAMPLE PATH" tag; desktop only "Log in" link to `/path` and `AppButton` "Build my own path", which emits `buildOwn` |
+| [app/components/sample/SampleIntroCard.vue](../../../app/components/sample/SampleIntroCard.vue) | New. Wick in the file's outfit (hidden from screen readers), the counted line, the finish line as the only `h1` (22 px on phones, 32 px on desktop), the help text |
+| [app/components/sample/SampleView.vue](../../../app/components/sample/SampleView.vue) | New. Tree, empty Progress and node states made once; `usePathLayout` and `useViewportClass` as on the path screen; `PathCanvas` in Preview_Mode with the first skill selected; loading and error from `PathStatus`; `PathFinishLine` plain. Imports no auth, cloud, video or API code |
+| [app/pages/try/[hobby].vue](../../../app/pages/try/%5Bhobby%5D.vue) | Renders `SampleView` instead of the task 3 shell |
+| [app/utils/sample-copy.ts](../../../app/utils/sample-copy.ts) | "Loading the path…" and "This path could not be drawn." (`PathStatus` says "Loading your path…" by default, which is wrong here) |
+| [app/utils/sample-view.ts](../../../app/utils/sample-view.ts) | `finishView` for the plain finish card; `canvasPreview` asks for 5 title lines |
+| [app/utils/path-preview.ts](../../../app/utils/path-preview.ts), [app/components/path/PathCanvas.vue](../../../app/components/path/PathCanvas.vue), [app/components/path/PathNodeLabel.vue](../../../app/components/path/PathNodeLabel.vue) | Optional `titleLines` / `sideLines`: a preview may allow 4 or 5 title lines; the path screen keeps 3 |
+| [tests/unit/sample-copy.test.ts](../../../tests/unit/sample-copy.test.ts), [tests/unit/sample-view.test.ts](../../../tests/unit/sample-view.test.ts) | The two new strings in the dash check; `titleLines` is 5 |
+
+- **Watch for:**
+  - The "long final milestone title" point of G2 is solved here: with 3 lines the photography title showed as "Take 10 portraits with a clearly…" at 360 px; with 5 it shows in full and does not touch the label above (screenshots below).
+  - The right column is empty on desktop until task 7, so the path column sits left of centre.
+  - Mobile keeps `pb-24` under the path for the sticky bar of task 8.
+
 ## Decisions
 
 1. **Where `skill_path_generated` is sent.** Decided 2026-11-23 (OD1, decision 13): server only, with the browser's distinct id.
@@ -188,6 +209,8 @@ No open decision in this group.
 - **G3, not run:** a browser pass of `/new?hobby=calligraphy&start=0` (field filled, no intake request): manual row A3.
 - **G4, run:** `yarn typecheck`: 0 errors. `yarn test`: 1521 passed, 16 skipped (14 new; the path component tests unchanged and green). Dev server: `/path?demo=1`, `/new`, `/quests` and `/try/guitar` answer 200 with no render error.
 - **G4, not run:** a visual comparison of `/path` before and after; the components with `preview` off are checked by hand in the manual pass.
+- **G5, run:** `yarn typecheck`: 0 errors. `yarn test`: 1521 passed, 16 skipped. Screenshots against the dev server with headless Chrome driven through the DevTools protocol (a real 360 px device viewport; a plain `--window-size` cannot go below about 500 px): desktop 1440 px for photography matches the desktop mockup's left column; 360 px for photography (3 sections, 14 skills), birdwatching (2, 13) and guitar (2, 9) has `scrollWidth` equal to the viewport (no sideways scroll), no overlap, every title and the finish card in full.
+- **G5, not run:** other themes, a screen reader pass; both in the manual pass.
 
 ## Manual checks before release
 

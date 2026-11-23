@@ -35,7 +35,9 @@ export const SAMPLE_COPY = {
     `${hobby.toUpperCase()} · ${count(skills, 'SKILL', 'SKILLS')} · ${count(sections, 'SECTION', 'SECTIONS')}`,
   introText: 'Tap any skill to see its quests and videos. This is an example. Tell Wick where you are and he rebuilds it around you.',
 
-  // Path (Req 5.2 to 5.5)
+  // Path (Req 5.2 to 5.5, 5.9)
+  loading: 'Loading the path…',
+  drawFailed: 'This path could not be drawn.',
   nodeTag: 'START HERE',
   tapToPreview: 'Tap to preview',
   milestone: 'Milestone',

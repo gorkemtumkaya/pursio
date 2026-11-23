@@ -2,6 +2,7 @@
 import type { SamplePath, SampleVideo } from '#shared/types/sample-path'
 import type { QuestTriple } from '#shared/types/skill-tree'
 import type { RankedVideo } from '#shared/types/video'
+import type { FinishLineView } from '~/utils/finish-line'
 import { sampleCounts } from '#shared/utils/sample-path'
 import type { CanvasPreview, PreviewHeader } from '~/utils/path-preview'
 import { SAMPLE_COPY } from '~/utils/sample-copy'
@@ -44,7 +45,8 @@ export function canvasPreview(sample: SamplePath): CanvasPreview {
       note: previousHasMilestone ? SAMPLE_COPY.opensAfter(index) : null,
     }
   })
-  return { tag: SAMPLE_COPY.nodeTag, status, headers }
+  // 5 lines: the last skill is titled with the finish line, up to about 50 characters (Req 14.5).
+  return { tag: SAMPLE_COPY.nodeTag, status, headers, titleLines: 5 }
 }
 
 /** A sample video as the existing video card takes it. Fields the card does not show are fixed. */
@@ -93,6 +95,15 @@ export function previewModel(sample: SamplePath, skillId: string): PreviewModel 
     }
   }
   return null
+}
+
+/**
+ * The finish line card's view for its plain variant (Req 6.1): only `title` is shown; the counts
+ * are filled so the type holds, and stay hidden.
+ */
+export function finishView(sample: SamplePath): FinishLineView {
+  const { skills } = sampleCounts(sample)
+  return { state: 'not-started', title: sample.finish, done: 0, total: skills, left: skills, percent: 0, nextMilestone: null, reachedAt: null }
 }
 
 /** The id of the first skill: the default selection on desktop (Req 7.1). */

@@ -120,12 +120,12 @@ The owner answered OD1 to OD6 on 2026-11-23 (scenarios.md, decisions 13 to 17). 
     - Run the existing `node-visual`, `section-headers`, `path-layout`, `finish-line` and `conventions` tests unchanged
     - **Validates: Requirements 5.2, 5.5, 13.2, 16.4**
 
-- [ ] 6. The page
-  - [ ] 6.1 Build `SampleTopBar` and `SampleIntroCard`
+- [x] 6. The page
+  - [x] 6.1 Build `SampleTopBar` and `SampleIntroCard`
     - Top bar: the logo markup and classes of the `/new` header, the dashed tag, on desktop the "Log in" link to `/path` (decision 13) and `AppButton` "Build my own path"
     - Intro card: Wick with `toWickOutfit(sample.mascot)`, the intro line, the `h1`, the help text; compare with the mockups
     - _Requirements: 4.1 to 4.7, 3.6_
-  - [ ] 6.2 Build `SampleView` with the path and the finish card
+  - [x] 6.2 Build `SampleView` with the path and the finish card
     - Tree from `sampleToTree`, states from `deriveNodeStates(tree, emptyProgress())`, `usePathLayout`, `useViewportClass`, `PathCanvas` with `preview`, `PathStatus` for loading and error, `PathFinishLine` with `plain`
     - Grid and container of design.md, "Layout"; no sidebar, no bottom navigation
     - _Requirements: 5.1 to 5.6, 5.8, 5.9, 6.1, 6.2_

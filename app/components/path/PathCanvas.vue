@@ -249,6 +249,7 @@ defineExpose({ focusNode })
       :state="view.state"
       :align="view.label.align"
       :max-width="view.label.maxWidth"
+      :side-lines="preview?.titleLines"
     />
 
     <PathNextUpTag v-if="tagView" class="absolute -translate-x-1/2" :style="tagView.style" :label="preview?.tag" />

@@ -21,9 +21,5 @@ useSeoMeta({
 </script>
 
 <template>
-  <!-- Task 3 shell; the page itself (top bar, intro, path, preview, Make it yours) comes in tasks 5 to 8. -->
-  <main v-if="sample" class="mx-auto w-full max-w-160 px-4 py-10">
-    <p class="text-[13px] font-extrabold tracking-[0.06em] text-accent-text uppercase">{{ sample.hobby }}</p>
-    <h1 class="font-display text-3xl leading-tight font-semibold text-ink">{{ sample.finish }}</h1>
-  </main>
+  <SampleView v-if="sample" :sample="sample" />
 </template>

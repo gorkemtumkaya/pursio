@@ -18,9 +18,14 @@ const props = defineProps<{
   state: NodeState
   align: 'side' | 'below'
   maxWidth: number
+  /** Lines of a title beside a main node (Preview_Mode, spec: sample-path). Default 3. */
+  sideLines?: 3 | 4 | 5
 }>()
 
 const visual = computed(() => nodeVisual(props.state, false))
+
+/** Static class names, so Tailwind finds each one. */
+const SIDE_CLAMP = { 3: 'line-clamp-3', 4: 'line-clamp-4', 5: 'line-clamp-5' } as const
 </script>
 
 <template>
@@ -32,7 +37,7 @@ const visual = computed(() => nodeVisual(props.state, false))
   >
     <span
       class="text-[15px] leading-[1.2] font-extrabold lg:text-base"
-      :class="[visual.titleClass, align === 'below' ? 'line-clamp-2' : 'line-clamp-3']"
+      :class="[visual.titleClass, align === 'below' ? 'line-clamp-2' : SIDE_CLAMP[sideLines ?? 3]]"
     >{{ title }}</span>
     <span class="text-xs font-bold lg:text-[13px]" :class="visual.statusClass">{{ status }}</span>
   </div>

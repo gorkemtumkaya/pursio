@@ -19,4 +19,10 @@ export interface CanvasPreview {
   status: Readonly<Record<string, string>>
   /** One per section, in order. */
   headers: readonly PreviewHeader[]
+  /**
+   * Lines a main node title may take before it is cut. Absent: 3, as on the path screen. The
+   * sample page uses 5, so a finish line title of up to about 50 characters shows in full at 360 px.
+   * Five lines (about 106 px with the status) still clear the next label, 112 px below.
+   */
+  titleLines?: 3 | 4 | 5
 }

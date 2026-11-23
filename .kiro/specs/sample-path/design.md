@@ -239,6 +239,7 @@ export function canvasPreview(sample: SamplePath): CanvasPreview
 - `view.status` comes from `preview.status[node.id]` instead of `statusLine(state, checked)`, and is passed to `PathNodeLabel` (unchanged) and to `PathNode` as `statusText`, which replaces the status part of its `aria-label`;
 - `headerViews` are built from `preview.headers` instead of `sectionHeaderModels`, and `PathSectionHeader` renders `countText` in place of "done/total skills" and `note` in place of the lock line, without the lock icon;
 - `PathNextUpTag` gets `:label="preview.tag"`. With a label the tag drops its fixed width and uses side padding, so "START HERE" fits.
+- `PathNodeLabel` gets `sideLines` from `preview.titleLines` (5 on the sample page, 3 by default). The last skill of each file is titled with the finish line, and at 360 px "Take 10 portraits with a clearly blurred background" needs 5 lines beside the wider milestone node. Five lines with the status are about 106 px, under the 112 px between rows.
 
 `states` comes from `deriveNodeStates(tree, emptyProgress())` and `progress` is `emptyProgress()`, so the first skill is `current` with an empty ring, milestones are `milestone`, and the rest `locked`. A locked node is already an enabled button with the pointer cursor.
 

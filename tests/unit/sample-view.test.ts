@@ -52,6 +52,8 @@ describe('canvasPreview', () => {
     const sample = load('photography')
     const ids = sample.sections.flatMap((s) => s.skills)
     expect(preview.tag).toBe('START HERE')
+    // The last skill carries the finish line as its title; 5 lines show it in full at 360 px.
+    expect(preview.titleLines).toBe(5)
     expect(preview.status[ids[0]!.id]).toBe('3 quests · 2 videos')
     for (const k of ids.slice(1)) expect(preview.status[k.id]).toBe(k.milestone ? 'Milestone' : 'Tap to preview')
     expect(preview.headers.map((h) => [h.variant, h.countText, h.note])).toEqual([
