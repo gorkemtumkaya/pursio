@@ -6,6 +6,11 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+## [0.12.0] - 2026-11-23
+
+### Added
+- Sample paths you can try before typing anything: /try/photography, /try/guitar and /try/birdwatching show a finished path where you can open any skill to see its quests and videos, then write one sentence about where you are and build your own path from it. (spec: sample-path)
+
 ## [0.11.0] - 2026-11-23
 
 ### Added
