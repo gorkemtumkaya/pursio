@@ -251,6 +251,17 @@ The sample page now draws the whole path as in the mockups. The right column (pr
 - **Not changed on purpose:** [app/pages/new.vue](../../../app/pages/new.vue) keeps its `rounded-[14px]`; it is outside this spec and outside the scan.
 - **Task 11.2:** the plugins that run on every page (`cloud.client.ts`, `useChannelMutes`, `paddle-retain.client.ts`) were checked in a browser in G8: no Supabase or API request before the press. No guard was needed. V3 and V5 marked answered in scenarios.md.
 
+### G10. Phone layout of the top bar and intro card (owner feedback, 2026-11-23)
+
+The owner asked for the "SAMPLE PATH" tag at the right edge on phones, and found the intro card too long and crowded.
+
+| File | Why it changed |
+|---|---|
+| [app/components/sample/SampleTopBar.vue](../../../app/components/sample/SampleTopBar.vue) | The tag sits at the right edge below `lg` and next to the logo from `lg`, as in the mobile and desktop mockups. Two copies with one shared class, only one shown at a time |
+| [app/components/sample/SampleIntroCard.vue](../../../app/components/sample/SampleIntroCard.vue) | A grid: on phones Wick (48 px) and the counted line share the top row, and the heading and the help text (14 px) take the full width below; from `lg` Wick spans the three rows on the left as before. Wick's CSS width overrides its width attribute; its viewBox keeps the shape |
+
+- **Result:** at 360 px the guitar intro card is about 220 px tall instead of about 540; desktop unchanged (screenshots at 360, 390 and 1440 px).
+
 ## Decisions
 
 1. **Where `skill_path_generated` is sent.** Decided 2026-11-23 (OD1, decision 13): server only, with the browser's distinct id.

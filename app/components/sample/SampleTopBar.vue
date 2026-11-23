@@ -7,6 +7,10 @@ import { SAMPLE_COPY } from '~/utils/sample-copy'
  * and asks the page to focus the note box.
  */
 const emit = defineEmits<{ buildOwn: [] }>()
+
+/** The tag sits next to the logo on desktop and at the right edge on phones, as in the mockups. */
+const TAG_CLASS =
+  'shrink-0 rounded-lg border-2 border-dashed border-primary px-2 py-0.5 text-xs font-extrabold tracking-[0.06em] text-accent-text'
 </script>
 
 <template>
@@ -22,10 +26,10 @@ const emit = defineEmits<{ buildOwn: [] }>()
           <span aria-hidden="true" class="size-9 shrink-0 bg-(image:--pursio-logo) bg-contain bg-center bg-no-repeat" />
           <span>Pursio</span>
         </NuxtLink>
-        <span class="shrink-0 rounded-lg border-2 border-dashed border-primary px-2 py-0.5 text-xs font-extrabold tracking-[0.06em] text-accent-text">
-          {{ SAMPLE_COPY.tag }}
-        </span>
+        <span :class="TAG_CLASS" class="hidden lg:inline-block">{{ SAMPLE_COPY.tag }}</span>
       </div>
+
+      <span :class="TAG_CLASS" class="lg:hidden">{{ SAMPLE_COPY.tag }}</span>
 
       <div class="hidden items-center gap-2 lg:flex">
         <NuxtLink
