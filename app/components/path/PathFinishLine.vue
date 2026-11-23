@@ -7,9 +7,16 @@ import { FINISH_LINE_COPY, type FinishLineView } from '~/utils/finish-line'
  * Three states: not started, in progress, reached. The layout follows the width of the
  * column, not of the window, because the desktop column is narrow next to the side panel.
  */
-const props = defineProps<{ view: FinishLineView }>()
+const props = defineProps<{
+  view: FinishLineView
+  /**
+   * Preview_Mode (spec: sample-path, Req 6.1, 6.2): only the flag, the eyebrow and the title, in a
+   * paragraph, because the page already has the finish line as its `h1`. No count, bar or state.
+   */
+  plain?: boolean
+}>()
 
-const reached = computed(() => props.view.state === 'reached')
+const reached = computed(() => !props.plain && props.view.state === 'reached')
 const reachedLine = computed(() =>
   FINISH_LINE_COPY.reached(props.view.done, props.view.total, props.view.reachedAt),
 )
@@ -40,17 +47,18 @@ const reachedLine = computed(() =>
             >
               {{ reached ? FINISH_LINE_COPY.eyebrowReached : FINISH_LINE_COPY.eyebrow }}
             </p>
-            <h2
+            <component
+              :is="plain ? 'p' : 'h2'"
               id="finish-line-title"
               class="font-display text-xl leading-tight font-semibold wrap-break-word @lg:text-2xl"
             >
               {{ view.title }}
-            </h2>
+            </component>
             <p v-if="reached" class="hidden pt-0.5 text-sm font-bold @lg:block">{{ reachedLine }}</p>
           </div>
         </div>
 
-        <template v-if="view.state === 'not-started'">
+        <template v-if="!plain && view.state === 'not-started'">
           <p class="hidden shrink-0 rounded-xl bg-surface-2 px-3 py-1.5 text-sm font-extrabold text-ink @lg:block">
             {{ FINISH_LINE_COPY.toGo(view.left) }}
           </p>
@@ -59,7 +67,7 @@ const reachedLine = computed(() =>
         <p v-else-if="reached" class="text-sm font-bold @lg:hidden">{{ reachedLine }}</p>
       </div>
 
-      <template v-if="view.state === 'in-progress'">
+      <template v-if="!plain && view.state === 'in-progress'">
         <div class="flex flex-wrap items-center justify-between gap-x-4 gap-y-2 text-[15px] font-extrabold @lg:flex-nowrap">
           <span class="text-ink">{{ FINISH_LINE_COPY.count(view.done, view.total) }}</span>
           <PathXpBar

@@ -3,9 +3,9 @@
 Implementation of the `sample-path` spec ([scenarios](scenarios.md), [requirements](requirements.md), [design](design.md), [tasks](tasks.md)). This file grows with the work. So far it covers task 1, the analytics bug APP-ANALYTICS-01, which the owner asked to fix first and on its own (plan reviewed by the owner on 2026-11-23 before the code changed), and task 2, the sample data.
 
 - **Repos and branches:** `pursio`. G1 was made on `fix/analytics-funnel-chain` and merged into `main`; everything after it is on `main`
-- **State:** G1 committed in `f5101ed` and merged into `main` (fast forward) on 2026-11-23; checked alone in a clean worktree: 1434 passed, 16 skipped. Spec documents in `9fccee2`. G2 in `6afec4a`. G3 committed with this update. From G2 on, work is on `main` and each separate task is committed when done (owner, 2026-11-23)
+- **State:** G1 committed in `f5101ed` and merged into `main` (fast forward) on 2026-11-23; checked alone in a clean worktree: 1434 passed, 16 skipped. Spec documents in `9fccee2`. G2 in `6afec4a`. G3 in `43dac82`. G4 committed with this update. From G2 on, work is on `main` and each separate task is committed when done (owner, 2026-11-23)
 - **Status:** 1 of 1 done *(bug fixes)*; the production check F4 waits for the deploy
-- **Size:** G1: 9 files changed, 4 added. G2: 2 files changed, 13 added (incl. 3 generated data files). G3: 4 files changed, 7 added. 3 groups
+- **Size:** G1: 9 files changed, 4 added. G2: 2 files changed, 13 added (incl. 3 generated data files). G3: 4 files changed, 7 added. G4: 7 files changed, 5 added. 4 groups
 
 ## Scenarios *(bug fixes)*
 
@@ -48,6 +48,7 @@ So the report has two parts:
 1. G1. One identity for browser and server events: the bug fix, independent of the rest.
 2. G2. Sample data and the converter script: the base every later sample page task reads.
 3. G3. The route without a session: the first code that runs for an ad visitor.
+4. G4. Preview_Mode of the shared components: the only changes to files the real path screen uses; check that every default keeps today's output.
 
 ## Groups
 
@@ -139,6 +140,32 @@ The three Sample_Files, written by a committed script from the export, with the 
   - **Free plan limit with `start=0`:** `new.vue` shows the limit card instead of the form when the account is at 3 hobbies and the URL has no `hobby`. After the `start=0` fill the URL has none, so an account at the limit sees the card even when the slug names a hobby it already has. Typing that hobby on `/new` behaves the same today, so this is not new behavior. Only reachable from an unknown slug.
   - The static guard over the page's own files (no auth, cloud or API code) waits for task 11.1, when the page has its components.
 
+### G4. Preview_Mode of the shared components, copy and view helpers (task 5; Req 5.2 to 5.7, 6, 7.4, 7.5, 9.1, 9.2, 13)
+
+Optional props on the path and new hobby components, each off by default, and the pure helpers that will feed them on the sample page.
+
+| File | Why it changed |
+|---|---|
+| [app/utils/path-preview.ts](../../../app/utils/path-preview.ts) | New. `CanvasPreview` and `PreviewHeader` types. Kept apart from the sample code, so the path components import nothing sample specific (a change from design.md, which put them in `sample-view.ts`; design.md updated) |
+| [app/components/path/PathCanvas.vue](../../../app/components/path/PathCanvas.vue) | Optional `preview`. With it: sub labels, header texts and the tag come from it, and nodes get `statusText`. Without it: the same `statusLine` and `sectionHeaderModels` as before. The header view became a flat object so both sources fit one template |
+| [app/components/path/PathNode.vue](../../../app/components/path/PathNode.vue) | Optional `statusText` for the accessible name; absent, the progress status as before |
+| [app/components/path/PathNextUpTag.vue](../../../app/components/path/PathNextUpTag.vue) | Optional `label`; with it the tag fits its text, without it "NEXT UP" at the fixed width |
+| [app/components/path/PathSectionHeader.vue](../../../app/components/path/PathSectionHeader.vue) | Optional `countText` (banner) and `note` (divider, no lock icon); each falls back to today's count and lock line |
+| [app/components/path/PathFinishLine.vue](../../../app/components/path/PathFinishLine.vue) | Optional `plain`: flag, eyebrow and title in a `p`; no count, bar or reached state |
+| [app/components/path/PathQuestItem.vue](../../../app/components/path/PathQuestItem.vue) | Optional `readonly`: a `div` row with no checkbox, no focus, no pointer. Without it the same `label`, input and classes as before |
+| [app/components/hobby/HobbyNoteField.vue](../../../app/components/hobby/HobbyNoteField.vue) | Optional `label`, `hint` (null hides "optional"), `placeholder` and `labelStyle`; the defaults are the intake texts and look |
+| [app/utils/sample-copy.ts](../../../app/utils/sample-copy.ts) | Every string of Requirement 13, with singular forms and the owner's placeholders (decision 15); founding line marked as a draft |
+| [app/utils/sample-view.ts](../../../app/utils/sample-view.ts) | New. `introLine`, `canvasPreview`, `previewModel`, `toRankedVideo`, `firstSkillId` |
+| [tests/unit/sample-copy.test.ts](../../../tests/unit/sample-copy.test.ts) | New. Exact texts, placeholders, no dash in any string, and a key list that fails when a string is added without its dash check |
+| [tests/unit/sample-view.test.ts](../../../tests/unit/sample-view.test.ts) | New. The real files' intro lines and labels as in the mockup; divider lines with and without a milestone before; singular forms; acceptance check 4: a skill without videos gives an empty list |
+| [tests/property/sample-path-preview.property.test.ts](../../../tests/property/sample-path-preview.property.test.ts) | New. Property 3, 100 runs |
+
+- **Related, not changed:** [app/utils/node-visual.ts](../../../app/utils/node-visual.ts) and [app/utils/section-headers.ts](../../../app/utils/section-headers.ts), still used whenever `preview` is absent; their tests ran unchanged and pass.
+- **Watch for:**
+  - No component test environment exists, so "default output unchanged" rests on reading the diffs: each new prop is optional and every template branch falls back to the old markup. `PathQuestItem` keeps its classes, now split into a base and a conditional part.
+  - The "START HERE" tag sits above the node, where "NEXT UP" sits on the path screen. The desktop mockup puts it beside the title. Kept above the node to reuse the existing tag position without a layout change.
+  - A first skill that is a milestone gets its content line ("3 quests · 2 videos"), not "Milestone". No supplied file starts with a milestone.
+
 ## Decisions
 
 1. **Where `skill_path_generated` is sent.** Decided 2026-11-23 (OD1, decision 13): server only, with the browser's distinct id.
@@ -159,6 +186,8 @@ No open decision in this group.
 - **G2, run:** `yarn samples` twice (written, then unchanged). `yarn typecheck`: 0 errors. `yarn test`: 1476 passed, 16 skipped (42 new in G2).
 - **G3, run:** `yarn typecheck`: 0 errors. `yarn test`: 1507 passed, 16 skipped (31 new). `yarn build` (Vercel preset): the prerenderer made `/try/guitar`, `/try/photography` and `/try/birdwatching` with their payloads; the HTML holds the title, `<meta name="robots" content="noindex">` and the finish line; Vercel routing serves static files first and sends any other `/try/<slug>` to the `[hobby]` function (V3 answered). Against the dev server: `/try/calligraphy?utm_source=reddit&utm_campaign=t1` → 302 `/new?utm_source=reddit&utm_campaign=t1&hobby=calligraphy&start=0`; `/try/film-photography` → `hobby=film+photography`; `/try/---` → `/new`; `/try/Guitar` → `hobby=Guitar`; `/try/guitar?utm_source=reddit` → 200.
 - **G3, not run:** a browser pass of `/new?hobby=calligraphy&start=0` (field filled, no intake request): manual row A3.
+- **G4, run:** `yarn typecheck`: 0 errors. `yarn test`: 1521 passed, 16 skipped (14 new; the path component tests unchanged and green). Dev server: `/path?demo=1`, `/new`, `/quests` and `/try/guitar` answer 200 with no render error.
+- **G4, not run:** a visual comparison of `/path` before and after; the components with `preview` off are checked by hand in the manual pass.
 
 ## Manual checks before release
 

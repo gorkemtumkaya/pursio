@@ -19,16 +19,23 @@ defineProps<{
   ariaLabel?: string
   /** The video whose matched quest text equals this quest; null or absent shows no link. */
   watchHow?: RankedVideo | null
+  /**
+   * Preview_Mode (spec: sample-path, Req 7.5): a plain row with an empty box. Not a label, no
+   * checkbox, no focus, no pointer: nothing can be ticked.
+   */
+  readonly?: boolean
 }>()
 const emit = defineEmits<{ toggle: []; watch: [videoId: string] }>()
 </script>
 
 <template>
   <div class="flex flex-col gap-1">
-  <label
-    class="flex min-h-12 cursor-pointer items-center gap-3 rounded-2xl border-2 border-line bg-surface px-3 py-2 text-[15px] font-bold has-[input:focus-visible]:outline-2 has-[input:focus-visible]:outline-offset-2 has-[input:focus-visible]:outline-ink"
+  <component
+    :is="readonly ? 'div' : 'label'"
+    class="flex min-h-12 items-center gap-3 rounded-2xl border-2 border-line bg-surface px-3 py-2 text-[15px] font-bold"
+    :class="readonly ? '' : 'cursor-pointer has-[input:focus-visible]:outline-2 has-[input:focus-visible]:outline-offset-2 has-[input:focus-visible]:outline-ink'"
   >
-    <input type="checkbox" class="sr-only" :checked="checked" :aria-label="ariaLabel" @change="emit('toggle')" />
+    <input v-if="!readonly" type="checkbox" class="sr-only" :checked="checked" :aria-label="ariaLabel" @change="emit('toggle')" />
     <span
       aria-hidden="true"
       class="flex size-6 shrink-0 items-center justify-center rounded-lg border-2"
@@ -48,7 +55,7 @@ const emit = defineEmits<{ toggle: []; watch: [videoId: string] }>()
     >
       {{ badge }}
     </span>
-  </label>
+  </component>
   <button
     v-if="watchHow"
     type="button"

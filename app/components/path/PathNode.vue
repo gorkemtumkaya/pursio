@@ -19,6 +19,8 @@ const props = defineProps<{
   selected: boolean
   /** Play the unlock pop (Req 9.5); `motion-safe` skips it under Reduced_Motion (Req 9.6). */
   animate: boolean
+  /** Preview_Mode (spec: sample-path, Req 5.6): the status part of the accessible name. Absent: the progress status. */
+  statusText?: string
 }>()
 
 const emit = defineEmits<{ select: [el: HTMLButtonElement] }>()
@@ -33,7 +35,7 @@ const ICON_SIZE: Partial<Record<IconName, string>> = {
 }
 
 const visual = computed(() => nodeVisual(props.state, props.isMilestone))
-const label = computed(() => `${props.node.title}, ${statusLine(props.state, props.checked)}`)
+const label = computed(() => `${props.node.title}, ${props.statusText ?? statusLine(props.state, props.checked)}`)
 const iconSize = computed(() => ICON_SIZE[visual.value.icon] ?? 'size-7')
 const showOutline = computed(() => props.selected && props.state !== 'current')
 

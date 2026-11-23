@@ -2,6 +2,8 @@
 /**
  * Section_Header in a fixed band (Req 7.1–7.5). Banner for the Active_Section,
  * Divider for every other Section. The parent positions the band.
+ * Preview_Mode (spec: sample-path, Req 5.2): `countText` replaces the "done/total skills"
+ * count, and `note` replaces the lock line, without the lock icon.
  */
 defineProps<{
   eyebrow: string
@@ -10,6 +12,8 @@ defineProps<{
   count?: { done: number; total: number } | null
   lockedBy?: string | null
   height: number
+  countText?: string | null
+  note?: string | null
 }>()
 </script>
 
@@ -23,7 +27,8 @@ defineProps<{
         <span class="text-xs font-extrabold tracking-[0.08em] text-banner-muted">{{ eyebrow }}</span>
         <h2 class="font-display text-2xl font-semibold lg:text-[28px]">{{ title }}</h2>
       </div>
-      <span v-if="count" class="shrink-0 font-head text-lg font-semibold lg:text-xl">
+      <span v-if="countText" class="shrink-0 font-head text-lg font-semibold lg:text-xl">{{ countText }}</span>
+      <span v-else-if="count" class="shrink-0 font-head text-lg font-semibold lg:text-xl">
         {{ count.done }}/{{ count.total }} skills
       </span>
     </section>
@@ -33,7 +38,8 @@ defineProps<{
       <div class="flex flex-col items-center gap-1 text-center">
         <span class="text-xs font-extrabold tracking-[0.08em] text-muted">{{ eyebrow }}</span>
         <h2 class="font-display text-2xl font-semibold text-ink lg:text-[28px]">{{ title }}</h2>
-        <span v-if="lockedBy" class="flex items-center gap-1.5 text-[13px] font-bold text-muted">
+        <span v-if="note" class="text-[13px] font-bold text-muted">{{ note }}</span>
+        <span v-else-if="lockedBy" class="flex items-center gap-1.5 text-[13px] font-bold text-muted">
           <PathIcon name="lock" class="size-4" />
           Reach {{ lockedBy }} to unlock
         </span>

@@ -5,6 +5,7 @@ import type { SkillNode, SkillTree } from '#shared/types/skill-tree'
 import { checkedCount } from '#shared/utils/progress-engine'
 import { nodeVisual, statusLine } from '~/utils/node-visual'
 import type { NodePlacement, PathLayout } from '~/utils/path-layout'
+import type { CanvasPreview } from '~/utils/path-preview'
 import { sectionHeaderModels } from '~/utils/section-headers'
 
 /**
@@ -24,6 +25,11 @@ const props = defineProps<{
   showSelection: boolean
   /** Ids that play the unlock animation (Req 9.5). */
   animating: ReadonlySet<string>
+  /**
+   * Preview_Mode (spec: sample-path, Req 5.2 to 5.6): its texts replace the progress status of each
+   * node, the section headers and the tag. Absent: the canvas shows progress, as on the path screen.
+   */
+  preview?: CanvasPreview | null
 }>()
 
 const emit = defineEmits<{ select: [id: string, el: HTMLButtonElement] }>()
@@ -119,7 +125,7 @@ const nodeViews = computed<NodeView[]>(() => {
         placement,
         state,
         checked,
-        status: statusLine(state, checked),
+        status: props.preview?.status[node.id] ?? statusLine(state, checked),
         ring: visual.ring,
         nextUp: visual.nextUp,
         nodeStyle: at(cx - size / 2, top),
@@ -147,11 +153,30 @@ const tagView = computed(() => {
   return { style: at(cx, cy - size / 2 - metrics.value.tagLift) }
 })
 
-const headerViews = computed(() => {
-  const models = sectionHeaderModels(props.tree, props.progress)
-  return props.layout.headers.flatMap((placement) => {
-    const model = models[placement.sectionIndex]
-    return model ? [{ model, placement }] : []
+interface HeaderView {
+  key: number
+  eyebrow: string
+  title: string
+  variant: 'banner' | 'divider'
+  count: { done: number; total: number } | null
+  lockedBy: string | null
+  countText: string | null
+  note: string | null
+  top: number
+  height: number
+}
+
+const headerViews = computed<HeaderView[]>(() => {
+  const preview = props.preview
+  const models = preview ? null : sectionHeaderModels(props.tree, props.progress)
+  return props.layout.headers.flatMap((placement): HeaderView[] => {
+    const place = { key: placement.sectionIndex, top: placement.top, height: placement.height }
+    if (preview) {
+      const header = preview.headers[placement.sectionIndex]
+      return header ? [{ ...header, ...place, count: null, lockedBy: null }] : []
+    }
+    const model = models?.[placement.sectionIndex]
+    return model ? [{ ...model, ...place, countText: null, note: null }] : []
   })
 })
 
@@ -174,15 +199,17 @@ defineExpose({ focusNode })
 
     <PathSectionHeader
       v-for="header in headerViews"
-      :key="header.model.index"
+      :key="header.key"
       class="absolute inset-x-4 lg:inset-x-0"
-      :style="{ top: px(header.placement.top) }"
-      :eyebrow="header.model.eyebrow"
-      :title="header.model.title"
-      :variant="header.model.variant"
-      :count="header.model.count"
-      :locked-by="header.model.lockedBy"
-      :height="header.placement.height"
+      :style="{ top: px(header.top) }"
+      :eyebrow="header.eyebrow"
+      :title="header.title"
+      :variant="header.variant"
+      :count="header.count"
+      :locked-by="header.lockedBy"
+      :count-text="header.countText"
+      :note="header.note"
+      :height="header.height"
     />
 
     <PathProgressRing
@@ -207,6 +234,7 @@ defineExpose({ focusNode })
       :checked="view.checked"
       :selected="showSelection && selectedId === view.node.id"
       :animate="animating.has(view.node.id)"
+      :status-text="preview ? view.status : undefined"
       @select="onSelect(view.node.id, $event)"
     />
 
@@ -223,6 +251,6 @@ defineExpose({ focusNode })
       :max-width="view.label.maxWidth"
     />
 
-    <PathNextUpTag v-if="tagView" class="absolute -translate-x-1/2" :style="tagView.style" />
+    <PathNextUpTag v-if="tagView" class="absolute -translate-x-1/2" :style="tagView.style" :label="preview?.tag" />
   </div>
 </template>

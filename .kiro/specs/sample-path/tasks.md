@@ -101,19 +101,19 @@ The owner answered OD1 to OD6 on 2026-11-23 (scenarios.md, decisions 13 to 17). 
     - Extend `landing` tests for `withoutHobbyQuery`
     - _Requirements: 16.1 to 16.3_
 
-- [ ] 4. Checkpoint - the three URLs answer, other slugs redirect, no session starts
+- [x] 4. Checkpoint - the three URLs answer, other slugs redirect, no session starts
   - Run `yarn typecheck` and `yarn test`, and ask the user if questions arise.
 
-- [ ] 5. Preview_Mode of the shared components
-  - [ ] 5.1 Add the optional props
+- [x] 5. Preview_Mode of the shared components
+  - [x] 5.1 Add the optional props
     - `PathCanvas`: `preview?: CanvasPreview`; `PathNode`: `statusText?`; `PathNextUpTag`: `label?`; `PathSectionHeader`: `countText?`, `note?`; `PathFinishLine`: `plain?`; `PathQuestItem`: `readonly?`; `HobbyNoteField`: `label?`, `hint?`, `placeholder?`
     - Every default keeps today's markup and classes
     - _Requirements: 5.7, 6.3, 15.2_
-  - [ ] 5.2 Add the view helpers and the copy module
+  - [x] 5.2 Add the view helpers and the copy module
     - `app/utils/sample-copy.ts` with the table of Requirement 13
     - `app/utils/sample-view.ts`: `canvasPreview`, `previewModel`, `toRankedVideo`, `introLine`
     - _Requirements: 4.5, 5.2, 5.5, 7.4, 8.6, 13.1_
-  - [ ] 5.3 Write the tests
+  - [x] 5.3 Write the tests
     - `tests/unit/sample-copy.test.ts`: the strings, and no Dash_Character
     - `tests/unit/sample-view.test.ts`: `canvasPreview` and `previewModel` for the three real files; the divider lines for 2, 3 and 4 sections and for a section with no milestone before it; a skill with no video (acceptance check 4); singular forms
     - **Property 3: Preview labels**

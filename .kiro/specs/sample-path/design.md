@@ -220,7 +220,7 @@ The page's own files are kept clean by a static guard test (`sample-no-cost.test
 ### Preview_Mode of the path components
 
 ```ts
-// app/utils/sample-view.ts
+// app/utils/path-preview.ts (types only, so the path components import nothing from the sample page)
 export interface CanvasPreview {
   /** Text of the tag above the current node. */
   tag: string
@@ -230,6 +230,7 @@ export interface CanvasPreview {
   headers: readonly PreviewHeader[]
 }
 export interface PreviewHeader { variant: 'banner' | 'divider'; eyebrow: string; title: string; countText: string | null; note: string | null }
+// app/utils/sample-view.ts
 export function canvasPreview(sample: SamplePath): CanvasPreview
 ```
 
