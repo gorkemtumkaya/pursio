@@ -6,6 +6,7 @@ import type { FinalProfile, GoalOption, IntakeLevel, IntakeProfile, Option } fro
 import type { StartLevel } from '../shared/types/llm'
 import type { Progress, QuestId } from '../shared/types/progress'
 import type { Level, QuestTriple, Section, SkillNode, SkillTree } from '../shared/types/skill-tree'
+import type { SamplePath, SampleSkill, SampleSlug, SampleVideo } from '../shared/types/sample-path'
 import { fillColorSlots, type ColorSlot } from '../shared/utils/color-slot'
 import { normalizeHobby } from '../shared/utils/llm'
 import { MASCOT_SETS } from '../shared/utils/mascot-sets'
@@ -1079,3 +1080,53 @@ export const arbPanelRun = fc.record({
   profile: arbIntakeProfile,
   ops: fc.array(arbPanelOp, { maxLength: 12 }),
 })
+
+// ---------------------------------------------------------------------------
+// Sample paths (spec: sample-path)
+// ---------------------------------------------------------------------------
+
+const arbSampleText: fc.Arbitrary<string> = fc.stringMatching(/^[A-Za-z][A-Za-z0-9 ,.']{0,40}$/).map((t) => t.trim() || 'Text')
+
+const arbSampleVideo: fc.Arbitrary<SampleVideo> = fc.record({
+  id: fc.stringMatching(/^[A-Za-z0-9_-]{11}$/),
+  title: arbSampleText,
+  channel: arbSampleText,
+  durationSeconds: fc.integer({ min: 1, max: 7200 }),
+  thumbnailUrl: fc.stringMatching(/^[A-Za-z0-9_-]{11}$/).map((id) => `https://i.ytimg.com/vi/${id}/mqdefault.jpg`),
+})
+
+/** A valid Sample: 1 to 4 sections of 1 to 8 skills, unique ids, 0 to 3 videos per skill. */
+export const arbSamplePath: fc.Arbitrary<SamplePath> = fc
+  .record({
+    slug: fc.constantFrom<SampleSlug>('photography', 'guitar', 'birdwatching'),
+    hobby: arbSampleText,
+    mascot: fc.constantFrom(...MASCOT_SETS, 'not-an-outfit'),
+    finish: arbSampleText,
+    sections: fc.array(
+      fc.record({
+        level: arbLevel,
+        name: arbSampleText,
+        skills: fc.array(
+          fc.record({
+            title: arbSampleText,
+            desc: arbSampleText,
+            milestone: fc.boolean(),
+            quests: fc.tuple(arbSampleText, arbSampleText, arbSampleText),
+            videos: fc.array(arbSampleVideo, { maxLength: 3 }),
+          }),
+          { minLength: 1, maxLength: 8 },
+        ),
+      }),
+      { minLength: 1, maxLength: 4 },
+    ),
+  })
+  .map((raw) => {
+    let n = 0
+    return {
+      ...raw,
+      sections: raw.sections.map((section) => ({
+        ...section,
+        skills: section.skills.map((skill): SampleSkill => ({ id: `skill-${n++}`, ...skill, quests: [...skill.quests] })),
+      })),
+    }
+  })

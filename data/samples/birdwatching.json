@@ -1,0 +1,206 @@
+{
+  "slug": "birdwatching",
+  "hobby": "Birdwatching",
+  "mascot": "explorer",
+  "finish": "Identify 15 common park birds by sight and sound",
+  "sections": [
+    {
+      "level": "beginner",
+      "name": "First steps outdoors",
+      "skills": [
+        {
+          "id": "gear-and-setup",
+          "title": "Gear and first setup",
+          "desc": "You will know which basic gear you need and how to set it up for a first walk without spending much money.",
+          "milestone": false,
+          "quests": [
+            "List the three items you need: binoculars or a phone camera, a field notebook, and comfortable shoes",
+            "Borrow or test binoculars and adjust the eyepiece focus on a distant object",
+            "Pack a small bag with water, a hat, and a notebook for your first outing"
+          ],
+          "videos": [
+            {
+              "id": "DSIhFy6tlvI",
+              "title": "Birding 101: The Ultimate Beginner's Guide to Birding",
+              "channel": "Badgerland Birding",
+              "durationSeconds": 669,
+              "thumbnailUrl": "https://i.ytimg.com/vi/DSIhFy6tlvI/mqdefault.jpg"
+            },
+            {
+              "id": "1RK4Nx4i924",
+              "title": "Beginner's Birdwatching: Tips & Tools for Success",
+              "channel": "Virginia Department of Wildlife Resources",
+              "durationSeconds": 285,
+              "thumbnailUrl": "https://i.ytimg.com/vi/1RK4Nx4i924/mqdefault.jpg"
+            }
+          ]
+        },
+        {
+          "id": "safety-and-etiquette",
+          "title": "Safety and birding etiquette",
+          "desc": "You will be able to bird safely and respectfully, avoiding traffic, wildlife disturbance and trespassing.",
+          "milestone": false,
+          "quests": [
+            "Read the park's posted rules and note trails, closures and any wildlife warnings",
+            "Keep a safe distance from nests and never play recordings to lure birds",
+            "Tell someone your route and stay on marked paths near roads and water"
+          ],
+          "videos": [
+            {
+              "id": "z5VuM2pgr6k",
+              "title": "Birdwatching Etiquette and Important Precautions for Nature Lovers【Birding Explained】",
+              "channel": "Toripike: Wild Bird Guide",
+              "durationSeconds": 358,
+              "thumbnailUrl": "https://i.ytimg.com/vi/z5VuM2pgr6k/mqdefault.jpg"
+            },
+            {
+              "id": "CROf5aSg5k8",
+              "title": "Birdwatching Etiquette Respecting Our Feathered Friends【Birding Explained】",
+              "channel": "Toripike: Wild Bird Guide",
+              "durationSeconds": 389,
+              "thumbnailUrl": "https://i.ytimg.com/vi/CROf5aSg5k8/mqdefault.jpg"
+            }
+          ]
+        },
+        {
+          "id": "how-to-look",
+          "title": "How to look for birds",
+          "desc": "You will be able to scan trees, edges and open sky to find birds quickly and steadily.",
+          "milestone": false,
+          "quests": [
+            "Stand still for 10 minutes at one spot and count every bird you see or hear",
+            "Scan a tree line from top to bottom in a slow left to right sweep",
+            "Find a bird with binoculars by locating it first with your naked eyes and then lifting the glasses"
+          ],
+          "videos": []
+        },
+        {
+          "id": "basic-field-marks",
+          "title": "Basic field marks",
+          "desc": "You will be able to notice size, shape, color and behavior to narrow down what a bird is.",
+          "milestone": false,
+          "quests": [
+            "Note size compared to a sparrow, a robin and a crow for three birds you see",
+            "Sketch or write the bill shape and tail shape of one bird in your notebook",
+            "Describe a bird's behavior such as hopping, perching high or feeding on the ground"
+          ],
+          "videos": []
+        },
+        {
+          "id": "use-field-guide",
+          "title": "Using a field guide and app",
+          "desc": "You will be able to look up a bird in a field guide or app and confirm it by matching several features.",
+          "milestone": false,
+          "quests": [
+            "Identify one bird from your notebook using a field guide by matching its range map and size",
+            "Use a bird ID app to name a bird from a photo and check it against the guide",
+            "Write down three features that confirm the identification"
+          ],
+          "videos": []
+        },
+        {
+          "id": "first-bird-list",
+          "title": "Keep a bird list",
+          "desc": "You will be able to record date, place, time and count for every bird you identify in a simple list.",
+          "milestone": false,
+          "quests": [
+            "Start a list with date, location, time and species for each bird you identify",
+            "Count how many of each species you see during one 30 minute walk",
+            "Enter your first list into eBird or a notebook page"
+          ],
+          "videos": []
+        },
+        {
+          "id": "first-ten-birds",
+          "title": "Identify 10 common birds",
+          "desc": "You will be able to name 10 common local birds by sight on your own, without a guide.",
+          "milestone": true,
+          "quests": [
+            "Name 10 common local birds on a walk without checking a guide",
+            "Check each unsure name against the guide and record the field marks that decided it",
+            "Repeat the walk one week later and name 10 birds again with fewer checks"
+          ],
+          "videos": []
+        }
+      ]
+    },
+    {
+      "level": "intermediate",
+      "name": "Sound and sharper ID",
+      "skills": [
+        {
+          "id": "bird-song-basics",
+          "title": "Learning bird song basics",
+          "desc": "You will be able to tell apart songs and calls of common birds by rhythm, pitch and repetition.",
+          "milestone": false,
+          "quests": [
+            "Listen to a robin and a song sparrow and note the pattern of each phrase",
+            "Hum or write the rhythm of a chickadee's call and match it to its name",
+            "Record one unknown song on your phone and compare it to a recording online"
+          ],
+          "videos": []
+        },
+        {
+          "id": "calls-versus-songs",
+          "title": "Calls versus songs",
+          "desc": "You will be able to separate alarm calls, contact calls and full songs and know what each one means.",
+          "milestone": false,
+          "quests": [
+            "Identify a contact call from a flock and note how it differs from the full song",
+            "Listen for an alarm call near a bird feeder and notice the birds around it",
+            "Sort five recordings into song or call and check your sorting against a guide"
+          ],
+          "videos": []
+        },
+        {
+          "id": "sound-id-drills",
+          "title": "Sound ID drills",
+          "desc": "You will be able to name birds by ear on a short walk using repeated listening drills.",
+          "milestone": false,
+          "quests": [
+            "Close your eyes for five minutes and list every bird sound you hear",
+            "Play a sound quiz app for 10 minutes and log each miss",
+            "Name three birds by sound only on a walk before looking up"
+          ],
+          "videos": []
+        },
+        {
+          "id": "similar-species",
+          "title": "Telling similar species apart",
+          "desc": "You will be able to separate look alike birds by subtle marks like wing bars, eye rings and bill shape.",
+          "milestone": false,
+          "quests": [
+            "Compare a house finch and a house sparrow side by side in a guide and note three differences",
+            "Check wing bars and eye rings on two warblers in a photo set",
+            "Write down the marks that separated two look alikes on one outing"
+          ],
+          "videos": []
+        },
+        {
+          "id": "seasons-and-habitat",
+          "title": "Seasons and habitat",
+          "desc": "You will be able to predict which birds to expect by season, habitat and weather.",
+          "milestone": false,
+          "quests": [
+            "Compare bird lists from a spring and a winter walk in the same park",
+            "Note which habitat types (woods, lawn, water edge) hold the most species",
+            "Check a local range or migration chart before a trip and predict three species"
+          ],
+          "videos": []
+        },
+        {
+          "id": "ten-fifteen-birds-sight-sound",
+          "title": "Identify 15 common park birds by sight and sound",
+          "desc": "You will be able to identify 15 common park birds by sight and sound alone, with a short list of local birds.",
+          "milestone": true,
+          "quests": [
+            "Name 15 park birds by sight on one walk and log each one",
+            "Name 5 of those birds by call or song alone with eyes closed",
+            "Review missed IDs at home and re check them on your next walk"
+          ],
+          "videos": []
+        }
+      ]
+    }
+  ]
+}

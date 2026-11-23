@@ -1,0 +1,224 @@
+{
+  "slug": "photography",
+  "hobby": "Photography",
+  "mascot": "photography",
+  "finish": "Take 10 portraits with a clearly blurred background",
+  "sections": [
+    {
+      "level": "beginner",
+      "name": "Getting Started",
+      "skills": [
+        {
+          "id": "exposure-triangle",
+          "title": "Exposure triangle",
+          "desc": "You will be able to explain how aperture, shutter speed, and ISO work together to set brightness.",
+          "milestone": false,
+          "quests": [
+            "Shoot the same scene in Manual mode while changing only the aperture",
+            "Shoot the same scene while changing only the shutter speed",
+            "Shoot the same scene while changing only the ISO and note the grain"
+          ],
+          "videos": [
+            {
+              "id": "-f2ejkQepxE",
+              "title": "The Exposure Triangle For Beginners | Explained In Under 15 Minutes",
+              "channel": "Creative Tech Lab",
+              "durationSeconds": 876,
+              "thumbnailUrl": "https://i.ytimg.com/vi/-f2ejkQepxE/mqdefault.jpg"
+            },
+            {
+              "id": "D-GfbRkFtuw",
+              "title": "Shutter Speed, Aperture & ISO - A Beginner's Guide",
+              "channel": "Photography Life",
+              "durationSeconds": 1026,
+              "thumbnailUrl": "https://i.ytimg.com/vi/D-GfbRkFtuw/mqdefault.jpg"
+            }
+          ]
+        },
+        {
+          "id": "aperture-blur",
+          "title": "Aperture and background blur",
+          "desc": "You will be able to use a wide aperture to make a subject stand out against a soft, blurred background.",
+          "milestone": false,
+          "quests": [
+            "Set your lens to its widest aperture and photograph a flower with a distant background",
+            "Compare f/1.8, f/4, and f/8 on the same portrait subject",
+            "Move your subject away from the background to increase blur"
+          ],
+          "videos": []
+        },
+        {
+          "id": "focus-basics",
+          "title": "Focusing on your subject",
+          "desc": "You will be able to pick a focus point and get sharp eyes in a portrait using single shot autofocus.",
+          "milestone": false,
+          "quests": [
+            "Switch to single point autofocus and focus on a face using half press",
+            "Take 10 portraits and check that the nearest eye is sharp at 100%",
+            "Practice focus recompose by focusing, then reframing the shot"
+          ],
+          "videos": []
+        },
+        {
+          "id": "first-portrait-series",
+          "title": "First portrait series",
+          "desc": "You will be able to take a sharp portrait with a clearly blurred background and explain the settings used.",
+          "milestone": true,
+          "quests": [
+            "Shoot 3 portraits of a friend at f/2.8 or wider with sharp eyes",
+            "Check each portrait's EXIF data to note aperture, shutter speed, and ISO",
+            "Pick your best portrait and write down the settings that made it work"
+          ],
+          "videos": []
+        }
+      ]
+    },
+    {
+      "level": "intermediate",
+      "name": "Light and Composition",
+      "skills": [
+        {
+          "id": "natural-light",
+          "title": "Reading natural light",
+          "desc": "You will be able to find soft light and use window or open shade light for flattering portraits.",
+          "milestone": false,
+          "quests": [
+            "Photograph a portrait facing a window with the light from the side",
+            "Shoot the same subject in open shade and in direct sun and compare",
+            "Shoot a portrait during the hour after sunrise or before sunset"
+          ],
+          "videos": []
+        },
+        {
+          "id": "composition-rules",
+          "title": "Composition and framing",
+          "desc": "You will be able to frame portraits using the rule of thirds, leading lines, and negative space.",
+          "milestone": false,
+          "quests": [
+            "Place the subject's eyes on a third line in 5 portraits",
+            "Use a doorway or fence as a frame around your subject",
+            "Leave deliberate negative space on one side and compare the feel"
+          ],
+          "videos": []
+        },
+        {
+          "id": "lens-focal-length",
+          "title": "Focal length and lenses",
+          "desc": "You will be able to choose a focal length that suits a portrait and understand how distance changes perspective.",
+          "milestone": false,
+          "quests": [
+            "Shoot the same portrait at 35mm, 50mm, and 85mm by moving your position",
+            "Stand at a closer distance with a wide lens and note the distortion",
+            "Rent or borrow a 50mm or 85mm prime and shoot one portrait session"
+          ],
+          "videos": []
+        },
+        {
+          "id": "white-balance",
+          "title": "White balance",
+          "desc": "You will be able to set white balance so skin tones look natural under different light sources.",
+          "milestone": false,
+          "quests": [
+            "Shoot a white card under daylight, shade, and indoor light",
+            "Set a custom white balance using a grey or white card",
+            "Correct a warm indoor portrait by adjusting Kelvin in the camera"
+          ],
+          "videos": []
+        },
+        {
+          "id": "editing-basics",
+          "title": "Basic editing",
+          "desc": "You will be able to adjust exposure, contrast, and color in a RAW file to finish a portrait.",
+          "milestone": false,
+          "quests": [
+            "Import a RAW portrait and adjust exposure and white balance",
+            "Add gentle contrast and lift shadows without making skin look plastic",
+            "Export three finished portraits as JPEG at web size"
+          ],
+          "videos": []
+        },
+        {
+          "id": "portrait-session",
+          "title": "Full portrait session",
+          "desc": "You will be able to plan, shoot, and edit a short portrait session with a consistent look.",
+          "milestone": true,
+          "quests": [
+            "Plan a 30 minute shoot with a location, light direction, and two outfits",
+            "Shoot 20 frames and select the 5 strongest images",
+            "Edit the five images so they share one consistent color look"
+          ],
+          "videos": []
+        }
+      ]
+    },
+    {
+      "level": "advanced",
+      "name": "Advanced Portraits",
+      "skills": [
+        {
+          "id": "off-camera-flash",
+          "title": "Off camera flash basics",
+          "desc": "You will be able to add a single off camera flash to shape light on a portrait while keeping the background soft.",
+          "milestone": false,
+          "quests": [
+            "Set up one flash off camera at 45 degrees with a trigger and modifier",
+            "Balance flash and ambient light so the background stays dark and soft",
+            "Shoot a portrait at f/2 with flash power adjusted in manual mode"
+          ],
+          "videos": []
+        },
+        {
+          "id": "subject-direction",
+          "title": "Posing and directing",
+          "desc": "You will be able to direct a subject into relaxed poses that suit portraits with blurred backgrounds.",
+          "milestone": false,
+          "quests": [
+            "Direct a subject through three head angles and pick the most flattering",
+            "Guide hands and shoulders into a relaxed pose without stiffness",
+            "Shoot a sequence of 10 frames to catch natural expressions"
+          ],
+          "videos": []
+        },
+        {
+          "id": "lens-blur-control",
+          "title": "Controlling background blur",
+          "desc": "You will be able to control the amount and shape of background blur using distance, focal length, and aperture.",
+          "milestone": false,
+          "quests": [
+            "Measure subject to background distance and shoot at three distances",
+            "Compare background blur at 85mm and 135mm at the same framing",
+            "Shoot a portrait with a bokeh background of distant lights at night"
+          ],
+          "videos": [
+            {
+              "id": "6LuvQdGXb4M",
+              "title": "HOW TO GET A BLURRY BACKGROUND IN-CAMERA!  Depth of field explained.",
+              "channel": "Simon d'Entremont",
+              "durationSeconds": 725,
+              "thumbnailUrl": "https://i.ytimg.com/vi/6LuvQdGXb4M/mqdefault.jpg"
+            },
+            {
+              "id": "UA4Qu4Ot01c",
+              "title": "How to Blur the Background in Your Videos (Bokeh and F-Stop Tips!)",
+              "channel": "Pixel Walk Media",
+              "durationSeconds": 269,
+              "thumbnailUrl": "https://i.ytimg.com/vi/UA4Qu4Ot01c/mqdefault.jpg"
+            }
+          ]
+        },
+        {
+          "id": "take-10-blurred-portraits",
+          "title": "Take 10 portraits with a clearly blurred background",
+          "desc": "You will be able to shoot ten sharp portraits with a clearly blurred background and show a consistent set.",
+          "milestone": true,
+          "quests": [
+            "Shoot 10 portraits at f/2.8 or wider with sharp eyes and blurred backgrounds",
+            "Choose 10 finished portraits that share one light style and background blur",
+            "Review the set and note which settings and distances gave the strongest blur"
+          ],
+          "videos": []
+        }
+      ]
+    }
+  ]
+}

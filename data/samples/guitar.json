@@ -1,0 +1,158 @@
+{
+  "slug": "guitar",
+  "hobby": "Guitar",
+  "mascot": "guitar",
+  "finish": "Sing and play 3 new songs, start to finish",
+  "sections": [
+    {
+      "level": "intermediate",
+      "name": "Chord changes and rhythm",
+      "skills": [
+        {
+          "id": "barre-chords",
+          "title": "Barre chords",
+          "desc": "Fret full barre chords such as F and B minor with clear notes.",
+          "milestone": false,
+          "quests": [
+            "Hold an E shape barre chord for 30 seconds with all strings ringing",
+            "Practice the F chord with a 10 minute daily drill for a week",
+            "Move an E shape barre up the neck through five positions"
+          ],
+          "videos": [
+            {
+              "id": "9htsZmzU-fw",
+              "title": "F Barre Chord Exercise for Acoustic Guitar",
+              "channel": "Tony Polecastro",
+              "durationSeconds": 429,
+              "thumbnailUrl": "https://i.ytimg.com/vi/9htsZmzU-fw/mqdefault.jpg"
+            },
+            {
+              "id": "EMerE4R8gW8",
+              "title": "How To Have Cleaner & Buzz Free Barre Chords - Tips for Beginners!",
+              "channel": "Lauren Bateman",
+              "durationSeconds": 470,
+              "thumbnailUrl": "https://i.ytimg.com/vi/EMerE4R8gW8/mqdefault.jpg"
+            }
+          ]
+        },
+        {
+          "id": "chord-changes-fast",
+          "title": "Faster chord changes",
+          "desc": "Change between chords smoothly at a steady tempo.",
+          "milestone": false,
+          "quests": [
+            "Change G to C to D at 60 BPM without stopping for a full minute",
+            "Use anchor fingers to keep one finger in place between chords",
+            "Play a four chord loop at 90 BPM for two minutes"
+          ],
+          "videos": [
+            {
+              "id": "teu7eedm_g4",
+              "title": "4 Chord Switching Drills That Actually Work",
+              "channel": "GuitarSuccess4u",
+              "durationSeconds": 1232,
+              "thumbnailUrl": "https://i.ytimg.com/vi/teu7eedm_g4/mqdefault.jpg"
+            },
+            {
+              "id": "mAgc7hr44WM",
+              "title": "Get FASTER Chord Changes On Guitar!",
+              "channel": "JustinGuitar",
+              "durationSeconds": 322,
+              "thumbnailUrl": "https://i.ytimg.com/vi/mAgc7hr44WM/mqdefault.jpg"
+            }
+          ]
+        },
+        {
+          "id": "strum-patterns-varied",
+          "title": "Varied strum patterns",
+          "desc": "Use palm muting and accents to play a wider range of rhythms.",
+          "milestone": false,
+          "quests": [
+            "Add palm muting to a verse without stopping the groove",
+            "Play a reggae or folk strum with accents on the offbeat",
+            "Learn two songs that each use a different strum pattern"
+          ],
+          "videos": []
+        },
+        {
+          "id": "play-by-ear-basics",
+          "title": "Learning songs by ear",
+          "desc": "Pick out chord progressions from a recording without a chart.",
+          "milestone": true,
+          "quests": [
+            "Identify the chords of one song by listening and checking with a tuner",
+            "Find the key of a song by playing along to its bass line",
+            "Write down the chord progression of three songs from memory"
+          ],
+          "videos": []
+        }
+      ]
+    },
+    {
+      "level": "advanced",
+      "name": "Full songs and performance",
+      "skills": [
+        {
+          "id": "capo-and-keys",
+          "title": "Capo and keys",
+          "desc": "Use a capo and transpose songs to fit your voice.",
+          "milestone": false,
+          "quests": [
+            "Transpose one song up two frets with a capo and check the chords",
+            "Find the capo position that fits a singer's range in a song",
+            "Play the same progression in three different keys"
+          ],
+          "videos": []
+        },
+        {
+          "id": "singing-while-playing",
+          "title": "Singing while playing",
+          "desc": "Keep a steady strum and sing the melody at the same time.",
+          "milestone": false,
+          "quests": [
+            "Sing a verse with a simple strum pattern at slow tempo",
+            "Sing the chorus of a song while playing the chords without stopping",
+            "Record a take of singing and playing and listen back for timing"
+          ],
+          "videos": []
+        },
+        {
+          "id": "fingerpicking-patterns",
+          "title": "Fingerpicking patterns",
+          "desc": "Play arpeggio and Travis style picking under a melody line.",
+          "milestone": false,
+          "quests": [
+            "Play a basic Travis pattern on a four chord loop",
+            "Alternate thumb bass with two fingers on the top strings",
+            "Pick a verse of a folk song with steady thumb timing"
+          ],
+          "videos": []
+        },
+        {
+          "id": "song-structure-memory",
+          "title": "Song structure and memory",
+          "desc": "Memorize full song structures so you can play start to finish.",
+          "milestone": false,
+          "quests": [
+            "Map the intro, verse, chorus and bridge of one song on paper",
+            "Play a full song from memory without looking at chords",
+            "Practice a song's transitions between sections at tempo"
+          ],
+          "videos": []
+        },
+        {
+          "id": "three-songs-at-once",
+          "title": "Sing and play 3 new songs, start to finish",
+          "desc": "Sing and play three new songs start to finish, keeping each one steady and in key.",
+          "milestone": true,
+          "quests": [
+            "Pick three new songs in keys that suit your voice and learn their chords",
+            "Run each song start to finish with singing and playing at tempo",
+            "Play all three songs in one session with no stops or restarts"
+          ],
+          "videos": []
+        }
+      ]
+    }
+  ]
+}
