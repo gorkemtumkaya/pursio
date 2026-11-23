@@ -3,9 +3,9 @@
 Implementation of the `sample-path` spec ([scenarios](scenarios.md), [requirements](requirements.md), [design](design.md), [tasks](tasks.md)). This file grows with the work. So far it covers task 1, the analytics bug APP-ANALYTICS-01, which the owner asked to fix first and on its own (plan reviewed by the owner on 2026-11-23 before the code changed), and task 2, the sample data.
 
 - **Repos and branches:** `pursio`. G1 was made on `fix/analytics-funnel-chain` and merged into `main`; everything after it is on `main`
-- **State:** G1 committed in `f5101ed` and merged into `main` (fast forward) on 2026-11-23; checked alone in a clean worktree: 1434 passed, 16 skipped. Spec documents in `9fccee2`. G2 in `6afec4a`. G3 in `43dac82`. G4 in `42c4730`. G5 committed with this update. From G2 on, work is on `main` and each separate task is committed when done (owner, 2026-11-23)
+- **State:** G1 committed in `f5101ed` and merged into `main` (fast forward) on 2026-11-23; checked alone in a clean worktree: 1434 passed, 16 skipped. Spec documents in `9fccee2`. G2 in `6afec4a`. G3 in `43dac82`. G4 in `42c4730`. G5 in `0abcd39`. G6 committed with this update. From G2 on, work is on `main` and each separate task is committed when done (owner, 2026-11-23)
 - **Status:** 1 of 1 done *(bug fixes)*; the production check F4 waits for the deploy
-- **Size:** G1: 9 files changed, 4 added. G2: 2 files changed, 13 added (incl. 3 generated data files). G3: 4 files changed, 7 added. G4: 7 files changed, 5 added. G5: 7 files changed, 3 added. 5 groups
+- **Size:** G1: 9 files changed, 4 added. G2: 2 files changed, 13 added (incl. 3 generated data files). G3: 4 files changed, 7 added. G4: 7 files changed, 5 added. G5: 7 files changed, 3 added. G6: 2 files changed, 2 added. 6 groups
 
 ## Scenarios *(bug fixes)*
 
@@ -50,6 +50,7 @@ So the report has two parts:
 3. G3. The route without a session: the first code that runs for an ad visitor.
 4. G4. Preview_Mode of the shared components: the only changes to files the real path screen uses; check that every default keeps today's output.
 5. G5. The page: top bar, intro card, path and finish card, built from the components of G4.
+6. G6. Skill preview and selection: the read only skill detail, its videos with no recording, and the mobile sheet.
 
 ## Groups
 
@@ -187,6 +188,20 @@ The sample page now draws the whole path as in the mockups. The right column (pr
   - The right column is empty on desktop until task 7, so the path column sits left of centre.
   - Mobile keeps `pb-24` under the path for the sticky bar of task 8.
 
+### G6. Skill preview and selection (task 7; Req 7, 8, 3.4)
+
+| File | Why it changed |
+|---|---|
+| [app/components/sample/SampleSkillPreview.vue](../../../app/components/sample/SampleSkillPreview.vue) | New. Tag ("FIRST SKILL" tinted, "PREVIEW" neutral) with "Section s · Skill k", title, description, "3 QUESTS" with "+10 XP EACH" from `XP_PER_QUEST`, the quests as read only `PathQuestItem` rows, the videos, and a slot for the end of the sheet. Same card look as the path screen's skill detail, without its chip, lock note and button |
+| [app/components/sample/SampleVideoList.vue](../../../app/components/sample/SampleVideoList.vue) | New. `WatchVideoCard` in list layout with `WatchEmbedPlayer` and "Close video", as in `WatchSection` but with no recorder and no listener on play, progress or skip; the pointer cursor for the reused buttons comes from the list; with no video, the one fallback line |
+| [app/components/sample/SampleView.vue](../../../app/components/sample/SampleView.vue) | Desktop: `PathSidePanel` with the selected skill, first skill by default, a click on another skill selects it and stops any video. Mobile: a tap opens `PathBottomSheet`; closing stops the video and returns focus to the node through the canvas' `focusNode`. A change of viewport keeps the selection and opens no sheet. The right column takes back the side panel's own right padding so the cards line up with the top bar |
+| [tests/unit/sample-no-cost.test.ts](../../../tests/unit/sample-no-cost.test.ts) | The video list listens to no play, progress, pause, end or skip signal, and uses neither the recorder nor `WatchSection` |
+
+- **Related, not changed:** [app/components/watch/WatchSection.vue](../../../app/components/watch/WatchSection.vue), the source of the card and player markup, which records events through `useVideoEvents`, so it is not reused.
+- **Watch for:**
+  - "Make this path mine" at the end of the skill sheet is built in task 8 with the sheet it opens (tasks.md updated).
+  - Videos whose title holds a hyphen (4 of 12) show it as published (decision 13).
+
 ## Decisions
 
 1. **Where `skill_path_generated` is sent.** Decided 2026-11-23 (OD1, decision 13): server only, with the browser's distinct id.
@@ -211,6 +226,8 @@ No open decision in this group.
 - **G4, not run:** a visual comparison of `/path` before and after; the components with `preview` off are checked by hand in the manual pass.
 - **G5, run:** `yarn typecheck`: 0 errors. `yarn test`: 1521 passed, 16 skipped. Screenshots against the dev server with headless Chrome driven through the DevTools protocol (a real 360 px device viewport; a plain `--window-size` cannot go below about 500 px): desktop 1440 px for photography matches the desktop mockup's left column; 360 px for photography (3 sections, 14 skills), birdwatching (2, 13) and guitar (2, 9) has `scrollWidth` equal to the viewport (no sideways scroll), no overlap, every title and the finish card in full.
 - **G5, not run:** other themes, a screen reader pass; both in the manual pass.
+- **G6, run:** `yarn typecheck`: 0 errors. `yarn test`: 1523 passed, 16 skipped (2 new). Screenshots: desktop 1440 px matches the desktop mockup's right column (tag, position, quests with empty boxes, two video cards) and lines up with the top bar; 360 px after a tap on "Aperture and background blur" shows the sheet as in the "Skill tapped" mockup, with "Videos appear when you reach this skill." and no videos heading.
+- **G6, not run:** playing a video (needs a real YouTube embed), focus return and Escape with a keyboard; manual rows C3, C5, C7.
 
 ## Manual checks before release
 

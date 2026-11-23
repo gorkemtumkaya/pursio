@@ -130,14 +130,14 @@ The owner answered OD1 to OD6 on 2026-11-23 (scenarios.md, decisions 13 to 17). 
     - Grid and container of design.md, "Layout"; no sidebar, no bottom navigation
     - _Requirements: 5.1 to 5.6, 5.8, 5.9, 6.1, 6.2_
 
-- [ ] 7. Skill preview
-  - [ ] 7.1 Build `SampleSkillPreview` and `SampleVideoList`
+- [x] 7. Skill preview
+  - [x] 7.1 Build `SampleSkillPreview` and `SampleVideoList`
     - Tag, position, title, description, the quest heading with the XP constant, three `PathQuestItem` with `readonly`
     - `WatchVideoCard` with `layout="list"` and `WatchEmbedPlayer` in its slot, no handler on play, progress or skip; the wrapper with `[&_button]:cursor-pointer`; the fallback line when the list is empty
     - _Requirements: 7.4 to 7.6, 8.1 to 8.6, 3.4_
-  - [ ] 7.2 Wire selection and the skill sheet
+  - [x] 7.2 Wire selection and the skill sheet
     - Desktop: `PathSidePanel`, default selection, outline
-    - Mobile: `PathBottomSheet`, opener for focus return, "Make this path mine"
+    - Mobile: `PathBottomSheet`, opener for focus return. "Make this path mine" moved to 8.2, where the sheet it opens is built
     - Closing or changing skill clears the active video; selection survives a viewport change
     - _Requirements: 7.1 to 7.3, 7.7 to 7.9, 8.3_
 
@@ -152,6 +152,7 @@ The owner answered OD1 to OD6 on 2026-11-23 (scenarios.md, decisions 13 to 17). 
     - Desktop: under the preview in the right column, preview scrolls, box always in view
     - Mobile: the Mine_Sheet with the Skip text button; focus return to the opener or to the skill's node
     - "Build my own path" focuses the note; one `note` ref for both layouts
+    - "Make this path mine" at the end of the skill sheet: closes it and opens the Mine_Sheet (Req 7.8)
     - _Requirements: 4.3, 9.3, 9.4, 9.6, 9.7_
 
 - [ ] 9. Checkpoint - the page matches the four mockups on desktop and at 360 px

@@ -40,3 +40,15 @@ describe('the global middleware uses the rule', () => {
     expect(source).toMatch(/if \(!startsSession\(to\.path, to\.query\)\) return\s*\n\s*void useAuth\(\)\.ensure\(\)/)
   })
 })
+
+describe('sample videos record nothing (Req 3.4, 8.4)', () => {
+  const source = readFileSync(fileURLToPath(new URL('../../app/components/sample/SampleVideoList.vue', import.meta.url)), 'utf8')
+
+  it('listens to no play, progress, pause, end or skip signal of the player or the card', () => {
+    expect(source).not.toMatch(/@(playing|progress|paused|ended|skipped)\b/)
+  })
+
+  it('uses neither the event recorder nor the Watch section that calls it', () => {
+    expect(source).not.toMatch(/useVideoEvents|WatchSection|recordPlay|recordSkip|recordProgress/)
+  })
+})
