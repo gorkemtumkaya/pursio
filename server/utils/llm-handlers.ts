@@ -7,6 +7,7 @@ import { applyProfileToTree } from '../../shared/utils/known-nodes'
 import { isPlainProfile, parseFinalProfile, startLevelFor } from '../../shared/utils/learner-profile'
 import type { GoalClass } from '../../shared/types/video'
 import { createAiObservabilityContext, withAiObservabilityContext } from './ai-observability'
+import type { AnalyticsIdentity } from './analytics-events'
 import { classifyGoal } from './goal-classifier'
 import { generateSkillTree, type GenerationResult } from './generator'
 import type { ProviderAdapter } from './providers/types'
@@ -150,6 +151,11 @@ export interface TreeDeps {
    * (spec: skill-video-pipeline, Req 8.1, 8.2).
    */
   afterSave?: (input: { pathId: string; tree: SkillTree }) => void | Promise<void>
+  /**
+   * Sends `skill_path_generated` for an answer with status 200, under the browser's PostHog id or
+   * else the user id (spec: sample-path, Req 12.3). Awaited before the answer; a failure is ignored.
+   */
+  recordGenerated?: (input: { identity: AnalyticsIdentity; startLevel: StartLevel; cached: boolean }) => Promise<void>
   /** Receives only code, stage, reason, provider and model, never keys, tokens or bodies (Req 2.6). */
   log?: (entry: TreeLogEntry) => void
 }
@@ -159,7 +165,13 @@ function treeError(code: ErrorCode): HandlerResponse<TreeResponse> {
 }
 
 export async function handleTreeRequest(
-  input: { body: unknown; headerKey: string | undefined; authorization: string | undefined },
+  input: {
+    body: unknown
+    headerKey: string | undefined
+    authorization: string | undefined
+    /** The browser's PostHog ids, for analytics only (spec: sample-path, Req 12.2). */
+    analytics?: AnalyticsIdentity | null
+  },
   deps: TreeDeps,
 ): Promise<HandlerResponse<TreeResponse>> {
   // 0. Access_Token before anything else (spec: accounts-cloud-save, Req 9.1, 9.2).
@@ -183,7 +195,9 @@ export async function handleTreeRequest(
     verifyReason = 'verify_error'
   }
   if (typeof userId !== 'string' || userId === '') return unauthorized(verifyReason)
-  const aiContext = createAiObservabilityContext(userId)
+  // Analytics only: the browser's PostHog id when it sent one, so these events join its chain.
+  const identity: AnalyticsIdentity = input.analytics ?? { distinctId: userId }
+  const aiContext = createAiObservabilityContext(identity.distinctId, identity.sessionId)
 
   // 1. Hobby check (Req 1.1, 1.2).
   const body = isRecord(input.body) ? input.body : {}
@@ -328,6 +342,13 @@ export async function handleTreeRequest(
     void Promise.resolve(deps.afterSave?.({ pathId, tree })).catch(() => {})
   } catch {
     // afterSave must never fail the response.
+  }
+
+  // 9. The generated event, from the server so a closed tab cannot lose it (spec: sample-path, Req 12.3).
+  try {
+    await deps.recordGenerated?.({ identity, startLevel: level, cached: cached !== undefined })
+  } catch {
+    // Analytics must never fail the response.
   }
   return { status: 200, body: { tree, model, pathId, profile: storedProfile } }
 }

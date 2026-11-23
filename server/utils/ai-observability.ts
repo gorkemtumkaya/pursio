@@ -2,10 +2,13 @@ import { AsyncLocalStorage } from 'node:async_hooks'
 import { PostHog } from 'posthog-node'
 import type { AdapterFailure } from './providers/types'
 
-interface AiObservabilityContext {
+export interface AiObservabilityContext {
   distinctId?: string
+  /** The server process; sent as `$ai_session_id`. */
   sessionId: string
   traceId: string
+  /** The browser's PostHog session id, when the request sent one; sent as `$session_id` (spec: sample-path, Req 12.2). */
+  browserSessionId?: string
 }
 
 interface GenerationCapture {
@@ -71,7 +74,8 @@ function outputFor(providerName: 'anthropic' | 'openai', response: unknown): { c
   }
 }
 
-function posthogClient(): PostHog | undefined {
+/** The server's PostHog client, or undefined when it is not configured. Shared with `analytics-events.ts`. */
+export function serverPosthogClient(): PostHog | undefined {
   if (client) return client
   const key = process.env.NUXT_PUBLIC_POSTHOG_KEY
   const host = process.env.NUXT_PUBLIC_POSTHOG_HOST
@@ -94,8 +98,17 @@ function posthogClient(): PostHog | undefined {
   return client
 }
 
-export function createAiObservabilityContext(distinctId?: string): AiObservabilityContext {
-  return { distinctId, sessionId: processSessionId, traceId: crypto.randomUUID() }
+/**
+ * `distinctId`: the browser's PostHog id when the request sent one, else the user id, else none
+ * (background jobs), which falls back to the process id.
+ */
+export function createAiObservabilityContext(distinctId?: string, browserSessionId?: string): AiObservabilityContext {
+  return { distinctId, sessionId: processSessionId, traceId: crypto.randomUUID(), browserSessionId }
+}
+
+/** The context of the running call, for tests and for callers that pass it on. */
+export function currentAiObservabilityContext(): AiObservabilityContext | undefined {
+  return contexts.getStore()
 }
 
 export function withAiObservabilityContext<T>(context: AiObservabilityContext, task: () => Promise<T>): Promise<T> {
@@ -105,7 +118,7 @@ export function withAiObservabilityContext<T>(context: AiObservabilityContext, t
 export async function captureAiGeneration(capture: GenerationCapture): Promise<void> {
   const context = contexts.getStore()
   if (!context) return
-  const posthog = posthogClient()
+  const posthog = serverPosthogClient()
   if (!posthog) return
 
   try {
@@ -118,6 +131,7 @@ export async function captureAiGeneration(capture: GenerationCapture): Promise<v
       properties: {
         $ai_trace_id: context.traceId,
         $ai_session_id: context.sessionId,
+        $session_id: context.browserSessionId,
         $ai_model: typeof capture.body.model === 'string' ? capture.body.model : 'unknown',
         $ai_provider: providerName,
         $ai_input: redact ? undefined : inputFor(providerName, capture.body),

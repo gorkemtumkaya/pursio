@@ -9,6 +9,7 @@ import { paidAccessForToken } from './billing-runtime'
 import { listHobbiesForUser, savePathForUser, verifyAccessToken } from './supabase-server'
 import { createTreeCache } from './tree-cache'
 import { afterTreeSave } from './video/runtime'
+import { captureServerEvent } from './analytics-events'
 
 /** Request timeouts in milliseconds (Req 8.1, 12.3). */
 const TREE_TIMEOUT_MS = 90_000
@@ -101,6 +102,9 @@ export function llmTreeDeps(): TreeDeps {
     verifyTimeoutMs: VERIFY_TIMEOUT_MS,
     saveTimeoutMs: SAVE_TIMEOUT_MS,
     afterSave: afterTreeSave,
+    // spec: sample-path, Req 12.3. Same name and `start_level` as the browser event it replaces.
+    recordGenerated: ({ identity, startLevel, cached }) =>
+      captureServerEvent(identity, 'skill_path_generated', { start_level: startLevel, cached }),
     log: logLlmError,
   }
 }

@@ -1,4 +1,5 @@
 import type { PostHog } from 'posthog-js'
+import { DISTINCT_ID_HEADER, SESSION_ID_HEADER, usableAnalyticsId } from '#shared/utils/analytics-identity'
 
 export type AnalyticsEvent =
   | 'landing_viewed'
@@ -30,6 +31,27 @@ export function sendEvent(
     client.capture(event, properties)
   } catch {
     // Analytics must never block the learner.
+  }
+}
+
+export type AnalyticsIdSource = Pick<PostHog, 'get_distinct_id' | 'get_session_id'>
+
+/**
+ * The browser's PostHog ids as request headers, for the build requests, so the server sends its
+ * events under the same person (spec: sample-path, Req 12.1). Empty without a client, for an id
+ * that is not usable, or when the client throws. Never used for access or limits.
+ */
+export function analyticsHeaders(client: AnalyticsIdSource | null | undefined): Record<string, string> {
+  if (!client) return {}
+  try {
+    const distinctId = usableAnalyticsId(client.get_distinct_id())
+    if (distinctId === null) return {}
+    const headers: Record<string, string> = { [DISTINCT_ID_HEADER]: distinctId }
+    const sessionId = usableAnalyticsId(client.get_session_id())
+    if (sessionId !== null) headers[SESSION_ID_HEADER] = sessionId
+    return headers
+  } catch {
+    return {}
   }
 }
 

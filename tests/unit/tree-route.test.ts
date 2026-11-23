@@ -2,6 +2,9 @@
 import { describe, expect, it } from 'vitest'
 import { ERROR_CODES } from '../../shared/utils/llm'
 import { ERROR_STATUS, handleTreeRequest } from '../../server/utils/llm-handlers'
+import { currentAiObservabilityContext, type AiObservabilityContext } from '../../server/utils/ai-observability'
+import type { AnalyticsIdentity } from '../../server/utils/analytics-events'
+import type { StartLevel } from '../../shared/types/llm'
 import { createRateLimiter } from '../../server/utils/rate-limiter'
 import { cacheKey } from '../../server/utils/tree-cache'
 import {
@@ -13,6 +16,7 @@ import {
   fakeTreeDeps,
   never,
   sampleTree,
+  treeOutput,
 } from '../support/tree-deps'
 
 const SHORT_MS = 10
@@ -360,5 +364,93 @@ describe('ERROR_STATUS', () => {
       hobby_limit: 403,
     })
     expect(Object.keys(ERROR_STATUS).sort()).toEqual([...ERROR_CODES].sort())
+  })
+})
+
+// spec: sample-path, Requirement 12 (bug APP-ANALYTICS-01).
+describe('handleTreeRequest analytics identity', () => {
+  const BROWSER: AnalyticsIdentity = { distinctId: 'browser-1', sessionId: 'session-1' }
+
+  type Recorded = { identity: AnalyticsIdentity; startLevel: StartLevel; cached: boolean }
+
+  /** Fake deps that keep the observability context seen by the model call and every `recordGenerated` call. */
+  function withRecorder(options: Parameters<typeof fakeTreeDeps>[0] = {}) {
+    const contexts: (AiObservabilityContext | undefined)[] = []
+    const recorded: Recorded[] = []
+    const fake = fakeTreeDeps({
+      ...options,
+      adapterResult: (hobby, config) => {
+        contexts.push(currentAiObservabilityContext())
+        return options.adapterResult ? options.adapterResult(hobby, config) : treeOutput(sampleTree())
+      },
+    })
+    fake.deps.recordGenerated = async (input) => {
+      recorded.push(input)
+    }
+    return { fake, contexts, recorded }
+  }
+
+  it('uses the browser ids for the model call and the generated event', async () => {
+    const { fake, contexts, recorded } = withRecorder()
+    const response = await handleTreeRequest({ ...request('guitar'), analytics: BROWSER }, fake.deps)
+
+    expect(response.status).toBe(200)
+    expect(contexts).toHaveLength(1)
+    expect(contexts[0]?.distinctId).toBe('browser-1')
+    expect(contexts[0]?.browserSessionId).toBe('session-1')
+    expect(recorded).toEqual([{ identity: BROWSER, startLevel: 'new', cached: false }])
+  })
+
+  it('falls back to the user id without a browser identity', async () => {
+    for (const analytics of [undefined, null]) {
+      const { fake, contexts, recorded } = withRecorder()
+      await handleTreeRequest({ ...request('guitar'), analytics }, fake.deps)
+
+      expect(contexts[0]?.distinctId).toBe(USER_ID)
+      expect(contexts[0]?.browserSessionId).toBeUndefined()
+      expect(recorded).toEqual([{ identity: { distinctId: USER_ID }, startLevel: 'new', cached: false }])
+    }
+  })
+
+  it('sends the generated event with cached true on a cache hit', async () => {
+    const { fake, contexts, recorded } = withRecorder()
+    fake.cache.set(cacheKey('guitar', 'some', 'anthropic', DEFAULTS.model), { tree: sampleTree(), model: 'cached-model' })
+    await handleTreeRequest(
+      { body: { hobby: 'guitar', level: 'some' }, headerKey: undefined, authorization: bearer(TOKEN), analytics: BROWSER },
+      fake.deps,
+    )
+
+    expect(contexts).toEqual([])
+    expect(recorded).toEqual([{ identity: BROWSER, startLevel: 'some', cached: true }])
+  })
+
+  it('sends no generated event when the build fails', async () => {
+    const { fake, recorded } = withRecorder({ adapterResult: () => NOT_A_HOBBY_OUTPUT })
+    const response = await handleTreeRequest({ ...request('asdfgh'), analytics: BROWSER }, fake.deps)
+
+    expect(response.status).not.toBe(200)
+    expect(recorded).toEqual([])
+  })
+
+  it('answers the same when the generated event throws', async () => {
+    const { fake } = withRecorder()
+    fake.deps.recordGenerated = async () => {
+      throw new Error('posthog down')
+    }
+    const response = await handleTreeRequest({ ...request('guitar'), analytics: BROWSER }, fake.deps)
+
+    expect(response).toEqual({ status: 200, body: { tree: sampleTree(), model: DEFAULTS.model, pathId: 'path-1', profile: null } })
+  })
+
+  it('changes nothing but analytics: same limiter key, same save, same body', async () => {
+    const plain = withRecorder()
+    const withIds = withRecorder()
+    const a = await handleTreeRequest(request('guitar'), plain.fake.deps)
+    const b = await handleTreeRequest({ ...request('guitar'), analytics: { distinctId: 'someone-else' } }, withIds.fake.deps)
+
+    expect(b).toEqual(a)
+    expect(withIds.fake.calls.consume).toEqual([USER_ID])
+    expect(withIds.fake.calls.save).toEqual(plain.fake.calls.save)
+    expect(withIds.fake.calls.order).toEqual(plain.fake.calls.order)
   })
 })

@@ -6,7 +6,7 @@ import { startLevelFor } from '#shared/utils/learner-profile'
 import { countedHobbies, hobbyLimitBlocks, type LimitHobby } from '#shared/utils/hobby-limit'
 import { normalizeHobby } from '#shared/utils/llm'
 import { loadSkillTree } from '#shared/utils/skill-tree-load'
-import { track } from '~/utils/analytics'
+import { analyticsHeaders, track } from '~/utils/analytics'
 import { hobbyPath, readTreeWithProfile } from '~/utils/hobby-store'
 import { buildIntakeRequest, runIntake } from '~/utils/intake-client'
 import {
@@ -194,7 +194,7 @@ export function useHobbyBuilder() {
         $fetch<unknown>('/api/intake', {
           method: 'POST',
           body: body.body,
-          headers: { ...body.headers, ...bearerHeader(token) },
+          headers: { ...body.headers, ...analyticsHeaders(posthog), ...bearerHeader(token) },
           signal,
           retry: 0,
         }),
@@ -305,7 +305,7 @@ export function useHobbyBuilder() {
       const response = await $fetch<unknown>('/api/tree', {
         method: 'POST',
         body: request.body,
-        headers: { ...request.headers, ...bearerHeader(token) },
+        headers: { ...request.headers, ...analyticsHeaders(posthog), ...bearerHeader(token) },
         signal: current.signal,
         retry: 0,
       })
@@ -320,7 +320,7 @@ export function useHobbyBuilder() {
         hobbyId = cloud.addGenerated({ pathId, tree: saved.tree, model, level: requestLevel, profile: saved.profile })
         summary.value = summarizeTree(saved.tree, saved.profile)
         outfit.value = toWickOutfit(saved.tree.mascot.set)
-        posthog?.capture('skill_path_generated', { start_level: requestLevel })
+        // `skill_path_generated` is sent by the server, under this browser's id (spec: sample-path, Req 12.3, 12.4).
         stopTimer()
         state.value = 'ready'
         return

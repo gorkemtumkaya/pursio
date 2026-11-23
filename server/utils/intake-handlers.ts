@@ -6,6 +6,7 @@ import { parseBearer } from '../../shared/utils/auth'
 import { NOTE_MAX, sanitizeIntakeProfile } from '../../shared/utils/learner-profile'
 import { HOBBY_MAX_LENGTH, isProvider } from '../../shared/utils/llm'
 import { createAiObservabilityContext, withAiObservabilityContext } from './ai-observability'
+import type { AnalyticsIdentity } from './analytics-events'
 import { toProviderSchema, type JsonSchema } from './generation-schema'
 import { ERROR_STATUS, withTimeout, type DefaultConfigInput, type HandlerResponse } from './llm-handlers'
 import type { AdapterResult, ProviderAdapter } from './providers/types'
@@ -107,7 +108,13 @@ function intakeError(code: ErrorCode): HandlerResponse<IntakeResponse> {
 }
 
 export async function handleIntakeRequest(
-  input: { body: unknown; headerKey: string | undefined; authorization: string | undefined },
+  input: {
+    body: unknown
+    headerKey: string | undefined
+    authorization: string | undefined
+    /** The browser's PostHog ids, for analytics only (spec: sample-path, Req 12.2). */
+    analytics?: AnalyticsIdentity | null
+  },
   deps: IntakeDeps,
 ): Promise<HandlerResponse<IntakeResponse>> {
   const startedAt = deps.now()
@@ -174,9 +181,11 @@ export async function handleIntakeRequest(
   // The inputs travel as one JSON value, apart from the instructions.
   const sentinel = { timedOut: true } as const
   let result: AdapterResult | typeof sentinel
+  // Analytics only: the browser's PostHog id when it sent one, else the user id (spec: sample-path, Req 12.2).
+  const aiContext = createAiObservabilityContext(input.analytics?.distinctId ?? userId, input.analytics?.sessionId)
   try {
     result = await withTimeout<AdapterResult | typeof sentinel>(remaining(), sentinel, (signal) =>
-      withAiObservabilityContext(createAiObservabilityContext(userId), () =>
+      withAiObservabilityContext(aiContext, () =>
         deps.adapters[config.provider].generateStructured(config, {
           systemPrompt,
           userText: JSON.stringify({ language, hobby, note }),

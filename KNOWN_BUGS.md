@@ -27,6 +27,14 @@ None yet.
 
 ## Fixed
 
+### APP-ANALYTICS-01 · Medium · Server analytics events did not join the visitor's funnel
+- **Introduced:** 3b19d5c (2026-11-18), shipped in v0.6.0; copied to the intake route in 6338987 (2026-11-21)
+- **Fixed in:** pending
+- **Impact while it existed:** none for users. Reported as "`intake_shown`, `intake_answered` and `skill_path_generated` never arrive in production"; PostHog showed they did arrive (17, 16, 17 events since 2026-11-22), just not from ad traffic, which never reached `/new`. The real defects: server `$ai_generation` events used the Supabase user id while the browser used PostHog's own id, so for anonymous visitors no server event joined the funnel (0 of 24 server ids had a browser event); and `skill_path_generated` was sent only by the browser after a build of about 20 s, so a closed tab lost it.
+- **Data / analytics impact:** server `$ai_generation` events from 2026-11-18 until the deploy sit on separate persons and cannot be joined to anonymous visitors. `skill_path_generated` undercounts builds whose tab closed before the answer. Not backfilled.
+- **Fix:** the browser sends its PostHog ids with `/api/intake` and `/api/tree`; the server uses them for its events and sends `skill_path_generated` itself. Details: `.kiro/specs/sample-path/changes.md`, G1
+- **Tests:** [tests/unit/analytics-identity.test.ts](tests/unit/analytics-identity.test.ts), [tests/unit/tree-route.test.ts](tests/unit/tree-route.test.ts), [tests/unit/path-intake-route.test.ts](tests/unit/path-intake-route.test.ts), [tests/property/sample-path-identity.property.test.ts](tests/property/sample-path-identity.property.test.ts)
+
 ### APP-FRESH-01 · Medium · One skill filled most of the Fresh page
 - **Introduced:** 6b0f02f (2026-11-15), shipped in v0.4.0
 - **Fixed in:** pending

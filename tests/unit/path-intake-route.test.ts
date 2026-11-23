@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest'
 import type { IntakeProfile } from '../../shared/types/learner-profile'
 import type { Provider } from '../../shared/types/llm'
 import { handleIntakeRequest, intakeLanguage, type IntakeDeps } from '../../server/utils/intake-handlers'
+import { currentAiObservabilityContext, type AiObservabilityContext } from '../../server/utils/ai-observability'
 import { createAnthropicAdapter } from '../../server/utils/providers/anthropic'
 import { createOpenAIAdapter } from '../../server/utils/providers/openai'
 import type { AdapterResult, Fetcher, ProviderAdapter, StructuredOptions } from '../../server/utils/providers/types'
@@ -328,5 +329,41 @@ describe('POST /api/intake: the 31st call in an hour is refused', () => {
     expect(statuses[30]).toBe(429)
     // The tree limiter was never touched: it still allows its full 10.
     expect(Array.from({ length: 10 }, () => treeLimiter.tryConsume('user-a')).every(Boolean)).toBe(true)
+  })
+})
+
+// spec: sample-path, Requirement 12 (bug APP-ANALYTICS-01).
+describe('handleIntakeRequest analytics identity', () => {
+  function withContext() {
+    const contexts: (AiObservabilityContext | undefined)[] = []
+    const { deps, consumed } = fakeDeps({
+      answer: () => {
+        contexts.push(currentAiObservabilityContext())
+        return { ok: true, value: GUITAR_ANSWER }
+      },
+    })
+    return { deps, consumed, contexts }
+  }
+
+  it('uses the browser ids for the model call', async () => {
+    const { deps, consumed, contexts } = withContext()
+    const response = await handleIntakeRequest(
+      { ...request({ hobby: 'guitar', note: '' }), analytics: { distinctId: 'browser-1', sessionId: 'session-1' } },
+      deps,
+    )
+
+    expect(response.status).toBe(200)
+    expect(contexts[0]?.distinctId).toBe('browser-1')
+    expect(contexts[0]?.browserSessionId).toBe('session-1')
+    // The limit stays keyed by the verified user, never by the header.
+    expect(consumed).toEqual(['user-a'])
+  })
+
+  it('falls back to the user id without a browser identity', async () => {
+    const { deps, contexts } = withContext()
+    await handleIntakeRequest({ ...request({ hobby: 'guitar', note: '' }), analytics: null }, deps)
+
+    expect(contexts[0]?.distinctId).toBe('user-a')
+    expect(contexts[0]?.browserSessionId).toBeUndefined()
   })
 })
