@@ -25,7 +25,7 @@ const emit = defineEmits<{ play: [id: string]; stop: [] }>()
             <WatchEmbedPlayer :key="video.id" :video-id="video.id" :title="video.title" />
             <button
               type="button"
-              class="min-h-11 self-end rounded-xl border-2 border-line px-3 text-sm font-bold text-ink focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink"
+              class="min-h-11 cursor-pointer self-end rounded-xl border-2 border-line px-3 text-sm font-bold text-ink focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink"
               @click="emit('stop')"
             >
               Close video

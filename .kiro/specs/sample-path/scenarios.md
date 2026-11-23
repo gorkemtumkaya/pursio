@@ -219,8 +219,8 @@ The founding line wording is the only open point: the draft in Requirement 13 is
 
 - **V1.** posthog-js 1.451.0 gives the ids the browser must send (`get_distinct_id()`, `get_session_id()`). Its tracing extension uses the header names `X-POSTHOG-DISTINCT-ID` and `X-POSTHOG-SESSION-ID` (seen in `node_modules/posthog-js`). Check that the extension actually adds them in production; the design does not depend on it.
 - **V2.** What `/new` does today when the visitor already has a path for the same hobby (path-intake manual row J4 says the old path is replaced), and what happens to its progress. If progress is lost, add a confirmation on `/new` in a later spec; it is out of scope here.
-- **V3.** With the `vercel` Nitro preset, `routeRules` with `prerender: true` writes the three pages as static files, and every other `/try/<slug>` reaches the server function that answers 302.
+- **V3.** With the `vercel` Nitro preset, `routeRules` with `prerender: true` writes the three pages as static files, and every other `/try/<slug>` reaches the server function that answers 302. **Answered 2026-11-23:** yes (changes.md, G3).
 - **V4.** Every video in the supplied files can be embedded (the video pipeline only stores embeddable videos, but the files are a copy).
-- **V5.** `app/plugins/cloud.client.ts` and `useChannelMutes()` send nothing when no session was started.
+- **V5.** `app/plugins/cloud.client.ts` and `useChannelMutes()` send nothing when no session was started. **Answered 2026-11-23:** a fresh browser on `/try/guitar` sent no Supabase and no `/api/` request until "Build my path" (changes.md, G8).
 - **V6.** The path canvas at exactly 360 px with the longest titles in the files (51 characters).
 - **V7.** The data file in the working tree, `data/sample-paths.json`, is an export: a list of `{ slug, sample }` where `sample` is a JSON string. The brief asks for one file per hobby in the plain shape. A committed, rerunnable script converts it (decision 16), because the export will be refreshed when more videos are available.

@@ -30,6 +30,9 @@ const SCANNED = [
   ...listFiles(join(ROOT, 'app/components/pricing')).filter((file) => /\.(vue|ts)$/.test(file)),
   join(ROOT, 'app/pages/pricing.vue'),
   join(ROOT, 'app/pages/welcome.vue'),
+  // spec: sample-path, Req 14.6
+  ...listFiles(join(ROOT, 'app/components/sample')).filter((file) => /\.(vue|ts)$/.test(file)),
+  join(ROOT, 'app/pages/try/[hobby].vue'),
 ].map((path) => ({ name: relative(ROOT, path), source: readFileSync(path, 'utf8') }))
 
 // CSS named colors (CSS Color Module Level 4), excluding keywords like

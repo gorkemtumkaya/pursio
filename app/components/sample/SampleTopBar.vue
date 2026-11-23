@@ -17,7 +17,7 @@ const emit = defineEmits<{ buildOwn: [] }>()
       <div class="flex min-w-0 items-center gap-3">
         <NuxtLink
           to="/"
-          class="flex cursor-pointer items-center gap-2.5 rounded-[14px] font-head text-[26px] font-bold text-ink focus-visible:outline-3 focus-visible:outline-offset-2 focus-visible:outline-primary max-[700px]:text-[21px]"
+          class="flex cursor-pointer items-center gap-2.5 rounded-2xl font-head text-[26px] font-bold text-ink focus-visible:outline-3 focus-visible:outline-offset-2 focus-visible:outline-primary max-[700px]:text-[21px]"
         >
           <span aria-hidden="true" class="size-9 shrink-0 bg-(image:--pursio-logo) bg-contain bg-center bg-no-repeat" />
           <span>Pursio</span>
@@ -30,7 +30,7 @@ const emit = defineEmits<{ buildOwn: [] }>()
       <div class="hidden items-center gap-2 lg:flex">
         <NuxtLink
           to="/path"
-          class="flex h-11 cursor-pointer items-center rounded-[14px] px-3 text-[15px] font-extrabold text-accent-text hover:bg-surface-2 focus-visible:outline-3 focus-visible:outline-offset-2 focus-visible:outline-primary"
+          class="flex h-11 cursor-pointer items-center rounded-2xl px-3 text-[15px] font-extrabold text-accent-text hover:bg-surface-2 focus-visible:outline-3 focus-visible:outline-offset-2 focus-visible:outline-primary"
         >
           {{ SAMPLE_COPY.logIn }}
         </NuxtLink>

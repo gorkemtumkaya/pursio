@@ -175,12 +175,12 @@ The owner answered OD1 to OD6 on 2026-11-23 (scenarios.md, decisions 13 to 17). 
     - **Property 5: Events**
     - **Validates: Requirements 10.1 to 10.6, 11.2 to 11.7, 16.5, 16.6**
 
-- [ ] 11. Guards
-  - [ ] 11.1 Write the static guards
+- [x] 11. Guards
+  - [x] 11.1 Write the static guards
     - `sample-no-cost.test.ts`: the forbidden names of design.md, "No cost before intent", over `app/components/sample/`, the page and `app/utils/sample-*.ts`
     - `tests/unit/sample-conventions.test.ts`: `cursor-pointer` on every control of `app/components/sample/*.vue`; add the folder and the page to the scan of `conventions.test.ts`
     - _Requirements: 3.1, 3.4, 3.5, 14.4, 14.6, 16.1, 16.8_
-  - [ ] 11.2 Check the pieces that run on every page (V5)
+  - [x] 11.2 Check the pieces that run on every page (V5)
     - Read `plugins/cloud.client.ts` and `useChannelMutes` with no session and confirm in the network tab that nothing is sent; if something is, guard it with `startsSession` and add a test
     - _Requirements: 3.1_
 
