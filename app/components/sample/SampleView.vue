@@ -9,7 +9,7 @@ import { SAMPLE_COPY } from '~/utils/sample-copy'
 import { canvasPreview, finishView, firstSkillId, previewModel } from '~/utils/sample-view'
 
 /**
- * The sample path page (spec: sample-path, Requirements 4 to 6). It draws a static Sample with
+ * The sample path page (spec: sample-path, Requirements 4 to 9). It draws a static Sample with
  * the path screen's own components in Preview_Mode. It holds no Progress and reads no session,
  * account or API: nothing here costs anything before the visitor asks for a path (Requirement 3).
  */
@@ -22,6 +22,7 @@ const states = deriveNodeStates(tree, progress)
 const preview = canvasPreview(props.sample)
 const finish = finishView(props.sample)
 const noAnimation: ReadonlySet<string> = new Set()
+const placeholder = SAMPLE_COPY.placeholder(props.sample.slug)
 
 const viewport = useViewportClass()
 const { status, layout } = usePathLayout(tree, viewport)
@@ -34,10 +35,20 @@ const selected = computed(() => (selectedId.value === null ? null : previewModel
 /** The video playing in the preview; at most one (Req 8.3). */
 const activeVideoId = ref<string | null>(null)
 
+/** The note: one value for the desktop box and the mobile sheet (Req 9.7). Memory only, never stored. */
+const note = ref('')
+
 /** Mobile skill sheet, and the skill whose node opened it, for focus return (Req 7.3, 7.7). */
 const skillSheetOpen = ref(false)
 const openerId = ref<string | null>(null)
 const canvas = useTemplateRef<{ focusNode: (id: string) => void }>('canvas')
+
+/** Mobile Make it yours sheet, and where focus goes back when it closes (Req 9.6). */
+const mineSheetOpen = ref(false)
+type FocusReturn = { kind: 'element'; el: HTMLElement } | { kind: 'node'; id: string } | null
+let mineReturn: FocusReturn = null
+
+const mineBox = useTemplateRef<{ focusNote: () => void }>('mineBox')
 
 /** Desktop: a click selects (Req 7.2). Mobile: a tap opens the sheet (Req 7.3). */
 function onSelect(id: string): void {
@@ -53,21 +64,53 @@ function onSelect(id: string): void {
   activeVideoId.value = null
 }
 
+function focusNodeLater(id: string): void {
+  void nextTick(() => canvas.value?.focusNode(id))
+}
+
 function closeSkillSheet(): void {
   skillSheetOpen.value = false
   activeVideoId.value = null
-  const opener = openerId.value
-  if (opener !== null) void nextTick(() => canvas.value?.focusNode(opener))
+  if (openerId.value !== null) focusNodeLater(openerId.value)
 }
 
-// A change to desktop shows the selection in the panel; a change back opens no sheet (Req 7.9).
-watch(viewport, (next) => {
-  if (next !== 'mobile') skillSheetOpen.value = false
-})
+/** The bar's button opens the sheet (Req 9.4). */
+function openMineFromBar(opener: HTMLElement): void {
+  mineReturn = { kind: 'element', el: opener }
+  mineSheetOpen.value = true
+}
 
+/** "Make this path mine" at the end of the skill sheet swaps the sheets (Req 7.8). */
+function openMineFromSkill(): void {
+  skillSheetOpen.value = false
+  activeVideoId.value = null
+  mineReturn = openerId.value === null ? null : { kind: 'node', id: openerId.value }
+  mineSheetOpen.value = true
+}
+
+function closeMineSheet(): void {
+  mineSheetOpen.value = false
+  const target = mineReturn
+  mineReturn = null
+  if (target?.kind === 'node') focusNodeLater(target.id)
+  else if (target?.kind === 'element') void nextTick(() => target.el.focus())
+}
+
+/** "Build my own path" in the desktop top bar (Req 4.3). */
 function focusNote(): void {
-  // Task 8 wires the Make it yours box.
+  mineBox.value?.focusNote()
 }
+
+/** "Build my path" and "Skip" (Requirement 10): the handoff is wired in task 10. */
+function build(_skipped: boolean): void {}
+
+// Each layout shows its own way in; a change of viewport opens nothing (Req 7.9, 9.7).
+watch(viewport, (next) => {
+  if (next !== 'mobile') {
+    skillSheetOpen.value = false
+    mineSheetOpen.value = false
+  }
+})
 </script>
 
 <template>
@@ -80,7 +123,8 @@ function focusNote(): void {
           <SampleIntroCard :sample="sample" />
         </div>
 
-        <div class="pt-6" :class="{ 'pb-24 lg:pb-10': ready }">
+        <!-- pb-28 on phones keeps the finish line card above the sticky bar (Req 9.5). -->
+        <div class="pt-6" :class="{ 'pb-28 lg:pb-10': ready }">
           <PathCanvas
             v-if="ready && layout"
             ref="canvas"
@@ -105,10 +149,18 @@ function focusNote(): void {
         </div>
       </main>
 
-      <!-- Right column (desktop): the skill preview; Make it yours comes under it in task 8.
-           -mr-7 takes back the side panel's own right padding, so the cards line up with the top bar. -->
-      <div class="hidden lg:-mr-7 lg:block">
-        <PathSidePanel v-if="viewport === 'desktop'">
+      <!--
+        Right column (desktop). Sticky, and one screen minus the 82 px top bar tall, so at the top of
+        the page the whole column is in view. The preview scrolls inside it; Make it yours and the
+        founding line never move out of view (Req 9.3). The path screen's side panel is one full
+        screen tall because that screen has no top bar, so it is not reused here.
+      -->
+      <aside
+        v-if="viewport === 'desktop'"
+        aria-label="Skill preview and Make it yours"
+        class="sticky top-0 hidden h-[calc(100dvh-82px)] flex-col gap-5 pt-7 pb-6 lg:flex"
+      >
+        <div class="min-h-0 shrink overflow-y-auto pb-2">
           <SampleSkillPreview
             v-if="selected"
             :model="selected"
@@ -117,19 +169,41 @@ function focusNote(): void {
             @play="activeVideoId = $event"
             @stop="activeVideoId = null"
           />
-        </PathSidePanel>
-      </div>
+        </div>
+        <div class="flex shrink-0 flex-col gap-1">
+          <SampleMineBox ref="mineBox" v-model="note" :placeholder="placeholder" layout="panel" @build="build(false)" />
+          <SampleFoundingLine />
+        </div>
+      </aside>
     </div>
 
-    <PathBottomSheet v-if="viewport === 'mobile'" :open="skillSheetOpen" labelled-by="sample-preview-title-sheet" @close="closeSkillSheet">
-      <SampleSkillPreview
-        v-if="selected"
-        :model="selected"
-        layout="sheet"
-        :active-video-id="activeVideoId"
-        @play="activeVideoId = $event"
-        @stop="activeVideoId = null"
-      />
-    </PathBottomSheet>
+    <template v-if="viewport === 'mobile'">
+      <SampleMineBar @open="openMineFromBar" />
+
+      <PathBottomSheet :open="skillSheetOpen" labelled-by="sample-preview-title-sheet" @close="closeSkillSheet">
+        <SampleSkillPreview
+          v-if="selected"
+          :model="selected"
+          layout="sheet"
+          :active-video-id="activeVideoId"
+          @play="activeVideoId = $event"
+          @stop="activeVideoId = null"
+        >
+          <AppButton class="mt-1 w-full cursor-pointer" @click="openMineFromSkill">{{ SAMPLE_COPY.makeMine }}</AppButton>
+        </SampleSkillPreview>
+      </PathBottomSheet>
+
+      <PathBottomSheet :open="mineSheetOpen" labelled-by="sample-mine-title-sheet" @close="closeMineSheet">
+        <SampleMineBox v-model="note" :placeholder="placeholder" layout="sheet" @build="build(false)">
+          <button
+            type="button"
+            class="min-h-11 cursor-pointer self-center rounded-xl px-3 text-[15px] font-extrabold text-ink underline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink"
+            @click="build(true)"
+          >
+            {{ SAMPLE_COPY.skip }}
+          </button>
+        </SampleMineBox>
+      </PathBottomSheet>
+    </template>
   </div>
 </template>

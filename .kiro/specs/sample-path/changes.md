@@ -3,9 +3,9 @@
 Implementation of the `sample-path` spec ([scenarios](scenarios.md), [requirements](requirements.md), [design](design.md), [tasks](tasks.md)). This file grows with the work. So far it covers task 1, the analytics bug APP-ANALYTICS-01, which the owner asked to fix first and on its own (plan reviewed by the owner on 2026-11-23 before the code changed), and task 2, the sample data.
 
 - **Repos and branches:** `pursio`. G1 was made on `fix/analytics-funnel-chain` and merged into `main`; everything after it is on `main`
-- **State:** G1 committed in `f5101ed` and merged into `main` (fast forward) on 2026-11-23; checked alone in a clean worktree: 1434 passed, 16 skipped. Spec documents in `9fccee2`. G2 in `6afec4a`. G3 in `43dac82`. G4 in `42c4730`. G5 in `0abcd39`. G6 committed with this update. From G2 on, work is on `main` and each separate task is committed when done (owner, 2026-11-23)
+- **State:** G1 committed in `f5101ed` and merged into `main` (fast forward) on 2026-11-23; checked alone in a clean worktree: 1434 passed, 16 skipped. Spec documents in `9fccee2`. G2 in `6afec4a`. G3 in `43dac82`. G4 in `42c4730`. G5 in `0abcd39`. G6 in `9a355d8`. G7 committed with this update. From G2 on, work is on `main` and each separate task is committed when done (owner, 2026-11-23)
 - **Status:** 1 of 1 done *(bug fixes)*; the production check F4 waits for the deploy
-- **Size:** G1: 9 files changed, 4 added. G2: 2 files changed, 13 added (incl. 3 generated data files). G3: 4 files changed, 7 added. G4: 7 files changed, 5 added. G5: 7 files changed, 3 added. G6: 2 files changed, 2 added. 6 groups
+- **Size:** G1: 9 files changed, 4 added. G2: 2 files changed, 13 added (incl. 3 generated data files). G3: 4 files changed, 7 added. G4: 7 files changed, 5 added. G5: 7 files changed, 3 added. G6: 2 files changed, 2 added. G7: 2 files changed, 3 added. 7 groups
 
 ## Scenarios *(bug fixes)*
 
@@ -51,6 +51,7 @@ So the report has two parts:
 4. G4. Preview_Mode of the shared components: the only changes to files the real path screen uses; check that every default keeps today's output.
 5. G5. The page: top bar, intro card, path and finish card, built from the components of G4.
 6. G6. Skill preview and selection: the read only skill detail, its videos with no recording, and the mobile sheet.
+7. G7. Make it yours: the box, the mobile bar and sheet, the founding line. The build buttons do nothing until G8.
 
 ## Groups
 
@@ -202,6 +203,22 @@ The sample page now draws the whole path as in the mockups. The right column (pr
   - "Make this path mine" at the end of the skill sheet is built in task 8 with the sheet it opens (tasks.md updated).
   - Videos whose title holds a hyphen (4 of 12) show it as published (decision 13).
 
+### G7. Make it yours (task 8; Req 4.3, 7.8, 9)
+
+| File | Why it changed |
+|---|---|
+| [app/components/sample/SampleMineBox.vue](../../../app/components/sample/SampleMineBox.vue) | New. Heading, the new hobby page's `HobbyNoteField` with the sample label, no "optional", and the hobby's placeholder (grows with its text, 800 limit, counter), `AppButton` "Build my path" in a form, a slot for Skip, the small line. Desktop: tinted card with the primary border. Exposes `focusNote`; emits `noteFocus` for task 10's event |
+| [app/components/sample/SampleMineBar.vue](../../../app/components/sample/SampleMineBar.vue) | New. Fixed bottom bar with the safe area; below 380 px only the button, full width |
+| [app/components/sample/SampleFoundingLine.vue](../../../app/components/sample/SampleFoundingLine.vue) | New. Desktop line, draft wording, plain link to `/?landing=1#founding`, 44 px hit area; reads no state |
+| [app/components/sample/SampleView.vue](../../../app/components/sample/SampleView.vue) | One `note` for both layouts. Desktop: the right column is now its own sticky aside, one screen minus the top bar, the preview scrolling inside it, the box and the founding line always in view; "Build my own path" focuses the note. Mobile: the bar, the Make it yours sheet with Skip, "Make this path mine" at the end of the skill sheet; focus returns to the bar button or to the skill's node. A change of viewport closes both sheets. `build()` is a stub until task 10 |
+| [app/components/sample/SampleTopBar.vue](../../../app/components/sample/SampleTopBar.vue) | 80 px tall on desktop (82 with the border), the height the aside is sized against |
+
+- **Watch for:**
+  - **The side panel is no longer reused** (it was in G6): it is one full screen tall, which with this page's top bar put the bottom 82 px of the column, the Make it yours box, out of view at load. design.md updated.
+  - **The mobile bar below 380 px shows only the button.** Requirement 9.4 updated. The sheet repeats "Free to try. No signup."
+  - Both build buttons and Skip do nothing until task 10, so this commit must not ship on its own; it is not linked from anywhere yet.
+  - The mine sheet puts first focus on its close button, as the skill sheet does (`PathBottomSheet`), not in the textarea, so a phone's keyboard does not jump up on open.
+
 ## Decisions
 
 1. **Where `skill_path_generated` is sent.** Decided 2026-11-23 (OD1, decision 13): server only, with the browser's distinct id.
@@ -228,6 +245,8 @@ No open decision in this group.
 - **G5, not run:** other themes, a screen reader pass; both in the manual pass.
 - **G6, run:** `yarn typecheck`: 0 errors. `yarn test`: 1523 passed, 16 skipped (2 new). Screenshots: desktop 1440 px matches the desktop mockup's right column (tag, position, quests with empty boxes, two video cards) and lines up with the top bar; 360 px after a tap on "Aperture and background blur" shows the sheet as in the "Skill tapped" mockup, with "Videos appear when you reach this skill." and no videos heading.
 - **G6, not run:** playing a video (needs a real YouTube embed), focus return and Escape with a keyboard; manual rows C3, C5, C7.
+- **G7, run:** `yarn typecheck`: 0 errors. `yarn test`: 1523 passed. Screenshots: desktop 1440×900, the box, the button and the founding line fully in view with the first skill's preview scrolling above them; 360 px, the bar as one full-width button, the Make it yours sheet as in its mockup with the photography placeholder, Skip and the small line; 390 px, the bar as in the mockup; guitar at 360 px, the finish card clear of the bar.
+- **G7, not run:** typing, the counter, focus return, Escape; manual rows D2 to D7.
 
 ## Manual checks before release
 

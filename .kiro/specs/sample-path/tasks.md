@@ -141,14 +141,14 @@ The owner answered OD1 to OD6 on 2026-11-23 (scenarios.md, decisions 13 to 17). 
     - Closing or changing skill clears the active video; selection survives a viewport change
     - _Requirements: 7.1 to 7.3, 7.7 to 7.9, 8.3_
 
-- [ ] 8. Make it yours
-  - [ ] 8.1 Build `SampleMineBox` and `SampleMineBar`
+- [x] 8. Make it yours
+  - [x] 8.1 Build `SampleMineBox` and `SampleMineBar`
     - Box: heading, `HobbyNoteField` with the label and the slug's placeholder, `AppButton` "Build my path", the small line, a slot for Skip; exposes `focusNote`
     - Desktop card tint; check contrast with `contrast.test.ts`, add a token to every theme if one is missing
     - `SampleFoundingLine`: desktop only, the draft copy and a `NuxtLink` to `/?landing=1#founding`; no state, no request
     - Bar: fixed bottom, safe area, "Make it yours", "Free. No signup.", `AppButton` "Tell Wick where I am"
     - _Requirements: 9.1 to 9.5, 9.8 to 9.11_
-  - [ ] 8.2 Wire the box into `SampleView`
+  - [x] 8.2 Wire the box into `SampleView`
     - Desktop: under the preview in the right column, preview scrolls, box always in view
     - Mobile: the Mine_Sheet with the Skip text button; focus return to the opener or to the skill's node
     - "Build my own path" focuses the note; one `note` ref for both layouts

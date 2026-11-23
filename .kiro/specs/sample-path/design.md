@@ -266,13 +266,13 @@ Desktop, from the mockup:
 ```
 
 - Grid: `lg:grid lg:grid-cols-[minmax(0,1fr)_clamp(360px,30vw,460px)]` inside a centered container, the main column `max-w-160` as on the path screen. There is no sidebar column.
-- Right column: `PathSidePanel` holds a flex column. The preview card is `min-h-0 flex-1 overflow-y-auto`, the Mine_Box `shrink-0`, so the box stays in view when a playing video makes the preview tall (Requirement 9.3).
+- Right column: its own sticky `aside`, `h-[calc(100dvh-82px)]`, under a top bar fixed at 82 px on desktop. The preview wrapper is `min-h-0 shrink overflow-y-auto`, the Mine_Box and founding line `shrink-0`, so the box stays in view at the top of the page and when a playing video makes the preview tall (Requirement 9.3). `PathSidePanel` is not reused: it is one full screen tall because the path screen has no top bar, which here would push the box 82 px below the window.
 - Mine_Box card on desktop: `bg-primary-soft border-2 border-primary rounded-3xl shadow-raised-primary`. If a token for this pairing does not pass the contrast test, the missing token is added to every theme first, as the design rule asks.
 
 Mobile:
 
 - Top bar with logo and tag, intro card, path, finish card, then `pb` equal to the bar's height plus the safe area.
-- `SampleMineBar`: `fixed inset-x-0 bottom-0 z-30`, `border-t-2 border-line bg-surface`, `pb-[env(safe-area-inset-bottom)]`. The sheets use the existing `z-40` and `z-50`, so they cover it.
+- `SampleMineBar`: `fixed inset-x-0 bottom-0 z-30`, `border-t-2 border-line bg-surface`, `pb-[env(safe-area-inset-bottom)]`. The sheets use the existing `z-40` and `z-50`, so they cover it. Below 380 px the text block hides and the button takes the full width: at 360 px the text and the button at its fixed padding need about 335 of the 328 px.
 - Skill sheet: `PathBottomSheet` with `SampleSkillPreview` and the "Make this path mine" button.
 - Mine_Sheet: a second `PathBottomSheet` with `SampleMineBox` and the Skip text button.
 

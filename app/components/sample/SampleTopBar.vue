@@ -12,7 +12,8 @@ const emit = defineEmits<{ buildOwn: [] }>()
 <template>
   <header class="border-b-2 border-line">
     <!-- Same logo markup as the new hobby page's header. -->
-    <div class="mx-auto flex w-full max-w-[1048px] items-center justify-between gap-3 px-4 py-4 max-[700px]:py-3">
+    <!-- 80 px tall on desktop (82 with the border): the sticky right column of SampleView is sized to it. -->
+    <div class="mx-auto flex w-full max-w-[1048px] items-center justify-between gap-3 px-4 py-3 lg:h-20 lg:py-0">
       <div class="flex min-w-0 items-center gap-3">
         <NuxtLink
           to="/"
