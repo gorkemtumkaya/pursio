@@ -1,11 +1,13 @@
 <script setup lang="ts">
 import { computed, onBeforeUnmount, ref, watch } from 'vue'
 import { useFocusTrap } from '~/composables/useFocusTrap'
+import { useSheetSwipe } from '~/composables/useSheetSwipe'
 
 /**
  * Mobile Node_Detail container (Req 8.1, 8.13, 8.14, 8.17). Teleported to
  * `<body>`, traps focus with initial focus on the close button, closes on
- * backdrop tap, close button and Escape, and locks body scroll while open.
+ * backdrop tap, close button, Escape and a swipe down from the top of its
+ * content, and locks body scroll while open.
  */
 const props = defineProps<{ open: boolean; labelledBy: string }>()
 const emit = defineEmits<{ close: [] }>()
@@ -19,6 +21,7 @@ function close(): void {
 }
 
 useFocusTrap(sheet, { active, initialFocus: closeButton, onEscape: close })
+const swipe = useSheetSwipe(sheet, close)
 
 let previousOverflow: string | null = null
 
@@ -63,6 +66,7 @@ onBeforeUnmount(unlockScroll)
       leave-active-class="transition-transform duration-200 ease-in motion-reduce:transition-none"
       enter-from-class="translate-y-full"
       leave-to-class="translate-y-full"
+      @leave="swipe.onLeave"
     >
       <div
         v-if="open"
@@ -71,6 +75,10 @@ onBeforeUnmount(unlockScroll)
         aria-modal="true"
         :aria-labelledby="labelledBy"
         class="fixed inset-x-0 bottom-0 z-50 max-h-[90dvh] overflow-y-auto rounded-t-3xl bg-surface px-5 pt-2.5 pb-6"
+        @touchstart="swipe.onTouchstart"
+        @touchmove="swipe.onTouchmove"
+        @touchend="swipe.onTouchend"
+        @touchcancel="swipe.onTouchcancel"
       >
         <div aria-hidden="true" class="mb-1 flex justify-center">
           <span class="h-1.5 w-11 rounded-full bg-line" />

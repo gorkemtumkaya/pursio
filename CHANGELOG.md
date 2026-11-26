@@ -6,6 +6,11 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+## [0.13.0] - 2026-11-26
+
+### Added
+- On phones, you can close any panel that slides up from the bottom by swiping it down: a skill, your hobbies, the Fresh sources and the sample path panels. A short drag springs back, and the close button still works.
+
 ## [0.12.0] - 2026-11-23
 
 ### Added
